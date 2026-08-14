@@ -1093,7 +1093,7 @@ def generate_json(
                     resolved_model=deployment_name,
                     api="responses",
                 )
-                response_content = response.output_text
+                response_content = _responses_final_content(response)
             else:
                 # Use Chat Completions API
                 api_params = {
@@ -1127,7 +1127,7 @@ def generate_json(
                 raise
             time.sleep(1)
             
-        except LLMAccountingError:
+        except (LLMAccountingError, LLMIncompleteResponse):
             raise
 
         except Exception as e:

@@ -25,7 +25,7 @@ import os
 import re
 import random
 import argparse
-import threading
+import tempfile
 from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Any, Optional
@@ -1631,6 +1631,71 @@ Output valid JSON:
 # CLI Main
 # =============================================================================
 
+
+def _sample_id(sample: Dict[str, Any], idx: int) -> str:
+    """Return the stable identifier used by checkpoint/resume."""
+    return sample.get("task_id", f"sample-{idx}")
+
+
+def _next_unprocessed_index(
+    data: List[Dict[str, Any]],
+    processed_ids: set,
+) -> int:
+    """Return the first unfinished input index, never the last completed index."""
+    for idx, sample in enumerate(data):
+        if _sample_id(sample, idx) not in processed_ids:
+            return idx
+    return len(data)
+
+
+def _ordered_results(
+    results: List[Dict[str, Any]],
+    data: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Keep checkpoint and final output deterministic despite parallel completion."""
+    positions = {
+        _sample_id(sample, idx): idx
+        for idx, sample in enumerate(data)
+    }
+    return sorted(
+        results,
+        key=lambda result: (
+            positions.get(result.get("task_id"), len(data)),
+            str(result.get("task_id", "")),
+        ),
+    )
+
+
+def atomic_write_json(
+    path: str | Path,
+    payload: Any,
+    *,
+    indent: Optional[int] = None,
+) -> None:
+    """Write JSON beside the target and atomically replace it when complete."""
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=target.parent,
+            prefix=f".{target.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temp_file:
+            temp_path = Path(temp_file.name)
+            json.dump(payload, temp_file, indent=indent)
+            temp_file.flush()
+            os.fsync(temp_file.fileno())
+        os.replace(temp_path, target)
+        temp_path = None
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Predecessor inference function predecessor (production)"
@@ -1769,7 +1834,6 @@ def main():
     # Resume from checkpoint
     results = []
     failed = 0
-    start_idx = 0
     processed_ids = set()
     
     if args.resume and os.path.exists(checkpoint_path):
@@ -1778,9 +1842,9 @@ def main():
             checkpoint_data = json.load(f)
         results = checkpoint_data.get("results", [])
         failed = checkpoint_data.get("failed", 0)
-        start_idx = checkpoint_data.get("next_idx", 0)
         processed_ids = set(checkpoint_data.get("processed_ids", []))
-        print(f"  Loaded {len(results)} completed results, starting from index {start_idx}")
+        next_idx = _next_unprocessed_index(data, processed_ids)
+        print(f"  Loaded {len(results)} completed results, first unfinished index {next_idx}")
     
     # Initialize generator
     script_dir = Path(__file__).parent
@@ -1803,17 +1867,10 @@ def main():
         corpus_dataset=args.corpus_dataset,
     )
     
-    # Thread-safe lock for shared state
-    results_lock = threading.Lock()
-    actual_idx = start_idx
-    
     def process_sample(idx_sample):
         """Process a single sample."""
         idx, sample = idx_sample
-        sample_id = sample.get("task_id", f"sample-{idx}")
-        
-        if sample_id in processed_ids:
-            return None, sample_id, "skipped"
+        sample_id = _sample_id(sample, idx)
         
         result = generator.generate_predecessors(sample)
         
@@ -1822,25 +1879,45 @@ def main():
         else:
             return None, sample_id, "failed"
     
-    def save_checkpoint(next_idx):
+    def save_checkpoint():
+        input_positions = {
+            _sample_id(sample, idx): idx
+            for idx, sample in enumerate(data)
+        }
+        ordered_processed_ids = sorted(
+            processed_ids,
+            key=lambda sample_id: (
+                input_positions.get(sample_id, len(data)),
+                str(sample_id),
+            ),
+        )
         checkpoint_data = {
-            "results": results,
+            "results": _ordered_results(results, data),
             "failed": failed,
-            "next_idx": next_idx,
-            "processed_ids": list(processed_ids),
+            "next_idx": _next_unprocessed_index(data, processed_ids),
+            "processed_ids": ordered_processed_ids,
             "total_samples": len(data),
             "num_predecessors": args.num_predecessors,
             "dataset_type": args.dataset_type,
         }
-        with open(checkpoint_path, "w") as f:
-            json.dump(checkpoint_data, f)
+        atomic_write_json(checkpoint_path, checkpoint_data)
+
+    # Resume by identity, not by next_idx. Parallel futures can finish out of order,
+    # so a high completed index says nothing about lower-index work.
+    samples_to_process = []
+    scheduled_ids = set(processed_ids)
+    for idx, sample in enumerate(data):
+        sample_id = _sample_id(sample, idx)
+        if sample_id in scheduled_ids:
+            continue
+        scheduled_ids.add(sample_id)
+        samples_to_process.append((idx, sample))
     
     print(f"\nGenerating predecessor inference chains...")
     
     try:
         if args.parallel > 1:
             print(f"  Using {args.parallel} parallel workers...")
-            samples_to_process = [(start_idx + i, s) for i, s in enumerate(data[start_idx:])]
             
             with ThreadPoolExecutor(max_workers=args.parallel) as executor:
                 futures = {executor.submit(process_sample, item): item for item in samples_to_process}
@@ -1849,26 +1926,26 @@ def main():
                     for future in as_completed(futures):
                         result, sample_id, status = future.result()
                         
-                        with results_lock:
-                            if status == "success":
-                                results.append(result)
-                                processed_ids.add(sample_id)
-                            elif status == "failed":
-                                failed += 1
+                        if status == "success":
+                            # Append before marking processed. If interrupted between
+                            # these operations, resume may repeat work but cannot skip it.
+                            results.append(result)
+                            processed_ids.add(sample_id)
+                        elif status == "failed":
+                            failed += 1
+
+                        # Persist every observed completion. Atomic replacement leaves
+                        # the previous valid checkpoint intact if interrupted mid-write.
+                        save_checkpoint()
                         
                         pbar.update(1)
         else:
-            for idx, sample in enumerate(tqdm(
-                data[start_idx:],
+            for completed_count, (actual_idx, sample) in enumerate(tqdm(
+                samples_to_process,
                 desc="Predecessor inference",
-                initial=start_idx,
-                total=len(data),
-            )):
-                actual_idx = start_idx + idx
-                sample_id = sample.get("task_id", f"sample-{actual_idx}")
-                
-                if sample_id in processed_ids:
-                    continue
+                total=len(samples_to_process),
+            ), start=1):
+                sample_id = _sample_id(sample, actual_idx)
                 
                 result = generator.generate_predecessors(sample)
                 
@@ -1879,26 +1956,28 @@ def main():
                     failed += 1
                 
                 # Checkpoint
-                if (actual_idx + 1) % args.checkpoint_interval == 0:
-                    save_checkpoint(actual_idx + 1)
-                    print(f"\n  💾 Checkpoint saved at index {actual_idx + 1} ({len(results)} results)")
+                if completed_count % args.checkpoint_interval == 0:
+                    save_checkpoint()
+                    print(f"\n  💾 Checkpoint saved after {completed_count} attempts ({len(results)} results)")
     
     except KeyboardInterrupt:
         print(f"\n\n⚠️  Interrupted! Saving checkpoint...")
-        save_checkpoint(actual_idx + 1)
+        save_checkpoint()
         print(f"  💾 Checkpoint saved to: {checkpoint_path}")
         print(f"  To resume, run with --resume flag")
         return
     
     except Exception as e:
         print(f"\n\n❌ Error occurred: {e}")
-        save_checkpoint(actual_idx + 1)
+        save_checkpoint()
         print(f"  💾 Emergency checkpoint saved to: {checkpoint_path}")
         raise
     
-    # Save final results
-    with open(args.output, "w") as f:
-        json.dump(results, f, indent=2)
+    # Save a complete checkpoint even when the sequential interval was not reached,
+    # then atomically publish deterministic final results.
+    save_checkpoint()
+    results = _ordered_results(results, data)
+    atomic_write_json(args.output, results, indent=2)
     
     print(f"\n{'='*60}")
     print(f"✓ Successfully processed: {len(results)}/{len(data)} samples")

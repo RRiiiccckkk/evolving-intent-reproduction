@@ -179,6 +179,32 @@ class ProviderConfigurationTests(unittest.TestCase):
         self.assertEqual(payload["max_tokens"], 77)
         self.assertNotIn("max_completion_tokens", payload)
 
+    def test_compatible_backend_omits_all_output_limits_when_disabled(self):
+        os.environ.update(
+            {
+                "LLM_BACKEND": "compatible",
+                "LLM_API_KEY": "key",
+                "LLM_BASE_URL": "https://example.invalid/v1",
+                "LLM_MODEL_MAP": json.dumps({"plan-a": "kimi-k2.6"}),
+                "LLM_DISABLE_OUTPUT_LIMITS": "1",
+            }
+        )
+        create = Mock(return_value=_chat_response())
+        client = SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=create))
+        )
+
+        with patch.object(llm_utils, "get_client", return_value=client):
+            llm_utils.generate_text(
+                [{"role": "user", "content": "text"}],
+                model="plan-a",
+                max_tokens=77,
+            )
+
+        payload = create.call_args.kwargs
+        for field in ("max_tokens", "max_output_tokens", "max_completion_tokens"):
+            self.assertNotIn(field, payload)
+
     def test_reasoning_content_is_never_used_as_final_answer(self):
         os.environ.update(
             {
@@ -232,6 +258,38 @@ class ProviderConfigurationTests(unittest.TestCase):
         )
         with self.assertRaises(llm_utils.LLMIncompleteResponse):
             llm_utils._responses_final_content(response)
+
+    def test_generate_json_rejects_incomplete_responses_without_retry(self):
+        os.environ["OPENAI_API_KEY"] = "not-a-real-key"
+        responses = (
+            SimpleNamespace(
+                status="incomplete",
+                incomplete_details=SimpleNamespace(reason="max_output_tokens"),
+                output_text='{"ok": true}',
+                usage=None,
+            ),
+            SimpleNamespace(
+                status="completed",
+                incomplete_details=None,
+                output_text="",
+                usage=None,
+            ),
+        )
+
+        for response in responses:
+            with self.subTest(status=response.status, output_text=response.output_text):
+                create = Mock(return_value=response)
+                client = SimpleNamespace(
+                    responses=SimpleNamespace(create=create)
+                )
+                with patch.object(llm_utils, "get_client", return_value=client):
+                    with self.assertRaises(llm_utils.LLMIncompleteResponse):
+                        llm_utils.generate_json(
+                            [{"role": "user", "content": "json"}],
+                            model="codex-test",
+                            max_retries=3,
+                        )
+                create.assert_called_once()
 
 
 class UsageAccountingTests(unittest.TestCase):

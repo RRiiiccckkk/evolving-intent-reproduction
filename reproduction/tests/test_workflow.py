@@ -191,8 +191,10 @@ class SettingTests(unittest.TestCase):
             )
             for task_id in task_ids
         ]
+        evaluation_kwargs = []
 
         def evaluate_sample(sample, *_args, **_kwargs):
+            evaluation_kwargs.append(_kwargs)
             return {
                 "task_id": sample.task_id,
                 "prediction": "1",
@@ -243,6 +245,9 @@ class SettingTests(unittest.TestCase):
 
         self.assertEqual(checkpoint["selected_task_ids"], task_ids)
         self.assertEqual(list(checkpoint["results"]), task_ids)
+        self.assertEqual(len(evaluation_kwargs), len(task_ids))
+        self.assertTrue(all("max_tokens" in kwargs for kwargs in evaluation_kwargs))
+        self.assertTrue(all(kwargs["max_tokens"] is None for kwargs in evaluation_kwargs))
 
     def test_result_checkpoint_rejects_model_mixing(self):
         from reproduction.plan_a import _validate_result_checkpoint
@@ -303,6 +308,11 @@ class StatisticsTests(unittest.TestCase):
         self.assertEqual(paired["regressed"], 2)
         self.assertEqual(paired["improved"], 0)
         self.assertAlmostEqual(paired["percentage_point_difference"], -20.0)
+        self.assertEqual(
+            summary["trend_assessment"],
+            "mixed_not_reproduced_at_this_sample_size",
+        )
+        self.assertIn("does not reproduce", summary["interpretation"])
 
     def test_aggregation_excludes_failed_calls_from_every_accuracy(self):
         config = load_config()
@@ -362,6 +372,61 @@ class StatisticsTests(unittest.TestCase):
         self.assertEqual(summary["input_tokens"], 100)
         self.assertEqual(summary["reasoning_tokens"], 5)
         self.assertIsNone(summary["hard_cap_usd"])
+
+    def test_ledger_summary_separates_formal_and_incidental_models(self):
+        events = [
+            {
+                "event": "reservation",
+                "reservation_id": "settled",
+                "estimated_cost_usd": 0.3,
+                "requested_model": "kimi-k2.6",
+                "resolved_model": "kimi-k2.6",
+            },
+            {
+                "event": "reservation",
+                "reservation_id": "outstanding",
+                "estimated_cost_usd": 0.2,
+                "requested_model": "kimi-k2.6",
+                "resolved_model": "kimi-k2.6",
+            },
+            {
+                "event": "usage",
+                "reservation_id": "settled",
+                "requested_model": "kimi-k2.6",
+                "resolved_model": "kimi-k2.6",
+                "cost_usd": 0.25,
+                "input_tokens": 100,
+                "output_tokens": 20,
+            },
+            {
+                "event": "usage",
+                "requested_model": "moonshot-v1-8k",
+                "resolved_model": "moonshot-v1-8k",
+                "cost_usd": 0.05,
+                "input_tokens": 10,
+                "output_tokens": 5,
+            },
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger = Path(tmp) / "cost.jsonl"
+            ledger.write_text("".join(json.dumps(event) + "\n" for event in events))
+            summary = summarize_ledger(
+                ledger,
+                {"hard_cap_usd": None},
+                formal_models=["kimi-k2.6"],
+            )
+
+        self.assertEqual(summary["requests"], 1)
+        self.assertEqual(summary["actual_usd_recorded"], 0.25)
+        self.assertEqual(summary["billing_usage"]["requests"], 2)
+        self.assertEqual(summary["billing_usage"]["actual_usd_recorded"], 0.3)
+        self.assertEqual(summary["excluded_incidental_usage"]["requests"], 1)
+        self.assertEqual(
+            summary["excluded_incidental_usage"]["by_model"]["moonshot-v1-8k"]["requests"],
+            1,
+        )
+        self.assertEqual(summary["outstanding_reservations"]["count"], 1)
+        self.assertEqual(summary["outstanding_reservations"]["estimated_usd"], 0.2)
 
     def test_ledger_summary_rejects_unpriced_usage(self):
         with tempfile.TemporaryDirectory() as tmp:

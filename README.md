@@ -50,6 +50,28 @@ evaluation protocol.
 
 ## Results
 
+### Local Plan A reproduction
+
+The completed paired GSM8K run uses 10 published evaluation IDs and Kimi K2.6
+for both construction and evaluation. All four settings completed 10/10
+samples successfully.
+
+| Setting | Accuracy | Paired change vs. single turn |
+|---|---:|---:|
+| Single turn | 90% | baseline |
+| 4-turn evolving intent | 80% | -10 pp |
+| 7-turn repeat control | 80% | -10 pp |
+| 7-turn evolving intent | 90% | 0 pp |
+
+This small run **does not reproduce the paper's progressive degradation
+trend**: the 4-turn loss also appears in the repeat control, and the 7-turn
+evolving setting returns to baseline. N=10 Wilson intervals are wide, so the
+result is inconclusive rather than evidence against the paper. See the
+[HTML report](reproduction/runs/plan-a-kimi-k2.6-n10-20260814/summary.html)
+and [reproduction protocol](REPRODUCTION.md).
+
+### Paper results
+
 We evaluate LLMs across multiple benchmarks under a single-turn
 (static) setting and our evolving-intent setting. Even strong models degrade
 substantially as user intent evolves over the conversation—after only a few

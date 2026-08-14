@@ -581,27 +581,93 @@ def read_ledger(path: str | Path) -> list[dict[str, Any]]:
     return events
 
 
-def summarize_ledger(path: str | Path, budget: Mapping[str, Any]) -> dict[str, Any]:
+def _usage_totals(events: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    return {
+        "requests": len(events),
+        "actual_usd_recorded": round(
+            sum(float(event.get("cost_usd") or 0.0) for event in events), 6
+        ),
+        "input_tokens": sum(int(event.get("input_tokens") or 0) for event in events),
+        "output_tokens": sum(int(event.get("output_tokens") or 0) for event in events),
+        "cached_tokens": sum(int(event.get("cached_tokens") or 0) for event in events),
+        "reasoning_tokens": sum(int(event.get("reasoning_tokens") or 0) for event in events),
+    }
+
+
+def summarize_ledger(
+    path: str | Path,
+    budget: Mapping[str, Any],
+    *,
+    formal_models: Sequence[str] | None = None,
+) -> dict[str, Any]:
     events = read_ledger(path)
     usage = [event for event in events if event.get("event") == "usage"]
     if any(event.get("cost_usd") is None for event in usage):
         raise WorkflowError("usage ledger contains an unpriced response")
+
+    accepted_models = set(formal_models or [])
+    if accepted_models:
+        formal_usage = [
+            event
+            for event in usage
+            if event.get("requested_model") in accepted_models
+            and event.get("resolved_model") in accepted_models
+        ]
+    else:
+        formal_usage = usage
+    excluded_usage = [event for event in usage if event not in formal_usage]
+
+    by_model: dict[str, list[dict[str, Any]]] = {}
+    for event in excluded_usage:
+        model = str(event.get("resolved_model") or event.get("requested_model") or "unknown")
+        by_model.setdefault(model, []).append(event)
+
+    reservations = {
+        str(event["reservation_id"]): event
+        for event in events
+        if event.get("event") == "reservation" and event.get("reservation_id")
+    }
+    settled_reservations = {
+        str(event["reservation_id"])
+        for event in usage
+        if event.get("reservation_id")
+    }
+    outstanding = [
+        event
+        for reservation_id, event in reservations.items()
+        if reservation_id not in settled_reservations
+    ]
+
+    formal_totals = _usage_totals(formal_usage)
+    billing_totals = _usage_totals(usage)
+    excluded_totals = _usage_totals(excluded_usage)
     return {
         "ledger_path": str(path),
         "events": len(events),
-        "requests": len(usage),
-        "actual_usd_recorded": round(
-            sum(float(event.get("cost_usd") or 0.0) for event in usage), 6
-        ),
-        "input_tokens": sum(int(event.get("input_tokens") or 0) for event in usage),
-        "output_tokens": sum(int(event.get("output_tokens") or 0) for event in usage),
-        "cached_tokens": sum(int(event.get("cached_tokens") or 0) for event in usage),
-        "reasoning_tokens": sum(int(event.get("reasoning_tokens") or 0) for event in usage),
+        **formal_totals,
+        "formal_models": sorted(accepted_models),
+        "billing_usage": billing_totals,
+        "excluded_incidental_usage": {
+            **excluded_totals,
+            "by_model": {
+                model: _usage_totals(model_events)
+                for model, model_events in sorted(by_model.items())
+            },
+        },
+        "outstanding_reservations": {
+            "count": len(outstanding),
+            "estimated_usd": round(
+                sum(float(event.get("estimated_cost_usd") or 0.0) for event in outstanding),
+                6,
+            ),
+            "note": "Unsettled local estimates are not confirmed provider charges.",
+        },
         "hard_cap_usd": budget.get("hard_cap_usd"),
         "planned_range_usd": budget.get("planned_range_usd"),
         "measurement_note": (
-            "Provider-reported usage is priced with LLM_PRICE_MAP and recorded "
-            "without a local spend cutoff."
+            "Provider-reported usage is priced with LLM_PRICE_MAP. Formal experiment "
+            "totals include only the manifest models; billing_usage includes every "
+            "ledger usage event. No local spend cutoff was applied."
         ),
     }
 
@@ -685,10 +751,43 @@ def aggregate_results(
             "unchanged": len(common) - improved - regressed,
         }
 
+    t4_difference = paired["evolve_t4_g1_p1"]["percentage_point_difference"]
+    repeat_difference = paired["repeat_control_t7"]["percentage_point_difference"]
+    t7_difference = paired["evolve_t7_g2_p2"]["percentage_point_difference"]
+    directionally_supports = (
+        t4_difference < 0
+        and t7_difference < t4_difference
+        and t7_difference < repeat_difference
+    )
+    trend_assessment = (
+        "directionally_supports_paper"
+        if directionally_supports
+        else "mixed_not_reproduced_at_this_sample_size"
+    )
+    model_names = sorted(set(manifest.get("models", {}).values()))
+    if directionally_supports:
+        interpretation = (
+            f"This N={len(common_success)} paired run is directionally consistent with "
+            "the paper, but its Wilson intervals are wide and it cannot establish "
+            "paper-scale effect sizes."
+        )
+    else:
+        interpretation = (
+            f"This N={len(common_success)} paired run does not reproduce the paper's "
+            "progressive evolving-intent degradation: the paired changes versus the "
+            f"single-turn baseline are {t4_difference:+.1f} pp for 4-turn evolve, "
+            f"{repeat_difference:+.1f} pp for the 7-turn repeat control, and "
+            f"{t7_difference:+.1f} pp for 7-turn evolve. The intervals are wide, so "
+            "this is an inconclusive small-sample result rather than evidence against "
+            "the paper."
+        )
+
     return {
         "schema_version": 1,
         "run_id": manifest["run_id"],
         "generated_at": iso_now(),
+        "models": model_names,
+        "trend_assessment": trend_assessment,
         "sample_selection": {
             "requested": len(expected_ids),
             "originally_selected": len(selected_ids),
@@ -697,11 +796,14 @@ def aggregate_results(
         },
         "settings": settings,
         "paired_differences": paired,
-        "cost": summarize_ledger(ledger_path, manifest.get("budget", {})),
-        "interpretation": (
-            "This small run tests directional behavior only. Wilson intervals are "
-            "wide at N=20 (or N=10 fallback), so it cannot establish paper-scale effect sizes."
+        "cost": summarize_ledger(
+            ledger_path,
+            manifest.get("budget", {}),
+            formal_models=model_names,
         ),
+        "execution": dict(manifest.get("execution", {})),
+        "repository": dict(manifest.get("repository", {})),
+        "interpretation": interpretation,
     }
 
 
@@ -740,46 +842,132 @@ def write_summary_csv(summary: Mapping[str, Any], path: str | Path) -> None:
 
 
 def write_summary_html(summary: Mapping[str, Any], path: str | Path) -> None:
+    labels = {
+        "single_t1": "单轮基线",
+        "evolve_t4_g1_p1": "4 轮意图变化",
+        "repeat_control_t7": "7 轮重复对照",
+        "evolve_t7_g2_p2": "7 轮意图变化",
+    }
     rows = []
     for name in PLAN_A_SETTING_NAMES:
         metrics = summary["settings"][name]
         paired = summary["paired_differences"].get(name)
-        difference = "baseline" if paired is None else f"{paired['percentage_point_difference']:+.1f} pp"
+        difference = "基线" if paired is None else f"{paired['percentage_point_difference']:+.1f} pp"
         rows.append(
             "<tr>"
-            f"<td>{html.escape(name)}</td>"
+            f"<td><strong>{html.escape(labels[name])}</strong><br><code>{html.escape(name)}</code></td>"
             f"<td>{metrics['correct']}/{metrics['completed']}</td>"
             f"<td>{100 * metrics['accuracy']:.1f}%</td>"
-            f"<td>{100 * metrics['wilson_95']['low']:.1f}% to "
+            f"<td>{100 * metrics['wilson_95']['low']:.1f}% - "
             f"{100 * metrics['wilson_95']['high']:.1f}%</td>"
             f"<td>{difference}</td>"
             "</tr>"
         )
     cost = summary["cost"]
+    billing = cost.get("billing_usage", {})
+    excluded = cost.get("excluded_incidental_usage", {})
+    outstanding = cost.get("outstanding_reservations", {})
+    execution = summary.get("execution", {})
+    repository = summary.get("repository", {})
+    common_count = len(summary["sample_selection"]["common_successful_task_ids"])
+    assessment = summary.get("trend_assessment")
+    supports = assessment == "directionally_supports_paper"
+    assessment_class = "supports" if supports else "mixed"
+    assessment_label = "方向与论文一致" if supports else "小样本未复现论文趋势"
+    model_text = ", ".join(str(model) for model in summary.get("models", [])) or "未记录"
+    deadline = execution.get("requested_deadline") or "未记录"
+    completed_at = execution.get("formal_completed_at") or summary.get("generated_at")
+    implementation_commit = repository.get("commit") or "未记录"
+    planned_range = cost.get("planned_range_usd") or []
+    planned_text = (
+        f"${planned_range[0]:g} - ${planned_range[1]:g}"
+        if len(planned_range) == 2
+        else "未记录"
+    )
     document = f"""<!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Plan A reproduction summary</title>
+  <title>Plan A 复现实验报告</title>
   <style>
-    body {{ font: 16px/1.45 system-ui, sans-serif; margin: 2rem auto; max-width: 960px; padding: 0 1rem; color: #1f2933; }}
-    table {{ border-collapse: collapse; width: 100%; }}
-    th, td {{ border-bottom: 1px solid #cbd2d9; padding: .65rem; text-align: left; }}
-    th {{ background: #f2f4f5; }}
-    code {{ background: #f2f4f5; padding: .1rem .25rem; }}
+    :root {{ color-scheme: light; --ink: #20231f; --muted: #62675f; --line: #d9ddd5; --paper: #fff; --wash: #f4f6f2; --green: #166534; --amber: #92400e; --blue: #1d4ed8; }}
+    * {{ box-sizing: border-box; }}
+    body {{ margin: 0; background: var(--wash); color: var(--ink); font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; letter-spacing: 0; }}
+    header, main, footer {{ width: min(1040px, calc(100% - 32px)); margin: 0 auto; }}
+    header {{ padding: 30px 0 22px; }}
+    main {{ background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 0 24px 28px; }}
+    section {{ padding: 22px 0; border-bottom: 1px solid var(--line); }}
+    section:last-child {{ border-bottom: 0; }}
+    h1, h2 {{ line-height: 1.25; letter-spacing: 0; }}
+    h1 {{ margin: 0; font-size: 30px; }} h2 {{ margin: 0 0 12px; font-size: 20px; }}
+    p {{ margin: 7px 0; }} .muted {{ color: var(--muted); }}
+    .verdict {{ border-left: 5px solid var(--amber); background: #fff7e8; padding: 14px 16px; border-radius: 4px; }}
+    .verdict.supports {{ border-left-color: var(--green); background: #e9f5ec; }}
+    .facts {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }}
+    .fact {{ min-width: 0; padding: 12px; border-right: 1px solid var(--line); }} .fact:last-child {{ border-right: 0; }}
+    .fact span {{ display: block; color: var(--muted); font-size: 12px; }} .fact strong {{ overflow-wrap: anywhere; }}
+    .table-wrap {{ overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; }}
+    table {{ border-collapse: collapse; width: 100%; min-width: 760px; }}
+    th, td {{ border-bottom: 1px solid var(--line); padding: 10px 12px; text-align: left; vertical-align: top; }}
+    th {{ background: #edf0ea; font-size: 13px; }} tr:last-child td {{ border-bottom: 0; }}
+    code {{ background: #edf0ea; padding: 1px 4px; border-radius: 3px; overflow-wrap: anywhere; }}
+    ul {{ margin: 8px 0 0; padding-left: 22px; }} li {{ margin: 5px 0; }}
+    footer {{ padding: 18px 0 28px; color: var(--muted); font-size: 12px; }}
+    @media (max-width: 720px) {{ .facts {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }} .fact:nth-child(2) {{ border-right: 0; }} main {{ padding-inline: 16px; }} h1 {{ font-size: 24px; }} }}
   </style>
 </head>
 <body>
-  <h1>Plan A reproduction summary</h1>
-  <p>Run <code>{html.escape(str(summary['run_id']))}</code>. Small-sample directional check.</p>
-  <table>
-    <thead><tr><th>Setting</th><th>Correct</th><th>Accuracy</th><th>Wilson 95% CI</th><th>Paired vs single</th></tr></thead>
-    <tbody>{''.join(rows)}</tbody>
-  </table>
-  <h2>Cost ledger</h2>
-  <p>Recorded provider usage: ${cost['actual_usd_recorded']:.4f}; requests: {cost['requests']}; input/output tokens: {cost['input_tokens']}/{cost['output_tokens']}.</p>
-  <p>{html.escape(summary['interpretation'])}</p>
+  <header>
+    <h1>Plan A 复现实验报告</h1>
+    <p class="muted"><code>{html.escape(str(summary['run_id']))}</code> · 生成于 {html.escape(str(summary['generated_at']))}</p>
+  </header>
+  <main>
+    <section>
+      <div class="verdict {assessment_class}">
+        <strong>{assessment_label}</strong>
+        <p>{html.escape(summary['interpretation'])}</p>
+      </div>
+    </section>
+    <section>
+      <h2>实验口径</h2>
+      <div class="facts">
+        <div class="fact"><span>正式模型</span><strong>{html.escape(model_text)}</strong></div>
+        <div class="fact"><span>共同成功样本</span><strong>{common_count}/10</strong></div>
+        <div class="fact"><span>原截止</span><strong>{html.escape(str(deadline))}</strong></div>
+        <div class="fact"><span>正式完成</span><strong>{html.escape(str(completed_at))}</strong></div>
+      </div>
+    </section>
+    <section>
+      <h2>结果</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>设置</th><th>正确</th><th>准确率</th><th>Wilson 95% CI</th><th>相对单轮</th></tr></thead>
+          <tbody>{''.join(rows)}</tbody>
+        </table>
+      </div>
+    </section>
+    <section>
+      <h2>费用与运行策略</h2>
+      <ul>
+        <li>正式 K2.6 usage 估算：${cost['actual_usd_recorded']:.6f}，{cost['requests']} 次响应。</li>
+        <li>完整账务 usage 估算：${float(billing.get('actual_usd_recorded', 0.0)):.6f}；其中排除的意外异模型调用为 ${float(excluded.get('actual_usd_recorded', 0.0)):.6f} / {int(excluded.get('requests', 0))} 次。</li>
+        <li>未结算本地 reservation：${float(outstanding.get('estimated_usd', 0.0)):.6f} / {int(outstanding.get('count', 0))} 条；它们不是确认账单。</li>
+        <li>计划区间 {planned_text} 不是硬上限；<code>hard_cap_usd=null</code>，全程只记账，不按 30 美元 fail-closed。</li>
+        <li>构建与评测请求不发送客户端输出 token 上限；provider 明确截断或空正文仍记为失败。</li>
+      </ul>
+    </section>
+    <section>
+      <h2>追溯与限制</h2>
+      <ul>
+        <li>实现提交：<code>{html.escape(str(implementation_commit))}</code>；上游锁定：<code>{html.escape(str(repository.get('upstream_commit', '未记录')))}</code>。</li>
+        <li>正式 Stage 1/2/3 均为 10/10；Stage 3 的 cross-turn verification 与 independence check 均为 10/10。</li>
+        <li>N=10 的置信区间很宽，只能作为趋势检查，不能复刻论文 200 题规模的精确效应。</li>
+        <li>原硬截止未满足；按用户后续指令跨时继续到正式实验结束，时间记录保留在 manifest。</li>
+      </ul>
+    </section>
+  </main>
+  <footer>正式结果只接受 manifest 中声明的模型与四组共同成功样本。</footer>
 </body>
 </html>
 """

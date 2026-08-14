@@ -4,6 +4,32 @@ This workflow runs a small, paired reproduction of the paper on GSM8K. It is
 for checking the reported direction of the effect, not for reproducing the
 paper's exact percentages.
 
+## Completed run
+
+Run `plan-a-kimi-k2.6-n10-20260814` completed all construction stages and all
+four paired evaluation settings at N=10. Construction and evaluation both used
+`kimi-k2.6`; all 40 setting/sample evaluations succeeded.
+
+| Setting | Correct | Accuracy | Paired change vs. single turn |
+|---|---:|---:|---:|
+| `single_t1` | 9/10 | 90% | baseline |
+| `evolve_t4_g1_p1` | 8/10 | 80% | -10 pp |
+| `repeat_control_t7` | 8/10 | 80% | -10 pp |
+| `evolve_t7_g2_p2` | 9/10 | 90% | 0 pp |
+
+The run does not reproduce progressive evolving-intent degradation at this
+sample size. The 4-turn change is matched by the repeat control, while the
+7-turn evolving setting matches the single-turn baseline. Treat this as an
+inconclusive small-sample result because the Wilson intervals are wide.
+
+The original `2026-08-14T23:59:00+08:00` cutoff was not met. The run continued
+after the user explicitly requested execution through completion and finished
+on 2026-08-15. The formal K2.6 usage estimate and complete billing audit are
+reported separately because one aborted, non-formal model launch was preserved
+in the raw ledger but excluded from all experimental results. See the
+[HTML report](reproduction/runs/plan-a-kimi-k2.6-n10-20260814/summary.html) for
+the exact intervals, cost split, and provenance.
+
 ## Fixed scope
 
 - Primary size: 20 samples. Deadline fallback: 10 samples.

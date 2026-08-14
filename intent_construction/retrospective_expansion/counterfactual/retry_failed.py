@@ -19,11 +19,37 @@ Usage:
 
 import json
 import argparse
+import os
+import tempfile
 from pathlib import Path
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from intent_construction.retrospective_expansion.counterfactual.generate_counterfactuals import CounterfactualGenerator
+
+
+def atomic_write_json(path: Path, payload) -> None:
+    """Write JSON without exposing a partially written checkpoint."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temp_path = Path(handle.name)
+            json.dump(payload, handle, indent=2, ensure_ascii=False)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, path)
+        temp_path = None
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
 
 
 def get_task_ids_from_file(filepath: Path) -> set:
@@ -69,8 +95,7 @@ def merge_results(original_file: Path, retry_results: list) -> int:
     merged.sort(key=lambda x: x.get('task_id', ''))
     
     # Save
-    with open(original_file, 'w') as f:
-        json.dump(merged, f, indent=2, ensure_ascii=False)
+    atomic_write_json(original_file, merged)
     
     return len(merged)
 
@@ -160,11 +185,16 @@ def main():
             result = future.result()
             if result is not None:
                 results.append(result)
+                if args.no_merge:
+                    atomic_write_json(retry_path, results)
+                else:
+                    # Persist each completed sample immediately so an interrupt
+                    # only loses the request that is still in flight.
+                    merge_results(output_path, [result])
     
     # Save retry results
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(retry_path, "w") as f:
-        json.dump(results, f, indent=2, ensure_ascii=False)
+    atomic_write_json(retry_path, results)
     
     print(f"\n{'='*60}")
     print(f"Retry Results")
@@ -183,9 +213,8 @@ def main():
     # Auto-merge if requested
     if not args.no_merge and results:
         print(f"\n{'='*60}")
-        print("Merging results...")
-        total = merge_results(output_path, results)
-        print(f"✅ Merged! Total samples: {total}")
+        total = len(get_task_ids_from_file(output_path))
+        print(f"✅ Incremental merge complete! Total samples: {total}")
         
         # Clean up retry file after successful merge
         retry_path.unlink()
