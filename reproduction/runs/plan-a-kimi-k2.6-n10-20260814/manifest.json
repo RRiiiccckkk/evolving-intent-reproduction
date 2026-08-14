@@ -1,0 +1,315 @@
+{
+  "schema_version": 1,
+  "plan": "A",
+  "run_id": "plan-a-kimi-k2.6-n10-20260814",
+  "status": "complete",
+  "created_at": "2026-08-14T21:51:50+08:00",
+  "repository": {
+    "path": "/Users/rick/Desktop/graph engineering",
+    "commit": "5bfb45bcf8d10bc87cf4286feddf2287a5d92963",
+    "upstream_commit": "993d6be9597ac03854b46362ccd647eb1bfd267a"
+  },
+  "implementation": {
+    "formal_run_base_commit": "7b2096affb703edfdf243e1844a9d87b4f40a66e",
+    "final_reproduction_commit": "5bfb45bcf8d10bc87cf4286feddf2287a5d92963",
+    "upstream_commit": "993d6be9597ac03854b46362ccd647eb1bfd267a",
+    "post_run_hardening": "Resume, accounting, reporting, and incomplete-response handling were hardened after formal inference; canonical model outputs were not changed."
+  },
+  "dataset": {
+    "name": "gsm8k",
+    "split": "test",
+    "selection_source": "intent_construction/eval_indices/gsm8k_eval_ids.json",
+    "selection_source_sha256": "0101f92a3378c07e265b5a501db7e9de22ea0166a5d789bfb69a2f1518389f30",
+    "selection_rule": "first N entries in the published eval manifest",
+    "requested_count": 10,
+    "selection_reason": "explicit",
+    "selected_samples": [
+      {
+        "position": 1,
+        "task_id": "extracted-gsm8k-test-12",
+        "original_id": 12
+      },
+      {
+        "position": 2,
+        "task_id": "extracted-gsm8k-test-14",
+        "original_id": 14
+      },
+      {
+        "position": 3,
+        "task_id": "extracted-gsm8k-test-16",
+        "original_id": 16
+      },
+      {
+        "position": 4,
+        "task_id": "extracted-gsm8k-test-36",
+        "original_id": 36
+      },
+      {
+        "position": 5,
+        "task_id": "extracted-gsm8k-test-40",
+        "original_id": 40
+      },
+      {
+        "position": 6,
+        "task_id": "extracted-gsm8k-test-43",
+        "original_id": 43
+      },
+      {
+        "position": 7,
+        "task_id": "extracted-gsm8k-test-49",
+        "original_id": 49
+      },
+      {
+        "position": 8,
+        "task_id": "extracted-gsm8k-test-50",
+        "original_id": 50
+      },
+      {
+        "position": 9,
+        "task_id": "extracted-gsm8k-test-60",
+        "original_id": 60
+      },
+      {
+        "position": 10,
+        "task_id": "extracted-gsm8k-test-62",
+        "original_id": 62
+      }
+    ],
+    "eligible_task_ids": [
+      "extracted-gsm8k-test-12",
+      "extracted-gsm8k-test-14",
+      "extracted-gsm8k-test-16",
+      "extracted-gsm8k-test-36",
+      "extracted-gsm8k-test-40",
+      "extracted-gsm8k-test-43",
+      "extracted-gsm8k-test-49",
+      "extracted-gsm8k-test-50",
+      "extracted-gsm8k-test-60",
+      "extracted-gsm8k-test-62"
+    ]
+  },
+  "seed": 42,
+  "models": {
+    "construction": "kimi-k2.6",
+    "evaluation": "kimi-k2.6"
+  },
+  "settings": [
+    {
+      "name": "single_t1",
+      "kind": "standard",
+      "turns": 1,
+      "switches": 0,
+      "revisions": 0,
+      "reveals": 0
+    },
+    {
+      "name": "evolve_t4_g1_p1",
+      "kind": "standard",
+      "turns": 4,
+      "switches": 1,
+      "revisions": 1,
+      "reveals": 1
+    },
+    {
+      "name": "repeat_control_t7",
+      "kind": "repeat_control",
+      "turns": 7,
+      "repeat_turns": 3,
+      "base": {
+        "turns": 4,
+        "switches": 1,
+        "revisions": 1
+      },
+      "base_reveals": 1
+    },
+    {
+      "name": "evolve_t7_g2_p2",
+      "kind": "standard",
+      "turns": 7,
+      "switches": 2,
+      "revisions": 2,
+      "reveals": 2
+    }
+  ],
+  "deadline": "2026-08-14T23:59:00+08:00",
+  "budget": {
+    "currency": "USD",
+    "planned_range_usd": [
+      8,
+      30
+    ],
+    "hard_cap_usd": null,
+    "note": "Provider token usage and estimated cost are recorded without a local spend cutoff."
+  },
+  "execution": {
+    "requested_deadline": "2026-08-14T23:59:00+08:00",
+    "deadline_met": false,
+    "continued_after_deadline": true,
+    "continuation_basis": "The user explicitly required execution to continue until the experiment, report, commit, and push were complete.",
+    "formal_completed_at": "2026-08-15T02:23:05+08:00",
+    "formal_model": "kimi-k2.6",
+    "model_locked": true,
+    "output_token_limit": null,
+    "max_output_token_fields_sent": false,
+    "budget_fail_closed": false,
+    "formal_stage_coverage": "10/10 for Stage 1, Stage 2, and Stage 3",
+    "stage3_cross_turn_verification": "10/10",
+    "stage3_independence_check": "10/10",
+    "formal_evaluation_coverage": "10/10 successful responses in each of four settings"
+  },
+  "artifacts": {
+    "result_single_t1": {
+      "path": "reproduction/runs/plan-a-kimi-k2.6-n10-20260814/results/single_t1.json",
+      "sha256": "094a7ce1c6608254758b9053a32a3d7a48d121135bfe486479e492cc128e555e"
+    },
+    "result_evolve_t4_g1_p1": {
+      "path": "reproduction/runs/plan-a-kimi-k2.6-n10-20260814/results/evolve_t4_g1_p1.json",
+      "sha256": "3444378d8038c9c308072ff9f4e77f01f14261eb53ea2e2a1160d839c044871a"
+    },
+    "result_repeat_control_t7": {
+      "path": "reproduction/runs/plan-a-kimi-k2.6-n10-20260814/results/repeat_control_t7.json",
+      "sha256": "b8dcf58b1fd9d3364bdf67189b412bc9bb746e17ddac218248b12d2f2deafe17"
+    },
+    "result_evolve_t7_g2_p2": {
+      "path": "reproduction/runs/plan-a-kimi-k2.6-n10-20260814/results/evolve_t7_g2_p2.json",
+      "sha256": "87982e22cd9523f98f9419071401bb70efc8a8522504057cad180ceffda1c255"
+    },
+    "summary": {
+      "path": "reproduction/runs/plan-a-kimi-k2.6-n10-20260814/summary.json",
+      "sha256": "e25e432fceb2eb4a0115bb1961ea682d189f0fe51e5a30a8e3b35f798f05c8ed"
+    },
+    "summary_html": {
+      "path": "reproduction/runs/plan-a-kimi-k2.6-n10-20260814/summary.html",
+      "sha256": "a4fc4702b961485bf1bcfd8454564d3d42cb829b052b3afcdf451a8092400ae8"
+    },
+    "summary_csv": {
+      "path": "reproduction/runs/plan-a-kimi-k2.6-n10-20260814/summary.csv",
+      "sha256": "963f8a0369f7cd9932b2859a207050fdbaf82ca338dc8c0c5bfc1bae8ecc0c78"
+    },
+    "cost_ledger": {
+      "path": "reproduction/runs/plan-a-kimi-k2.6-n10-20260814/cost_ledger.jsonl",
+      "sha256": "ece39c11560e1281cd0ba7575d3ab5d6ec3c9c8e5ed22d4d8f4e18e8250d5d7e"
+    },
+    "excluded_incidental_usage_audit": {
+      "path": "reproduction/runs/plan-a-kimi-k2.6-n10-20260814/audit/excluded_incidental_usage.json",
+      "sha256": "bd20501efaccfa5cb4692268296b1809df4321d7b57704965489dc4f45baf37f"
+    },
+    "stage1": {
+      "path": "reproduction/runs/plan-a-kimi-k2.6-n10-20260814/data/stage1_extracted.json",
+      "sha256": "32e89e88e496137c73816aa71a18721f882159f8402b765eb9917ef3aa9276c8"
+    },
+    "stage1_failures": {
+      "path": "reproduction/runs/plan-a-kimi-k2.6-n10-20260814/data/stage1_failures.json",
+      "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+    },
+    "stage2": {
+      "path": "reproduction/runs/plan-a-kimi-k2.6-n10-20260814/data/stage2_counterfactual.json",
+      "sha256": "70ce2922ce371ee0e061b8a169e02a59f03d1d540bdb82759f8cab8fc343f263"
+    },
+    "stage3": {
+      "path": "reproduction/runs/plan-a-kimi-k2.6-n10-20260814/data/stage3_predecessor.json",
+      "sha256": "11fe8b7b6703daf81c7d703bbfe614ca5d074a3246b55ee8650b129ad0e885f4"
+    }
+  },
+  "coverage": {
+    "stage1": {
+      "stage": "stage1",
+      "path": "/Users/rick/Desktop/graph engineering/reproduction/runs/plan-a-kimi-k2.6-n10-20260814/data/stage1_extracted.json",
+      "exists": true,
+      "sha256": "32e89e88e496137c73816aa71a18721f882159f8402b765eb9917ef3aa9276c8",
+      "count": 10,
+      "missing_task_ids": [],
+      "invalid_task_ids": [],
+      "duplicate_task_ids": [],
+      "complete": true
+    },
+    "scheduler": {
+      "by_setting": {
+        "single_t1": [
+          "extracted-gsm8k-test-12",
+          "extracted-gsm8k-test-14",
+          "extracted-gsm8k-test-16",
+          "extracted-gsm8k-test-36",
+          "extracted-gsm8k-test-40",
+          "extracted-gsm8k-test-43",
+          "extracted-gsm8k-test-49",
+          "extracted-gsm8k-test-50",
+          "extracted-gsm8k-test-60",
+          "extracted-gsm8k-test-62"
+        ],
+        "evolve_t4_g1_p1": [
+          "extracted-gsm8k-test-12",
+          "extracted-gsm8k-test-14",
+          "extracted-gsm8k-test-16",
+          "extracted-gsm8k-test-36",
+          "extracted-gsm8k-test-40",
+          "extracted-gsm8k-test-43",
+          "extracted-gsm8k-test-49",
+          "extracted-gsm8k-test-50",
+          "extracted-gsm8k-test-60",
+          "extracted-gsm8k-test-62"
+        ],
+        "repeat_control_t7": [
+          "extracted-gsm8k-test-12",
+          "extracted-gsm8k-test-14",
+          "extracted-gsm8k-test-16",
+          "extracted-gsm8k-test-36",
+          "extracted-gsm8k-test-40",
+          "extracted-gsm8k-test-43",
+          "extracted-gsm8k-test-49",
+          "extracted-gsm8k-test-50",
+          "extracted-gsm8k-test-60",
+          "extracted-gsm8k-test-62"
+        ],
+        "evolve_t7_g2_p2": [
+          "extracted-gsm8k-test-12",
+          "extracted-gsm8k-test-14",
+          "extracted-gsm8k-test-16",
+          "extracted-gsm8k-test-36",
+          "extracted-gsm8k-test-40",
+          "extracted-gsm8k-test-43",
+          "extracted-gsm8k-test-49",
+          "extracted-gsm8k-test-50",
+          "extracted-gsm8k-test-60",
+          "extracted-gsm8k-test-62"
+        ]
+      },
+      "paired_task_ids": [
+        "extracted-gsm8k-test-12",
+        "extracted-gsm8k-test-14",
+        "extracted-gsm8k-test-16",
+        "extracted-gsm8k-test-36",
+        "extracted-gsm8k-test-40",
+        "extracted-gsm8k-test-43",
+        "extracted-gsm8k-test-49",
+        "extracted-gsm8k-test-50",
+        "extracted-gsm8k-test-60",
+        "extracted-gsm8k-test-62"
+      ],
+      "paired_count": 10
+    },
+    "stage2": {
+      "stage": "stage2",
+      "path": "/Users/rick/Desktop/graph engineering/reproduction/runs/plan-a-kimi-k2.6-n10-20260814/data/stage2_counterfactual.json",
+      "exists": true,
+      "sha256": "70ce2922ce371ee0e061b8a169e02a59f03d1d540bdb82759f8cab8fc343f263",
+      "count": 10,
+      "missing_task_ids": [],
+      "invalid_task_ids": [],
+      "duplicate_task_ids": [],
+      "complete": true
+    },
+    "stage3": {
+      "stage": "stage3",
+      "path": "/Users/rick/Desktop/graph engineering/reproduction/runs/plan-a-kimi-k2.6-n10-20260814/data/stage3_predecessor.json",
+      "exists": true,
+      "sha256": "11fe8b7b6703daf81c7d703bbfe614ca5d074a3246b55ee8650b129ad0e885f4",
+      "count": 10,
+      "missing_task_ids": [],
+      "invalid_task_ids": [],
+      "duplicate_task_ids": [],
+      "complete": true
+    }
+  },
+  "updated_at": "2026-08-15T02:45:41+08:00"
+}

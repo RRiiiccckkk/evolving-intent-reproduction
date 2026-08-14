@@ -1,0 +1,592 @@
+{
+  "schema_version": 1,
+  "run_id": "plan-a-kimi-k2.6-n10-20260814",
+  "setting": {
+    "name": "single_t1",
+    "kind": "standard",
+    "turns": 1,
+    "switches": 0,
+    "revisions": 0,
+    "reveals": 0
+  },
+  "model": "kimi-k2.6",
+  "selected_task_ids": [
+    "extracted-gsm8k-test-12",
+    "extracted-gsm8k-test-14",
+    "extracted-gsm8k-test-16",
+    "extracted-gsm8k-test-36",
+    "extracted-gsm8k-test-40",
+    "extracted-gsm8k-test-43",
+    "extracted-gsm8k-test-49",
+    "extracted-gsm8k-test-50",
+    "extracted-gsm8k-test-60",
+    "extracted-gsm8k-test-62"
+  ],
+  "updated_at": "2026-08-15T02:04:08+08:00",
+  "results": {
+    "extracted-gsm8k-test-12": {
+      "task_id": "extracted-gsm8k-test-12",
+      "prediction": "12",
+      "correct": false,
+      "ground_truth": "13",
+      "decoding": [
+        "**Step 1: Calculate the annual revenue from lemons.**  \nCarlos sells 7 lemons per year at \\(\\$1.50\\) each.  \n\\[\n7 \\times \\$1.50 = \\$10.50\n\\]\n\n**Step 2: Calculate the annual net profit.**  \nHe spends \\(\\$3\\) per year on water and feed.  \n\\[\n\\$10.50 - \\$3.00 = \\$7.50 \\text{ per year}\n\\]\n\n**Step 3: Determine how many years are needed to recover the initial cost.**  \nThe tree costs \\(\\$90\\) to plant. Divide this by the yearly net profit.  \n\\[\n\\$90 \\div \\$7.50 = 12\n\\]\n\n**Step 4: Conclusion.**  \nAfter 12 years, Carlos will have broken even on his initial investment, meaning the tree will start earning him money from that point onward.\n\n\\[\n\\boxed{12}\n\\]"
+      ],
+      "user_messages": [
+        "Solve this problem step by step. Put your final answer within \\boxed{}.\n\nHow many years will it take before Carlos starts earning money on the lemon tree? Carlos is planting a lemon tree. The lemon tree will cost $90 to plant. Each year the lemon tree will grow 7 lemons, which Carlos can sell for $1.5 each. It costs $3 a year to water and feed the lemon tree."
+      ],
+      "success": true,
+      "error": null,
+      "metadata": {
+        "task_id": "extracted-gsm8k-test-12",
+        "scenario": "fully-specified",
+        "mode": "eval",
+        "num_turns": 1,
+        "requested_num_turns": 1,
+        "num_arguments": 4,
+        "num_counterfactual_arguments": 0,
+        "num_predecessor_functions": 0,
+        "function": "How many years will it take before Carlos starts earning money on the lemon tree?",
+        "source_function": "How many years will it take before Carlos starts earning money on the lemon tree?",
+        "answer": "13",
+        "change_plan": {
+          "task_id": "extracted-gsm8k-test-12",
+          "scenario": "fully-specified",
+          "domain": "math",
+          "num_turns": 1,
+          "final_label": "13",
+          "intent_trajectory": [
+            {
+              "function": "How many years will it take before Carlos starts earning money on the lemon tree?",
+              "num_arguments": 4,
+              "revealed_ids": [
+                1,
+                2,
+                3,
+                4
+              ],
+              "is_fully_specified": true,
+              "has_counterfactual_values": false,
+              "target_answer": "13",
+              "active_values": null
+            }
+          ],
+          "transitions": []
+        },
+        "recap_method": null,
+        "instruction_id_list": null,
+        "kwargs": null,
+        "data_source": null,
+        "per_turn_gold": [],
+        "reproduction_setting": "single_t1"
+      }
+    },
+    "extracted-gsm8k-test-14": {
+      "task_id": "extracted-gsm8k-test-14",
+      "prediction": "60\\%",
+      "correct": true,
+      "ground_truth": "60",
+      "decoding": [
+        "**Step 1:** Find the number of students in contemporary dance.  \n\\(20\\%\\) of \\(20 = 0.20 \\times 20 = 4\\) students.\n\n**Step 2:** Find the number of students who did **not** enroll in contemporary dance.  \n\\(20 - 4 = 16\\) students.\n\n**Step 3:** Find the number of students in jazz dance.  \n\\(25\\%\\) of those 16 students \\(= 0.25 \\times 16 = 4\\) students.\n\n**Step 4:** Find the number of students in hip-hop dance.  \nThese are the students left after removing contemporary and jazz dancers:  \n\\(16 - 4 = 12\\) students.\n\n**Step 5:** Calculate what percentage 12 is of the total 20 students.  \n\\(\\frac{12}{20} \\times 100\\% = 60\\%\\).\n\n\\(\\boxed{60\\%}\\)"
+      ],
+      "user_messages": [
+        "Solve this problem step by step. Put your final answer within \\boxed{}.\n\nWhat percentage of all the students enrolled in hip-hop dance? There are 20 students in the dance class. 20 percent of the students enrolled in contemporary dance. 25 percent of the students who did not enroll in contemporary dance enrolled in jazz dance. The students who did not enroll in contemporary dance or jazz dance enrolled in hip-hop dance."
+      ],
+      "success": true,
+      "error": null,
+      "metadata": {
+        "task_id": "extracted-gsm8k-test-14",
+        "scenario": "fully-specified",
+        "mode": "eval",
+        "num_turns": 1,
+        "requested_num_turns": 1,
+        "num_arguments": 4,
+        "num_counterfactual_arguments": 0,
+        "num_predecessor_functions": 0,
+        "function": "What percentage of all the students enrolled in hip-hop dance?",
+        "source_function": "What percentage of all the students enrolled in hip-hop dance?",
+        "answer": "60",
+        "change_plan": {
+          "task_id": "extracted-gsm8k-test-14",
+          "scenario": "fully-specified",
+          "domain": "math",
+          "num_turns": 1,
+          "final_label": "60",
+          "intent_trajectory": [
+            {
+              "function": "What percentage of all the students enrolled in hip-hop dance?",
+              "num_arguments": 4,
+              "revealed_ids": [
+                1,
+                2,
+                3,
+                4
+              ],
+              "is_fully_specified": true,
+              "has_counterfactual_values": false,
+              "target_answer": "60",
+              "active_values": null
+            }
+          ],
+          "transitions": []
+        },
+        "recap_method": null,
+        "instruction_id_list": null,
+        "kwargs": null,
+        "data_source": null,
+        "per_turn_gold": [],
+        "reproduction_setting": "single_t1"
+      }
+    },
+    "extracted-gsm8k-test-16": {
+      "task_id": "extracted-gsm8k-test-16",
+      "prediction": "230\\text{ miles}",
+      "correct": true,
+      "ground_truth": "230",
+      "decoding": [
+        "**Step 1: Determine the distance traveled on the first day.**  \nEach train travels westward for  \n\\[80\\text{ miles}\\]\n\n**Step 2: Determine the distance traveled on the second day.**  \nEach train then travels northward for  \n\\[150\\text{ miles}\\]\n\n**Step 3: Calculate the total distance covered by each train.**  \nSince distance is a scalar quantity, add the miles from both days:\n\\[\n80\\text{ mi} + 150\\text{ mi} = 230\\text{ mi}\n\\]\n\nBoth trains follow the same route, so each one covers the same total distance.\n\n\\[\n\\boxed{230\\text{ miles}}\n\\]"
+      ],
+      "user_messages": [
+        "Solve this problem step by step. Put your final answer within \\boxed{}.\n\nWhat's the distance covered by each train in the two days? Two trains leave San Rafael at the same time. The two trains begin traveling westward, both traveling for 80 miles. The next day, the two trains travel northwards, covering 150 miles."
+      ],
+      "success": true,
+      "error": null,
+      "metadata": {
+        "task_id": "extracted-gsm8k-test-16",
+        "scenario": "fully-specified",
+        "mode": "eval",
+        "num_turns": 1,
+        "requested_num_turns": 1,
+        "num_arguments": 3,
+        "num_counterfactual_arguments": 0,
+        "num_predecessor_functions": 0,
+        "function": "What's the distance covered by each train in the two days?",
+        "source_function": "What's the distance covered by each train in the two days?",
+        "answer": "230",
+        "change_plan": {
+          "task_id": "extracted-gsm8k-test-16",
+          "scenario": "fully-specified",
+          "domain": "math",
+          "num_turns": 1,
+          "final_label": "230",
+          "intent_trajectory": [
+            {
+              "function": "What's the distance covered by each train in the two days?",
+              "num_arguments": 3,
+              "revealed_ids": [
+                1,
+                2,
+                3
+              ],
+              "is_fully_specified": true,
+              "has_counterfactual_values": false,
+              "target_answer": "230",
+              "active_values": null
+            }
+          ],
+          "transitions": []
+        },
+        "recap_method": null,
+        "instruction_id_list": null,
+        "kwargs": null,
+        "data_source": null,
+        "per_turn_gold": [],
+        "reproduction_setting": "single_t1"
+      }
+    },
+    "extracted-gsm8k-test-36": {
+      "task_id": "extracted-gsm8k-test-36",
+      "prediction": "\\$75",
+      "correct": true,
+      "ground_truth": "75",
+      "decoding": [
+        "**Step 1:** Calculate how many yogurts Terry eats in 30 days.  \n\\(2 \\text{ yogurts/day} \\times 30 \\text{ days} = 60 \\text{ yogurts}\\)\n\n**Step 2:** Determine how many packs of 4 yogurts Terry needs to buy.  \n\\(60 \\text{ yogurts} \\div 4 \\text{ yogurts/pack} = 15 \\text{ packs}\\)\n\n**Step 3:** Calculate the total cost.  \nEach pack costs \\(\\$5.00\\), so:  \n\\(15 \\text{ packs} \\times \\$5.00/\\text{pack} = \\$75.00\\)\n\n\\(\\boxed{\\$75}\\)"
+      ],
+      "user_messages": [
+        "Solve this problem step by step. Put your final answer within \\boxed{}.\n\nHow much does Terry spend on yogurt over 30 days? Terry eats 2 yogurts a day. Yogurts are currently on sale at 4 yogurts for $5.00."
+      ],
+      "success": true,
+      "error": null,
+      "metadata": {
+        "task_id": "extracted-gsm8k-test-36",
+        "scenario": "fully-specified",
+        "mode": "eval",
+        "num_turns": 1,
+        "requested_num_turns": 1,
+        "num_arguments": 2,
+        "num_counterfactual_arguments": 0,
+        "num_predecessor_functions": 0,
+        "function": "How much does Terry spend on yogurt over 30 days?",
+        "source_function": "How much does Terry spend on yogurt over 30 days?",
+        "answer": "75",
+        "change_plan": {
+          "task_id": "extracted-gsm8k-test-36",
+          "scenario": "fully-specified",
+          "domain": "math",
+          "num_turns": 1,
+          "final_label": "75",
+          "intent_trajectory": [
+            {
+              "function": "How much does Terry spend on yogurt over 30 days?",
+              "num_arguments": 2,
+              "revealed_ids": [
+                1,
+                2
+              ],
+              "is_fully_specified": true,
+              "has_counterfactual_values": false,
+              "target_answer": "75",
+              "active_values": null
+            }
+          ],
+          "transitions": []
+        },
+        "recap_method": null,
+        "instruction_id_list": null,
+        "kwargs": null,
+        "data_source": null,
+        "per_turn_gold": [],
+        "reproduction_setting": "single_t1"
+      }
+    },
+    "extracted-gsm8k-test-40": {
+      "task_id": "extracted-gsm8k-test-40",
+      "prediction": "8",
+      "correct": true,
+      "ground_truth": "8",
+      "decoding": [
+        "Here is the step-by-step solution:\n\n**Step 1:** Find Suzy's iPhone age.\nSuzy's iPhone is **1 year old**.\n\n**Step 2:** Find Ben's iPhone age.\nBen's iPhone is two times as old as Suzy's iPhone.\n$$1 \\times 2 = 2$$\nBen's iPhone is **2 years old**.\n\n**Step 3:** Find Brandon's iPhone age.\nBrandon's iPhone is four times as old as Ben's iPhone.\n$$2 \\times 4 = 8$$\nBrandon's iPhone is **8 years old**.\n\n\\boxed{8}"
+      ],
+      "user_messages": [
+        "Solve this problem step by step. Put your final answer within \\boxed{}.\n\nHow old is Brandon's iPhone? Brandon's iPhone is four times as old as Ben's iPhone. Ben's iPhone is two times older than Suzy's iPhone. Suzy's iPhone is 1 year old."
+      ],
+      "success": true,
+      "error": null,
+      "metadata": {
+        "task_id": "extracted-gsm8k-test-40",
+        "scenario": "fully-specified",
+        "mode": "eval",
+        "num_turns": 1,
+        "requested_num_turns": 1,
+        "num_arguments": 3,
+        "num_counterfactual_arguments": 0,
+        "num_predecessor_functions": 0,
+        "function": "How old is Brandon's iPhone?",
+        "source_function": "How old is Brandon's iPhone?",
+        "answer": "8",
+        "change_plan": {
+          "task_id": "extracted-gsm8k-test-40",
+          "scenario": "fully-specified",
+          "domain": "math",
+          "num_turns": 1,
+          "final_label": "8",
+          "intent_trajectory": [
+            {
+              "function": "How old is Brandon's iPhone?",
+              "num_arguments": 3,
+              "revealed_ids": [
+                1,
+                2,
+                3
+              ],
+              "is_fully_specified": true,
+              "has_counterfactual_values": false,
+              "target_answer": "8",
+              "active_values": null
+            }
+          ],
+          "transitions": []
+        },
+        "recap_method": null,
+        "instruction_id_list": null,
+        "kwargs": null,
+        "data_source": null,
+        "per_turn_gold": [],
+        "reproduction_setting": "single_t1"
+      }
+    },
+    "extracted-gsm8k-test-43": {
+      "task_id": "extracted-gsm8k-test-43",
+      "prediction": "48",
+      "correct": true,
+      "ground_truth": "48",
+      "decoding": [
+        "Here is the step-by-step solution:\n\n**Step 1: Calculate your remaining calorie budget.**\nYour daily target is 2,000 calories and you have already consumed 1,800 calories.\n$$2,000 - 1,800 = 200 \\text{ calories remaining}$$\n\n**Step 2: Determine the weight of one serving.**\nA 300g bag contains 5 servings.\n$$300 \\text{ g} \\div 5 \\text{ servings} = 60 \\text{ g per serving}$$\n\n**Step 3: Find the fraction of a serving you can still have.**\nEach serving is 250 calories. With only 200 calories remaining:\n$$\\frac{200 \\text{ calories}}{250 \\text{ calories per serving}} = 0.8 \\text{ of a serving}$$\n\n**Step 4: Convert the fraction of a serving into grams.**\n$$0.8 \\text{ servings} \\times 60 \\text{ g/serving} = 48 \\text{ g}$$\n\nAlternatively, you can set up a proportion:\n$$\\frac{60 \\text{ g}}{250 \\text{ cal}} = \\frac{x \\text{ g}}{200 \\text{ cal}}$$\n$$x = \\frac{60 \\times 200}{250} = 48 \\text{ g}$$\n\n\\boxed{48}"
+      ],
+      "user_messages": [
+        "Solve this problem step by step. Put your final answer within \\boxed{}.\n\nHow many grams of chips can you eat? According to its nutritional info, a bag of chips has 250 calories per serving. A 300g bag has 5 servings. Your daily calorie target is 2000 calories. You have already consumed 1800 calories."
+      ],
+      "success": true,
+      "error": null,
+      "metadata": {
+        "task_id": "extracted-gsm8k-test-43",
+        "scenario": "fully-specified",
+        "mode": "eval",
+        "num_turns": 1,
+        "requested_num_turns": 1,
+        "num_arguments": 4,
+        "num_counterfactual_arguments": 0,
+        "num_predecessor_functions": 0,
+        "function": "How many grams of chips can you eat?",
+        "source_function": "How many grams of chips can you eat?",
+        "answer": "48",
+        "change_plan": {
+          "task_id": "extracted-gsm8k-test-43",
+          "scenario": "fully-specified",
+          "domain": "math",
+          "num_turns": 1,
+          "final_label": "48",
+          "intent_trajectory": [
+            {
+              "function": "How many grams of chips can you eat?",
+              "num_arguments": 4,
+              "revealed_ids": [
+                1,
+                2,
+                3,
+                4
+              ],
+              "is_fully_specified": true,
+              "has_counterfactual_values": false,
+              "target_answer": "48",
+              "active_values": null
+            }
+          ],
+          "transitions": []
+        },
+        "recap_method": null,
+        "instruction_id_list": null,
+        "kwargs": null,
+        "data_source": null,
+        "per_turn_gold": [],
+        "reproduction_setting": "single_t1"
+      }
+    },
+    "extracted-gsm8k-test-49": {
+      "task_id": "extracted-gsm8k-test-49",
+      "prediction": "30",
+      "correct": true,
+      "ground_truth": "30",
+      "decoding": [
+        "Here is the step-by-step solution:\n\n**Step 1: Find the total number of units in the building.**\n\\[\n15 \\text{ floors} \\times 8 \\text{ units per floor} = 120 \\text{ units}\n\\]\n\n**Step 2: Determine the fraction of units that are unoccupied.**\nIf \\(\\frac{3}{4}\\) of the building is occupied, then the unoccupied fraction is:\n\\[\n1 - \\frac{3}{4} = \\frac{1}{4}\n\\]\n\n**Step 3: Calculate the number of unoccupied units.**\n\\[\n\\frac{1}{4} \\times 120 = 30\n\\]\n\n\\[\n\\boxed{30}\n\\]"
+      ],
+      "user_messages": [
+        "Solve this problem step by step. Put your final answer within \\boxed{}.\n\nWhat's the total number of unoccupied units in the apartment building? Richard lives in an apartment building with 15 floors. Each floor of the apartment building contains 8 units. 3 out of 4 of the apartment building is occupied."
+      ],
+      "success": true,
+      "error": null,
+      "metadata": {
+        "task_id": "extracted-gsm8k-test-49",
+        "scenario": "fully-specified",
+        "mode": "eval",
+        "num_turns": 1,
+        "requested_num_turns": 1,
+        "num_arguments": 3,
+        "num_counterfactual_arguments": 0,
+        "num_predecessor_functions": 0,
+        "function": "What's the total number of unoccupied units in the apartment building?",
+        "source_function": "What's the total number of unoccupied units in the apartment building?",
+        "answer": "30",
+        "change_plan": {
+          "task_id": "extracted-gsm8k-test-49",
+          "scenario": "fully-specified",
+          "domain": "math",
+          "num_turns": 1,
+          "final_label": "30",
+          "intent_trajectory": [
+            {
+              "function": "What's the total number of unoccupied units in the apartment building?",
+              "num_arguments": 3,
+              "revealed_ids": [
+                1,
+                2,
+                3
+              ],
+              "is_fully_specified": true,
+              "has_counterfactual_values": false,
+              "target_answer": "30",
+              "active_values": null
+            }
+          ],
+          "transitions": []
+        },
+        "recap_method": null,
+        "instruction_id_list": null,
+        "kwargs": null,
+        "data_source": null,
+        "per_turn_gold": [],
+        "reproduction_setting": "single_t1"
+      }
+    },
+    "extracted-gsm8k-test-50": {
+      "task_id": "extracted-gsm8k-test-50",
+      "prediction": "294",
+      "correct": true,
+      "ground_truth": "294",
+      "decoding": [
+        "Here is the step-by-step solution:\n\n**Step 1: Determine how many eggs are produced in a week.**\nSince there are 7 days in a week:\n$$252 \\text{ eggs/day} \\times 7 \\text{ days} = 1,764 \\text{ eggs per week}$$\n\n**Step 2: Convert the weekly eggs into dozens.**\nSince there are 12 eggs in a dozen:\n$$1,764 \\text{ eggs} \\div 12 \\text{ eggs/dozen} = 147 \\text{ dozen}$$\n\n*(Alternatively: $252 \\div 12 = 21$ dozen per day, and $21 \\times 7 = 147$ dozen per week)*\n\n**Step 3: Calculate the total weekly earnings.**\nLloyd sells the eggs for $2 per dozen:\n$$147 \\text{ dozen} \\times \\$2/\\text{dozen} = \\$294$$\n\n\\boxed{294}"
+      ],
+      "user_messages": [
+        "Solve this problem step by step. Put your final answer within \\boxed{}.\n\nHow much does Lloyd make on eggs per week? Lloyd has an egg farm. Lloyd's chickens produce 252 eggs per day. Lloyd sells the eggs for 2 dollars per dozen."
+      ],
+      "success": true,
+      "error": null,
+      "metadata": {
+        "task_id": "extracted-gsm8k-test-50",
+        "scenario": "fully-specified",
+        "mode": "eval",
+        "num_turns": 1,
+        "requested_num_turns": 1,
+        "num_arguments": 3,
+        "num_counterfactual_arguments": 0,
+        "num_predecessor_functions": 0,
+        "function": "How much does Lloyd make on eggs per week?",
+        "source_function": "How much does Lloyd make on eggs per week?",
+        "answer": "294",
+        "change_plan": {
+          "task_id": "extracted-gsm8k-test-50",
+          "scenario": "fully-specified",
+          "domain": "math",
+          "num_turns": 1,
+          "final_label": "294",
+          "intent_trajectory": [
+            {
+              "function": "How much does Lloyd make on eggs per week?",
+              "num_arguments": 3,
+              "revealed_ids": [
+                1,
+                2,
+                3
+              ],
+              "is_fully_specified": true,
+              "has_counterfactual_values": false,
+              "target_answer": "294",
+              "active_values": null
+            }
+          ],
+          "transitions": []
+        },
+        "recap_method": null,
+        "instruction_id_list": null,
+        "kwargs": null,
+        "data_source": null,
+        "per_turn_gold": [],
+        "reproduction_setting": "single_t1"
+      }
+    },
+    "extracted-gsm8k-test-60": {
+      "task_id": "extracted-gsm8k-test-60",
+      "prediction": "17",
+      "correct": true,
+      "ground_truth": "17",
+      "decoding": [
+        "**Step 1: Find the number of unripe oranges.**  \n20% of the 25 oranges are unripe:  \n\\[\n0.20 \\times 25 = 5\n\\]  \nSo there are 5 unripe oranges.\n\n**Step 2: Identify how many oranges fall into each “not good” category.**  \n- Bad: 1 orange  \n- Unripe: 5 oranges  \n- Sour: 2 oranges  \n\nAssuming these groups do not overlap (each orange is counted in only one category), the total number of oranges that are **not** good is:  \n\\[\n1 + 5 + 2 = 8\n\\]\n\n**Step 3: Subtract the “not good” oranges from the total.**  \n\\[\n25 - 8 = 17\n\\]\n\nTherefore, the number of good oranges is:\n\n\\[\n\\boxed{17}\n\\]"
+      ],
+      "user_messages": [
+        "Solve this problem step by step. Put your final answer within \\boxed{}.\n\nHow many oranges are good? A basket contains 25 oranges. Of the oranges, 1 is bad. Of the oranges, 20 percent are unripe. Of the oranges, 2 are sour. The oranges that are not bad, unripe, or sour are good."
+      ],
+      "success": true,
+      "error": null,
+      "metadata": {
+        "task_id": "extracted-gsm8k-test-60",
+        "scenario": "fully-specified",
+        "mode": "eval",
+        "num_turns": 1,
+        "requested_num_turns": 1,
+        "num_arguments": 5,
+        "num_counterfactual_arguments": 0,
+        "num_predecessor_functions": 0,
+        "function": "How many oranges are good?",
+        "source_function": "How many oranges are good?",
+        "answer": "17",
+        "change_plan": {
+          "task_id": "extracted-gsm8k-test-60",
+          "scenario": "fully-specified",
+          "domain": "math",
+          "num_turns": 1,
+          "final_label": "17",
+          "intent_trajectory": [
+            {
+              "function": "How many oranges are good?",
+              "num_arguments": 5,
+              "revealed_ids": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "is_fully_specified": true,
+              "has_counterfactual_values": false,
+              "target_answer": "17",
+              "active_values": null
+            }
+          ],
+          "transitions": []
+        },
+        "recap_method": null,
+        "instruction_id_list": null,
+        "kwargs": null,
+        "data_source": null,
+        "per_turn_gold": [],
+        "reproduction_setting": "single_t1"
+      }
+    },
+    "extracted-gsm8k-test-62": {
+      "task_id": "extracted-gsm8k-test-62",
+      "prediction": "\\$25,000",
+      "correct": true,
+      "ground_truth": "25000",
+      "decoding": [
+        "**Step 1: Identify the full pension amount.**  \nIf Marcy works 40 years, her annual pension is \\$50,000.\n\n**Step 2: Determine the accrual rate after 20 years.**  \nShe earns 5% of the full pension value for each year worked **after** 20 years.\n\n**Step 3: Find how many years Marcy worked beyond 20.**  \nShe quits after 30 years, so the number of years after 20 is:  \n\\(30 - 20 = 10\\) years.\n\n**Step 4: Calculate the total percentage of the pension she has earned.**  \n\\(10 \\text{ years} \\times 5\\% \\text{ per year} = 50\\%\\)\n\n**Step 5: Compute her annual pension.**  \n\\(50\\% \\text{ of } \\$50,000 = 0.50 \\times \\$50,000 = \\$25,000\\)\n\n\\[\n\\boxed{\\$25,000}\n\\]"
+      ],
+      "user_messages": [
+        "Solve this problem step by step. Put your final answer within \\boxed{}.\n\nWhat will Marcy's annual pension be? If Marcy works for the same company for 40 years, Marcy gets an annual pension of $50,000 per year. Starting after 20 years, Marcy becomes entitled to 5% of the value of the pension per year. Marcy quits after 30 years."
+      ],
+      "success": true,
+      "error": null,
+      "metadata": {
+        "task_id": "extracted-gsm8k-test-62",
+        "scenario": "fully-specified",
+        "mode": "eval",
+        "num_turns": 1,
+        "requested_num_turns": 1,
+        "num_arguments": 3,
+        "num_counterfactual_arguments": 0,
+        "num_predecessor_functions": 0,
+        "function": "What will Marcy's annual pension be?",
+        "source_function": "What will Marcy's annual pension be?",
+        "answer": "25000",
+        "change_plan": {
+          "task_id": "extracted-gsm8k-test-62",
+          "scenario": "fully-specified",
+          "domain": "math",
+          "num_turns": 1,
+          "final_label": "25000",
+          "intent_trajectory": [
+            {
+              "function": "What will Marcy's annual pension be?",
+              "num_arguments": 3,
+              "revealed_ids": [
+                1,
+                2,
+                3
+              ],
+              "is_fully_specified": true,
+              "has_counterfactual_values": false,
+              "target_answer": "25000",
+              "active_values": null
+            }
+          ],
+          "transitions": []
+        },
+        "recap_method": null,
+        "instruction_id_list": null,
+        "kwargs": null,
+        "data_source": null,
+        "per_turn_gold": [],
+        "reproduction_setting": "single_t1"
+      }
+    }
+  }
+}

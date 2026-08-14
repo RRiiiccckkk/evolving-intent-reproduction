@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plan A reproduction summary</title>
+  <style>
+    body { font: 16px/1.45 system-ui, sans-serif; margin: 2rem auto; max-width: 960px; padding: 0 1rem; color: #1f2933; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border-bottom: 1px solid #cbd2d9; padding: .65rem; text-align: left; }
+    th { background: #f2f4f5; }
+    code { background: #f2f4f5; padding: .1rem .25rem; }
+  </style>
+</head>
+<body>
+  <h1>Plan A reproduction summary</h1>
+  <p>Run <code>plan-a-kimi-k2.6-n10-20260814</code>. Small-sample directional check.</p>
+  <table>
+    <thead><tr><th>Setting</th><th>Correct</th><th>Accuracy</th><th>Wilson 95% CI</th><th>Paired vs single</th></tr></thead>
+    <tbody><tr><td>single_t1</td><td>1/1</td><td>100.0%</td><td>20.7% to 100.0%</td><td>baseline</td></tr><tr><td>evolve_t4_g1_p1</td><td>0/1</td><td>0.0%</td><td>0.0% to 79.3%</td><td>-100.0 pp</td></tr><tr><td>repeat_control_t7</td><td>0/1</td><td>0.0%</td><td>0.0% to 79.3%</td><td>-100.0 pp</td></tr><tr><td>evolve_t7_g2_p2</td><td>1/1</td><td>100.0%</td><td>20.7% to 100.0%</td><td>+0.0 pp</td></tr></tbody>
+  </table>
+  <h2>Cost ledger</h2>
+  <p>Recorded provider usage: $13.4542; requests: 231; input/output tokens: 287169/600920.</p>
+  <p>This small run tests directional behavior only. Wilson intervals are wide at N=20 (or N=10 fallback), so it cannot establish paper-scale effect sizes.</p>
+</body>
+</html>

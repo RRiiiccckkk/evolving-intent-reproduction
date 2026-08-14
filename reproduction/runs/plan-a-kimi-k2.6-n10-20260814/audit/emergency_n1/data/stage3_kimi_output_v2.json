@@ -1,0 +1,248 @@
+[
+  {
+    "task_id": "extracted-gsm8k-test-36",
+    "original_id": 36,
+    "task": "math",
+    "question": "Terry eats 2 yogurts a day.  They are currently on sale at 4 yogurts for $5.00.  How much does he spend on yogurt over 30 days?",
+    "answer": "75",
+    "fully_specified_question": "Terry eats 2 yogurts a day.  They are currently on sale at 4 yogurts for $5.00.  How much does he spend on yogurt over 30 days?",
+    "function": "How much does Terry spend on yogurt over 30 days?",
+    "arguments": [
+      {
+        "argument_id": 1,
+        "argument": "Terry eats 2 yogurts a day.",
+        "counterfactual_arguments": [
+          {
+            "counterfactual_argument": "Terry eats 3 yogurts a day.",
+            "original_value": "2",
+            "counterfactual_value": "3",
+            "reasoning": "Changed the daily yogurt consumption from 2 to 3. Both are plausible daily quantities, and the small increase remains relevant to the overall cost calculation while preserving the exact sentence structure."
+          },
+          {
+            "counterfactual_argument": "Terry eats 1 yogurt a day.",
+            "original_value": "2 yogurts",
+            "counterfactual_value": "1 yogurt",
+            "reasoning": "Changed the daily yogurt consumption from 2 yogurts to 1 yogurt. This is a small, plausible change in quantity. By replacing the full phrase '2 yogurts' with '1 yogurt', the resulting sentence is grammatically correct and satisfies the single find-and-replace constraint without requiring any other character changes."
+          }
+        ]
+      },
+      {
+        "argument_id": 2,
+        "argument": "Yogurts are currently on sale at 4 yogurts for $5.00.",
+        "counterfactual_arguments": [
+          {
+            "counterfactual_argument": "Yogurts are currently on sale at 4 yogurts for $6.00.",
+            "original_value": "$5.00",
+            "counterfactual_value": "$6.00",
+            "reasoning": "Changed the sale price from $5.00 to $6.00 while keeping the quantity at 4 yogurts. This is a small, plausible price variation that maintains the same promotional structure and overall problem context."
+          },
+          {
+            "counterfactual_argument": "Yogurts are currently on sale at 6 yogurts for $5.00.",
+            "original_value": "4",
+            "counterfactual_value": "6",
+            "reasoning": "Changed the sale pack size from 4 yogurts to 6 yogurts. Both are common multi-pack quantities for yogurt, and maintaining the $5.00 price point keeps the scenario realistic while altering the per-unit cost."
+          }
+        ]
+      }
+    ],
+    "num_arguments": 2,
+    "model_name": "kimi-k2.6",
+    "counterfactual_info": {
+      "num_counterfactuals_requested": 2,
+      "total_arguments": 2,
+      "successful_counterfactuals": 4,
+      "dataset_type": "math"
+    },
+    "predecessors": [
+      {
+        "predecessor_function": "How many days will Terry's $7 last if he buys one yogurt per day at regular price?",
+        "entity_sought": "time duration",
+        "full_arguments": [
+          {
+            "argument_id": 103,
+            "argument": "Yogurts are regularly priced at $1.75 each.",
+            "is_shared": true
+          },
+          {
+            "argument_id": 204,
+            "argument": "Terry has exactly $7.00 to spend on yogurt.",
+            "is_shared": false
+          },
+          {
+            "argument_id": 205,
+            "argument": "Terry buys exactly one yogurt each day.",
+            "is_shared": false
+          }
+        ],
+        "shared_arguments": [
+          "Yogurts are regularly priced at $1.75 each."
+        ],
+        "shared_argument_ids": [
+          103
+        ],
+        "new_arguments": [
+          "Terry has exactly $7.00 to spend on yogurt.",
+          "Terry buys exactly one yogurt each day."
+        ],
+        "new_argument_ids": [
+          204,
+          205
+        ],
+        "transition_reason": "After learning his $7 only covers 4 days at regular price, Terry wants to evaluate the sale pricing to plan his budget. This leads him to ask for the exact per-yogurt cost during the sale, which he can then use to project his spending over a full month.",
+        "transition_type": "reframe_problem",
+        "taxonomy_type": "T4",
+        "causal_link": "The short 4-day duration at regular price motivates Terry to abandon the 'limited cash' framing and investigate the sale's unit cost so he can determine how to afford yogurt over a longer timeframe like 30 days.",
+        "reasoning": "The predecessor establishes a budget-planning framing where Terry calculates how long his money lasts at full price. The $7 amount equals the regular cost of exactly 4 yogurts, creating a clean numerical parallel with the 4-for-$5 sale bundle and making the pivot to unit cost natural."
+      },
+      {
+        "predecessor_function": "What is the cost of one yogurt during the sale?",
+        "entity_sought": "unit price",
+        "full_arguments": [
+          {
+            "argument_id": 2,
+            "argument": "Yogurts are currently on sale at 4 yogurts for $5.00.",
+            "is_shared": true
+          },
+          {
+            "argument_id": 103,
+            "argument": "Yogurts are regularly priced at $1.75 each.",
+            "is_shared": false
+          }
+        ],
+        "shared_arguments": [
+          "Yogurts are currently on sale at 4 yogurts for $5.00."
+        ],
+        "shared_argument_ids": [
+          2
+        ],
+        "new_arguments": [
+          "Yogurts are regularly priced at $1.75 each."
+        ],
+        "new_argument_ids": [
+          103
+        ],
+        "transition_reason": "After calculating the sale unit price of $1.25, the user naturally scales that rate to Terry's daily consumption over a 30-day period.",
+        "transition_type": "lookup_then_compute",
+        "taxonomy_type": "T1",
+        "causal_link": "The unit price derived from the bulk sale ($1.25 per yogurt) is the essential monetary rate needed to compute total spending across 30 days.",
+        "reasoning": "Isolating the bulk sale to find a per-yogurt cost is a natural first step before applying it to Terry's ongoing purchases. The regular price adds realistic sale context without altering the independent 30-day total."
+      }
+    ],
+    "chain_type": [
+      "reframe_problem",
+      "lookup_then_compute"
+    ],
+    "verification_passed": true,
+    "verification_details": [
+      {
+        "target_turn": 1,
+        "target_function": "How many days will Terry's $7 last if he buys one yogurt per day at regular pric",
+        "passed": true,
+        "problematic_arguments": [],
+        "judgments": [
+          {
+            "argument": "Yogurts are regularly priced at $1.75 each.",
+            "source_turn": 2,
+            "problematic": false,
+            "reason": "This condition is identical to the target turn's own condition [103]. It does not provide any new information beyond what the target turn already gives, so it cannot meaningfully narrow the search space or act as a shortcut."
+          }
+        ]
+      },
+      {
+        "target_turn": 2,
+        "target_function": "What is the cost of one yogurt during the sale?",
+        "passed": true,
+        "problematic_arguments": [],
+        "judgments": [
+          {
+            "argument": "Terry has exactly $7.00 to spend on yogurt.",
+            "source_turn": 1,
+            "problematic": false,
+            "reason": "This condition concerns a specific character's budget in a different turn's scenario. It does not help determine the unit sale price of yogurt, which is derived directly from the target turn's own condition (4 for $5.00)."
+          },
+          {
+            "argument": "Terry buys exactly one yogurt each day.",
+            "source_turn": 1,
+            "problematic": false,
+            "reason": "This describes a purchasing habit of a different puzzle entity (Terry). It provides no information that would narrow down or identify the sale price per yogurt."
+          }
+        ]
+      },
+      {
+        "target_turn": "final",
+        "target_function": "How much does Terry spend on yogurt over 30 days?",
+        "passed": true,
+        "problematic_arguments": [],
+        "judgments": [
+          {
+            "argument": "Terry has exactly $7.00 to spend on yogurt.",
+            "source_turn": 1,
+            "problematic": false,
+            "reason": "This budget constraint belongs to a different turn's puzzle scenario. It does not help calculate total spending over 30 days given the target's own rate and sale price conditions."
+          },
+          {
+            "argument": "Terry buys exactly one yogurt each day.",
+            "source_turn": 1,
+            "problematic": false,
+            "reason": "This consumption rate is from a different turn's scenario and is overridden by the target's own condition that Terry eats 2 yogurts a day. It does not narrow the target answer."
+          },
+          {
+            "argument": "Yogurts are regularly priced at $1.75 each.",
+            "source_turn": 2,
+            "problematic": false,
+            "reason": "The target turn already specifies the exact sale price structure (4 for $5.00) needed to compute the answer. The regular price is background context that does not shortcut or alter the target calculation."
+          }
+        ]
+      }
+    ],
+    "independence_passed": null,
+    "independence_reason": "",
+    "predecessor_functions": [
+      {
+        "predecessor_function": "How many days will Terry's $7 last if he buys one yogurt per day at regular price?",
+        "counterfactual_arguments": [
+          {
+            "argument_id": 103,
+            "argument": "Yogurts are regularly priced at $1.75 each.",
+            "is_shared": true
+          },
+          {
+            "argument_id": 204,
+            "argument": "Terry has exactly $7.00 to spend on yogurt.",
+            "is_shared": false
+          },
+          {
+            "argument_id": 205,
+            "argument": "Terry buys exactly one yogurt each day.",
+            "is_shared": false
+          }
+        ],
+        "is_predecessor": true,
+        "transition_type": "reframe_problem",
+        "taxonomy_type": "T4",
+        "transition_reason": "After learning his $7 only covers 4 days at regular price, Terry wants to evaluate the sale pricing to plan his budget. This leads him to ask for the exact per-yogurt cost during the sale, which he can then use to project his spending over a full month.",
+        "entity_sought": "time duration"
+      },
+      {
+        "predecessor_function": "What is the cost of one yogurt during the sale?",
+        "counterfactual_arguments": [
+          {
+            "argument_id": 2,
+            "argument": "Yogurts are currently on sale at 4 yogurts for $5.00.",
+            "is_shared": true
+          },
+          {
+            "argument_id": 103,
+            "argument": "Yogurts are regularly priced at $1.75 each.",
+            "is_shared": true
+          }
+        ],
+        "is_predecessor": true,
+        "transition_type": "lookup_then_compute",
+        "taxonomy_type": "T1",
+        "transition_reason": "After calculating the sale unit price of $1.25, the user naturally scales that rate to Terry's daily consumption over a 30-day period.",
+        "entity_sought": "unit price"
+      }
+    ]
+  }
+]

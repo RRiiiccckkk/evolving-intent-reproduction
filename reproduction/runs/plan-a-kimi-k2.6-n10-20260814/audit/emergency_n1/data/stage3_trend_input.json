@@ -1,0 +1,57 @@
+[
+  {
+    "task_id": "extracted-gsm8k-test-36",
+    "original_id": 36,
+    "task": "math",
+    "question": "Terry eats 2 yogurts a day.  They are currently on sale at 4 yogurts for $5.00.  How much does he spend on yogurt over 30 days?",
+    "answer": "75",
+    "fully_specified_question": "Terry eats 2 yogurts a day.  They are currently on sale at 4 yogurts for $5.00.  How much does he spend on yogurt over 30 days?",
+    "function": "How much does Terry spend on yogurt over 30 days?",
+    "arguments": [
+      {
+        "argument_id": 1,
+        "argument": "Terry eats 2 yogurts a day.",
+        "counterfactual_arguments": [
+          {
+            "counterfactual_argument": "Terry eats 3 yogurts a day.",
+            "original_value": "2",
+            "counterfactual_value": "3",
+            "reasoning": "Changed the daily yogurt consumption from 2 to 3. Both are plausible daily quantities, and the small increase remains relevant to the overall cost calculation while preserving the exact sentence structure."
+          },
+          {
+            "counterfactual_argument": "Terry eats 1 yogurt a day.",
+            "original_value": "2 yogurts",
+            "counterfactual_value": "1 yogurt",
+            "reasoning": "Changed the daily yogurt consumption from 2 yogurts to 1 yogurt. This is a small, plausible change in quantity. By replacing the full phrase '2 yogurts' with '1 yogurt', the resulting sentence is grammatically correct and satisfies the single find-and-replace constraint without requiring any other character changes."
+          }
+        ]
+      },
+      {
+        "argument_id": 2,
+        "argument": "Yogurts are currently on sale at 4 yogurts for $5.00.",
+        "counterfactual_arguments": [
+          {
+            "counterfactual_argument": "Yogurts are currently on sale at 4 yogurts for $6.00.",
+            "original_value": "$5.00",
+            "counterfactual_value": "$6.00",
+            "reasoning": "Changed the sale price from $5.00 to $6.00 while keeping the quantity at 4 yogurts. This is a small, plausible price variation that maintains the same promotional structure and overall problem context."
+          },
+          {
+            "counterfactual_argument": "Yogurts are currently on sale at 6 yogurts for $5.00.",
+            "original_value": "4",
+            "counterfactual_value": "6",
+            "reasoning": "Changed the sale pack size from 4 yogurts to 6 yogurts. Both are common multi-pack quantities for yogurt, and maintaining the $5.00 price point keeps the scenario realistic while altering the per-unit cost."
+          }
+        ]
+      }
+    ],
+    "num_arguments": 2,
+    "model_name": "kimi-k2.6",
+    "counterfactual_info": {
+      "num_counterfactuals_requested": 2,
+      "total_arguments": 2,
+      "successful_counterfactuals": 4,
+      "dataset_type": "math"
+    }
+  }
+]

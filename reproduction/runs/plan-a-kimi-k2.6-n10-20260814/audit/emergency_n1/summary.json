@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "run_id": "plan-a-kimi-k2.6-n10-20260814",
+  "generated_at": "2026-08-15T00:16:15+08:00",
+  "sample_selection": {
+    "requested": 1,
+    "originally_selected": 10,
+    "task_ids": [
+      "extracted-gsm8k-test-36"
+    ],
+    "common_successful_task_ids": [
+      "extracted-gsm8k-test-36"
+    ]
+  },
+  "settings": {
+    "single_t1": {
+      "completed": 1,
+      "requested": 1,
+      "coverage": 1.0,
+      "raw_completed": 1,
+      "raw_successful": 1,
+      "correct": 1,
+      "accuracy": 1.0,
+      "wilson_95": {
+        "low": 0.20654931437723745,
+        "high": 1.0
+      },
+      "failed_calls": 0
+    },
+    "evolve_t4_g1_p1": {
+      "completed": 1,
+      "requested": 1,
+      "coverage": 1.0,
+      "raw_completed": 1,
+      "raw_successful": 1,
+      "correct": 0,
+      "accuracy": 0.0,
+      "wilson_95": {
+        "low": 0.0,
+        "high": 0.7934506856227626
+      },
+      "failed_calls": 0
+    },
+    "repeat_control_t7": {
+      "completed": 1,
+      "requested": 1,
+      "coverage": 1.0,
+      "raw_completed": 1,
+      "raw_successful": 1,
+      "correct": 0,
+      "accuracy": 0.0,
+      "wilson_95": {
+        "low": 0.0,
+        "high": 0.7934506856227626
+      },
+      "failed_calls": 0
+    },
+    "evolve_t7_g2_p2": {
+      "completed": 1,
+      "requested": 1,
+      "coverage": 1.0,
+      "raw_completed": 1,
+      "raw_successful": 1,
+      "correct": 1,
+      "accuracy": 1.0,
+      "wilson_95": {
+        "low": 0.20654931437723745,
+        "high": 1.0
+      },
+      "failed_calls": 0
+    }
+  },
+  "paired_differences": {
+    "evolve_t4_g1_p1": {
+      "baseline": "single_t1",
+      "paired_samples": 1,
+      "accuracy_difference": -1.0,
+      "percentage_point_difference": -100.0,
+      "improved": 0,
+      "regressed": 1,
+      "unchanged": 0
+    },
+    "repeat_control_t7": {
+      "baseline": "single_t1",
+      "paired_samples": 1,
+      "accuracy_difference": -1.0,
+      "percentage_point_difference": -100.0,
+      "improved": 0,
+      "regressed": 1,
+      "unchanged": 0
+    },
+    "evolve_t7_g2_p2": {
+      "baseline": "single_t1",
+      "paired_samples": 1,
+      "accuracy_difference": 0.0,
+      "percentage_point_difference": 0.0,
+      "improved": 0,
+      "regressed": 0,
+      "unchanged": 1
+    }
+  },
+  "cost": {
+    "ledger_path": "/Users/rick/Desktop/graph engineering/reproduction/runs/plan-a-kimi-k2.6-n10-20260814/cost_ledger.jsonl",
+    "events": 334,
+    "requests": 231,
+    "actual_usd_recorded": 13.454245,
+    "input_tokens": 287169,
+    "output_tokens": 600920,
+    "cached_tokens": 197975,
+    "reasoning_tokens": 579199,
+    "hard_cap_usd": null,
+    "planned_range_usd": [
+      8,
+      30
+    ],
+    "measurement_note": "Provider-reported usage is priced with LLM_PRICE_MAP and recorded without a local spend cutoff."
+  },
+  "interpretation": "This small run tests directional behavior only. Wilson intervals are wide at N=20 (or N=10 fallback), so it cannot establish paper-scale effect sizes."
+}

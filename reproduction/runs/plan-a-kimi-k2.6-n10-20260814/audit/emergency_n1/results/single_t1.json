@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "run_id": "plan-a-kimi-k2.6-n10-20260814",
+  "setting": {
+    "name": "single_t1",
+    "kind": "standard",
+    "turns": 1,
+    "switches": 0,
+    "revisions": 0,
+    "reveals": 0
+  },
+  "model": "kimi-k2.6",
+  "selected_task_ids": [
+    "extracted-gsm8k-test-36"
+  ],
+  "updated_at": "2026-08-14T23:54:07+08:00",
+  "results": {
+    "extracted-gsm8k-test-36": {
+      "task_id": "extracted-gsm8k-test-36",
+      "prediction": "$75.00",
+      "correct": true,
+      "ground_truth": "75",
+      "decoding": [
+        "**Step 1:** Calculate the total number of yogurts Terry eats in 30 days.\n$$2 \\text{ yogurts/day} \\times 30 \\text{ days} = 60 \\text{ yogurts}$$\n\n**Step 2:** Determine how many packs of 4 yogurts Terry needs to buy.\n$$60 \\text{ yogurts} \\div 4 \\text{ yogurts/pack} = 15 \\text{ packs}$$\n\n**Step 3:** Calculate the total cost.\n$$15 \\text{ packs} \\times \\$5.00/\\text{pack} = \\$75.00$$\n\n*(Alternatively: Each yogurt costs $\\$5.00 \\div 4 = \\$1.25$. Then $60 \\text{ yogurts} \\times \\$1.25 = \\$75.00$.)*\n\n\\boxed{$75.00}"
+      ],
+      "user_messages": [
+        "Solve this problem step by step. Put your final answer within \\boxed{}.\n\nHow much does Terry spend on yogurt over 30 days? Terry eats 2 yogurts a day. Yogurts are currently on sale at 4 yogurts for $5.00."
+      ],
+      "success": true,
+      "error": null,
+      "metadata": {
+        "task_id": "extracted-gsm8k-test-36",
+        "scenario": "fully-specified",
+        "mode": "eval",
+        "num_turns": 1,
+        "requested_num_turns": 1,
+        "num_arguments": 2,
+        "num_counterfactual_arguments": 0,
+        "num_predecessor_functions": 0,
+        "function": "How much does Terry spend on yogurt over 30 days?",
+        "source_function": "How much does Terry spend on yogurt over 30 days?",
+        "answer": "75",
+        "change_plan": {
+          "task_id": "extracted-gsm8k-test-36",
+          "scenario": "fully-specified",
+          "domain": "math",
+          "num_turns": 1,
+          "final_label": "75",
+          "intent_trajectory": [
+            {
+              "function": "How much does Terry spend on yogurt over 30 days?",
+              "num_arguments": 2,
+              "revealed_ids": [
+                1,
+                2
+              ],
+              "is_fully_specified": true,
+              "has_counterfactual_values": false,
+              "target_answer": "75",
+              "active_values": null
+            }
+          ],
+          "transitions": []
+        },
+        "recap_method": null,
+        "instruction_id_list": null,
+        "kwargs": null,
+        "data_source": null,
+        "per_turn_gold": [],
+        "reproduction_setting": "single_t1"
+      }
+    }
+  }
+}

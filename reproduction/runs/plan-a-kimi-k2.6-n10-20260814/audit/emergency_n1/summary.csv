@@ -1,0 +1,5 @@
+setting,completed,requested,correct,accuracy,wilson_95_low,wilson_95_high,paired_pp_vs_single
+single_t1,1,1,1,1.000000,0.206549,1.000000,0.000
+evolve_t4_g1_p1,1,1,0,0.000000,0.000000,0.793451,-100.000
+repeat_control_t7,1,1,0,0.000000,0.000000,0.793451,-100.000
+evolve_t7_g2_p2,1,1,1,1.000000,0.206549,1.000000,0.000

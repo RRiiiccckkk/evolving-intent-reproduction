@@ -1,0 +1,196 @@
+{
+  "schema_version": 2,
+  "run_id": "plan-a-kimi-k2.6-n10-20260814",
+  "generated_at": "2026-08-15T02:45:41+08:00",
+  "models": [
+    "kimi-k2.6"
+  ],
+  "trend_assessment": "mixed_not_reproduced_at_this_sample_size",
+  "sample_selection": {
+    "requested": 10,
+    "originally_selected": 10,
+    "task_ids": [
+      "extracted-gsm8k-test-12",
+      "extracted-gsm8k-test-14",
+      "extracted-gsm8k-test-16",
+      "extracted-gsm8k-test-36",
+      "extracted-gsm8k-test-40",
+      "extracted-gsm8k-test-43",
+      "extracted-gsm8k-test-49",
+      "extracted-gsm8k-test-50",
+      "extracted-gsm8k-test-60",
+      "extracted-gsm8k-test-62"
+    ],
+    "common_successful_task_ids": [
+      "extracted-gsm8k-test-12",
+      "extracted-gsm8k-test-14",
+      "extracted-gsm8k-test-16",
+      "extracted-gsm8k-test-36",
+      "extracted-gsm8k-test-40",
+      "extracted-gsm8k-test-43",
+      "extracted-gsm8k-test-49",
+      "extracted-gsm8k-test-50",
+      "extracted-gsm8k-test-60",
+      "extracted-gsm8k-test-62"
+    ]
+  },
+  "settings": {
+    "single_t1": {
+      "completed": 10,
+      "requested": 10,
+      "coverage": 1.0,
+      "raw_completed": 10,
+      "raw_successful": 10,
+      "correct": 9,
+      "accuracy": 0.9,
+      "wilson_95": {
+        "low": 0.5958499732047615,
+        "high": 0.9821237869049271
+      },
+      "failed_calls": 0
+    },
+    "evolve_t4_g1_p1": {
+      "completed": 10,
+      "requested": 10,
+      "coverage": 1.0,
+      "raw_completed": 10,
+      "raw_successful": 10,
+      "correct": 8,
+      "accuracy": 0.8,
+      "wilson_95": {
+        "low": 0.49016247153664183,
+        "high": 0.9433178485456247
+      },
+      "failed_calls": 0
+    },
+    "repeat_control_t7": {
+      "completed": 10,
+      "requested": 10,
+      "coverage": 1.0,
+      "raw_completed": 10,
+      "raw_successful": 10,
+      "correct": 8,
+      "accuracy": 0.8,
+      "wilson_95": {
+        "low": 0.49016247153664183,
+        "high": 0.9433178485456247
+      },
+      "failed_calls": 0
+    },
+    "evolve_t7_g2_p2": {
+      "completed": 10,
+      "requested": 10,
+      "coverage": 1.0,
+      "raw_completed": 10,
+      "raw_successful": 10,
+      "correct": 9,
+      "accuracy": 0.9,
+      "wilson_95": {
+        "low": 0.5958499732047615,
+        "high": 0.9821237869049271
+      },
+      "failed_calls": 0
+    }
+  },
+  "paired_differences": {
+    "evolve_t4_g1_p1": {
+      "baseline": "single_t1",
+      "paired_samples": 10,
+      "accuracy_difference": -0.1,
+      "percentage_point_difference": -10.0,
+      "improved": 0,
+      "regressed": 1,
+      "unchanged": 9
+    },
+    "repeat_control_t7": {
+      "baseline": "single_t1",
+      "paired_samples": 10,
+      "accuracy_difference": -0.1,
+      "percentage_point_difference": -10.0,
+      "improved": 0,
+      "regressed": 1,
+      "unchanged": 9
+    },
+    "evolve_t7_g2_p2": {
+      "baseline": "single_t1",
+      "paired_samples": 10,
+      "accuracy_difference": 0.0,
+      "percentage_point_difference": 0.0,
+      "improved": 0,
+      "regressed": 0,
+      "unchanged": 10
+    }
+  },
+  "cost": {
+    "ledger_path": "/Users/rick/Desktop/graph engineering/reproduction/runs/plan-a-kimi-k2.6-n10-20260814/cost_ledger.jsonl",
+    "events": 680,
+    "usage_events": 553,
+    "actual_usd_recorded": 31.94699,
+    "input_tokens": 523330,
+    "output_tokens": 1466517,
+    "cached_tokens": 314777,
+    "reasoning_tokens": 1391975,
+    "formal_models": [
+      "kimi-k2.6"
+    ],
+    "billing_usage": {
+      "usage_events": 572,
+      "actual_usd_recorded": 32.0638,
+      "input_tokens": 539216,
+      "output_tokens": 1468386,
+      "cached_tokens": 314777,
+      "reasoning_tokens": 1391975
+    },
+    "excluded_incidental_usage": {
+      "usage_events": 19,
+      "actual_usd_recorded": 0.11681,
+      "input_tokens": 15886,
+      "output_tokens": 1869,
+      "cached_tokens": 0,
+      "reasoning_tokens": 0,
+      "by_model": {
+        "moonshot-v1-8k": {
+          "usage_events": 19,
+          "actual_usd_recorded": 0.11681,
+          "input_tokens": 15886,
+          "output_tokens": 1869,
+          "cached_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      }
+    },
+    "outstanding_reservations": {
+      "count": 2,
+      "estimated_usd": 0.30289,
+      "note": "Unsettled local estimates are not confirmed provider charges."
+    },
+    "hard_cap_usd": null,
+    "planned_range_usd": [
+      8,
+      30
+    ],
+    "measurement_note": "Provider-reported usage is priced with LLM_PRICE_MAP. Manifest-model totals include every ledger usage event labelled with a manifest model, including calibration and restart activity; they are not a count of physical API requests or canonical evaluation calls. billing_usage includes every ledger usage event. No local spend cutoff was applied."
+  },
+  "execution": {
+    "requested_deadline": "2026-08-14T23:59:00+08:00",
+    "deadline_met": false,
+    "continued_after_deadline": true,
+    "continuation_basis": "The user explicitly required execution to continue until the experiment, report, commit, and push were complete.",
+    "formal_completed_at": "2026-08-15T02:23:05+08:00",
+    "formal_model": "kimi-k2.6",
+    "model_locked": true,
+    "output_token_limit": null,
+    "max_output_token_fields_sent": false,
+    "budget_fail_closed": false,
+    "formal_stage_coverage": "10/10 for Stage 1, Stage 2, and Stage 3",
+    "stage3_cross_turn_verification": "10/10",
+    "stage3_independence_check": "10/10",
+    "formal_evaluation_coverage": "10/10 successful responses in each of four settings"
+  },
+  "repository": {
+    "path": "/Users/rick/Desktop/graph engineering",
+    "commit": "5bfb45bcf8d10bc87cf4286feddf2287a5d92963",
+    "upstream_commit": "993d6be9597ac03854b46362ccd647eb1bfd267a"
+  },
+  "interpretation": "This N=10 paired run does not reproduce the paper's progressive evolving-intent degradation: the paired changes versus the single-turn baseline are -10.0 pp for 4-turn evolve, -10.0 pp for the 7-turn repeat control, and +0.0 pp for 7-turn evolve. The intervals are wide, so this is an inconclusive small-sample result rather than evidence against the paper."
+}

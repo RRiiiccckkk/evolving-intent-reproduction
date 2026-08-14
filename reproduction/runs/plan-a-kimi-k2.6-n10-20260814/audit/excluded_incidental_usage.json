@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "status": "excluded_from_formal_experiment",
+  "reason": "A non-formal model process was started during deadline triage and stopped immediately after the user required a fixed-model experiment.",
+  "model": "moonshot-v1-8k",
+  "ledger_line_start": 289,
+  "ledger_line_end": 307,
+  "started_at": "2026-08-14T23:43:38+08:00",
+  "ended_at": "2026-08-14T23:44:16+08:00",
+  "usage_events": 19,
+  "input_tokens": 15886,
+  "output_tokens": 1869,
+  "cached_tokens": 0,
+  "reasoning_tokens": 0,
+  "estimated_cost_usd": 0.11681,
+  "reservation_ids": [],
+  "result_policy": "No output from this attempt is present in canonical Stage 1/2/3 data or the four formal result files. Formal summaries accept only manifest model kimi-k2.6. The raw ledger is retained unchanged for billing audit."
+}
