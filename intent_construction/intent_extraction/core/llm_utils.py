@@ -643,6 +643,15 @@ def _configured_default_output_tokens() -> Optional[int]:
     return _parse_positive_token_limit(raw, "LLM_DEFAULT_MAX_OUTPUT_TOKENS")
 
 
+def _output_limits_disabled() -> bool:
+    return os.environ.get("LLM_DISABLE_OUTPUT_LIMITS", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 def _default_output_reservation() -> int:
     raw = os.environ.get("LLM_BUDGET_DEFAULT_MAX_OUTPUT_TOKENS", "4096")
     return _parse_positive_token_limit(
@@ -970,6 +979,10 @@ def _accounted_api_call(
     payload = dict(payload)
     if api == "chat.completions":
         payload = _normalize_chat_payload(payload, resolved_model)
+    if _output_limits_disabled():
+        for field in ("max_output_tokens", "max_completion_tokens", "max_tokens"):
+            payload.pop(field, None)
+        max_output_tokens = None
     if _ledger_path() is not None and _model_prices(
         requested_model, resolved_model
     ) is None:

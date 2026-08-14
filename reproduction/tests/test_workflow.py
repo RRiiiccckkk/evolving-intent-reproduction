@@ -52,11 +52,12 @@ class SettingTests(unittest.TestCase):
         config = load_config()
         self.assertEqual(config["construction"]["default_model"], "kimi-k2.6")
         self.assertEqual(config["evaluation"]["default_model"], "kimi-k2.6")
-        self.assertEqual(config["construction"]["default_max_output_tokens"], 16384)
+        self.assertIsNone(config["construction"]["default_max_output_tokens"])
+        self.assertTrue(config["runtime"]["disable_output_limits"])
         self.assertIsNone(config["budget"]["hard_cap_usd"])
         self.assertIsNone(config["evaluation"]["temperature"])
         self.assertIsNone(config["evaluation"]["reasoning_effort"])
-        self.assertEqual(config["evaluation"]["max_tokens"], 8192)
+        self.assertIsNone(config["evaluation"]["max_tokens"])
         self.assertTrue(config["evaluation"]["paired_first"])
         settings = config["evaluation"]["settings"]
         self.assertEqual(tuple(item["name"] for item in settings), PLAN_A_SETTING_NAMES)
@@ -81,7 +82,8 @@ class SettingTests(unittest.TestCase):
         ):
             _configure_accounting(Path(tmp), config)
             self.assertNotIn("LLM_COST_HARD_CAP_USD", os.environ)
-            self.assertEqual(os.environ["LLM_DEFAULT_MAX_OUTPUT_TOKENS"], "16384")
+            self.assertNotIn("LLM_DEFAULT_MAX_OUTPUT_TOKENS", os.environ)
+            self.assertEqual(os.environ["LLM_DISABLE_OUTPUT_LIMITS"], "1")
 
     def test_repeat_control_copies_last_turn_without_label_leak(self):
         sample = SimpleNamespace(
@@ -207,7 +209,7 @@ class SettingTests(unittest.TestCase):
         config = {
             "evaluation": {
                 "temperature": None,
-                "max_tokens": 8192,
+                "max_tokens": None,
                 "reasoning_effort": None,
             }
         }

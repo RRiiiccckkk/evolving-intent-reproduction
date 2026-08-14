@@ -22,9 +22,12 @@
     "hard_cap_usd": null,
     "note": "Provider token usage and estimated cost are recorded without a local spend cutoff."
   },
+  "runtime": {
+    "disable_output_limits": true
+  },
   "construction": {
     "default_model": "kimi-k2.6",
-    "default_max_output_tokens": 16384,
+    "default_max_output_tokens": null,
     "workers": 4,
     "max_verification_attempts": 3,
     "model_verification": true,
@@ -38,7 +41,7 @@
     "workers": 4,
     "paired_first": true,
     "temperature": null,
-    "max_tokens": 8192,
+    "max_tokens": null,
     "reasoning_effort": null,
     "settings": [
       {

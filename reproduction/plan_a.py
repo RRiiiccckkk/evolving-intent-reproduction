@@ -200,6 +200,13 @@ def _configure_accounting(run_dir: Path, config: Mapping[str, Any]) -> None:
     else:
         os.environ["LLM_DEFAULT_MAX_OUTPUT_TOKENS"] = str(default_output)
 
+    if bool(config.get("runtime", {}).get("disable_output_limits", False)):
+        if hard_cap is not None:
+            raise WorkflowError("output limits cannot be disabled with a hard cost cap")
+        os.environ["LLM_DISABLE_OUTPUT_LIMITS"] = "1"
+    else:
+        os.environ.pop("LLM_DISABLE_OUTPUT_LIMITS", None)
+
 
 def _ensure_live_dependencies(*, construction: bool) -> None:
     modules = ["openai", "tqdm"]
@@ -869,7 +876,8 @@ def _run_evaluation_setting(
     evaluation = config["evaluation"]
     raw_temperature = evaluation.get("temperature")
     temperature = None if raw_temperature is None else float(raw_temperature)
-    max_tokens = int(evaluation["max_tokens"])
+    raw_max_tokens = evaluation.get("max_tokens")
+    max_tokens = None if raw_max_tokens is None else int(raw_max_tokens)
     reasoning_effort = evaluation.get("reasoning_effort")
     newly_completed: dict[str, dict[str, Any]] = {}
 

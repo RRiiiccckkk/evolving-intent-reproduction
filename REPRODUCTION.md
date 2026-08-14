@@ -43,10 +43,10 @@ python -m pip install -r reproduction/requirements.txt
 
 The model helper supports OpenAI, Azure OpenAI, and OpenAI-compatible APIs.
 Plan A defaults to `kimi-k2.6`, the paper model, with provider-default sampling
-(`temperature: null`) and no reasoning-effort override. Otherwise-unbounded
-construction calls use a 16384-token output limit; evaluation calls use 8192.
-Empty or length-truncated final answers are recorded as failed calls rather
-than treating hidden reasoning as an answer.
+(`temperature: null`) and no reasoning-effort override. Plan A disables local
+output-token limits; provider context and account limits still apply. Empty or
+provider-truncated final answers are recorded as failed calls rather than
+treating hidden reasoning as an answer.
 Set credentials only
 in the environment or an untracked `.env.local`; never put a key in a command,
 manifest, or tracked file.
@@ -63,9 +63,9 @@ set +a
 `LLM_MODEL_MAP` maps the workflow name `kimi-k2.6` to the provider's actual
 model ID. `LLM_PRICE_MAP` must contain input and output prices; cached-input and
 reasoning prices can also be supplied. A live run exits before its first call
-if the price map is absent. The example limits otherwise-unbounded construction
-calls to 16384 output tokens; this reduces empty JSON when Kimi's internal
-reasoning consumes a smaller limit.
+if the price map is absent. The example disables local output limits so Kimi's
+internal reasoning cannot consume the entire client-supplied allowance before
+emitting JSON.
 
 Run the offline check before adding credentials:
 

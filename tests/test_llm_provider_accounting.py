@@ -302,6 +302,21 @@ class UsageAccountingTests(unittest.TestCase):
         self.assertEqual(create.call_args.kwargs["max_tokens"], 8192)
         self.assertNotIn("reservation_id", self._read_entries()[0])
 
+    def test_output_limits_can_be_disabled(self):
+        os.environ["LLM_DISABLE_OUTPUT_LIMITS"] = "1"
+        create = Mock(return_value=_chat_response())
+
+        llm_utils._accounted_api_call(
+            create,
+            {"model": "test-model", "messages": [], "max_tokens": 77},
+            requested_model="test-model",
+            resolved_model="test-model",
+            api="chat.completions",
+            max_output_tokens=77,
+        )
+
+        self.assertNotIn("max_tokens", create.call_args.kwargs)
+
     def test_ledger_requires_matching_prices_without_hard_cap(self):
         os.environ["LLM_USAGE_LEDGER_PATH"] = str(self.ledger)
         os.environ["LLM_PRICE_MAP"] = json.dumps(
