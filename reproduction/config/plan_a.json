@@ -24,7 +24,7 @@
   },
   "construction": {
     "default_model": "kimi-k2.6",
-    "default_max_output_tokens": 8192,
+    "default_max_output_tokens": 16384,
     "workers": 4,
     "max_verification_attempts": 3,
     "model_verification": true,
