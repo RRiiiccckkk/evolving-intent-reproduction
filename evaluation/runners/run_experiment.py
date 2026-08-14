@@ -60,6 +60,7 @@ except ImportError:
     print("Warning: math-verify not installed. Using fallback answer checking.")
 
 from intent_construction.intent_extraction.core.llm_utils import (
+    LLMAccountingError,
     generate_text,
     generate_multi_turn,
     clean_model_name,
@@ -238,6 +239,8 @@ def call_with_retry(
                 max_tokens=max_tokens,
                 reasoning_effort=reasoning_effort,
             )
+        except LLMAccountingError:
+            raise
         except Exception as e:
             last_error = e
             error_str = str(e)

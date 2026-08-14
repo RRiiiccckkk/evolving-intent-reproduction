@@ -1,5 +1,14 @@
 # LLMs Get Lost in Evolving User Intent
 
+> [!IMPORTANT]
+> This is an independent reproduction workspace based on Microsoft Research's
+> [`microsoft/evolving-intent`](https://github.com/microsoft/evolving-intent)
+> at commit
+> [`993d6be`](https://github.com/microsoft/evolving-intent/commit/993d6be9597ac03854b46362ccd647eb1bfd267a).
+> It is not an official Microsoft repository. Reproduction-specific setup,
+> fixes, experiment manifests, and results are documented in
+> [`REPRODUCTION.md`](REPRODUCTION.md).
+
 A research project from [Microsoft Research, AI Interaction and Learning (AIIL)](https://www.microsoft.com/en-us/research/group/ai-interaction-and-learning/).
 
 Authors: [Jihoon Tack](https://jihoontack.github.io/), [Philippe Laban](https://tingofurro.github.io/), [Jennifer Neville](https://jenneville.github.io/)

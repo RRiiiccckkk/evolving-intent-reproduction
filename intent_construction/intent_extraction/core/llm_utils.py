@@ -1,21 +1,44 @@
 """
 LLM utility functions for Function & Argument extraction.
 
-Calls go through the OpenAI or Azure OpenAI APIs, selected from environment
-variables:
+Calls go through OpenAI, Azure OpenAI, or an OpenAI-compatible API, selected
+from environment variables:
 
 - **OpenAI**:        ``OPENAI_API_KEY``
 - **Azure OpenAI**:  ``AZURE_OPENAI_API_KEY`` + ``AZURE_OPENAI_ENDPOINT``
+- **Compatible**:    ``LLM_API_KEY`` + ``LLM_BASE_URL``
 
-When both are configured, set ``LLM_BACKEND=openai|azure`` to disambiguate.
+When more than one is configured, set
+``LLM_BACKEND=openai|azure|compatible`` to disambiguate. Compatible providers
+can optionally map logical model names with ``LLM_MODEL_MAP`` (a JSON object).
+
+Set ``LLM_USAGE_LEDGER_PATH`` to append per-response token usage as JSONL.
+For a fail-closed cost limit, also set ``LLM_COST_HARD_CAP_USD`` and
+``LLM_PRICE_MAP`` (JSON; prices are USD per one million tokens).
 See :func:`get_client` and :func:`resolve_model_name`.
 """
 import os
 import json
+import math
 import random
+import threading
 import time
-from typing import List, Dict, Any, Optional
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import List, Dict, Any, Mapping, Optional
 from openai import AzureOpenAI, OpenAI
+
+
+class LLMAccountingError(RuntimeError):
+    """Raised when configured usage accounting cannot be completed safely."""
+
+
+class LLMBudgetExceeded(LLMAccountingError):
+    """Raised before or after a call that would exceed the configured cap."""
+
+
+_ACCOUNTING_LOCK = threading.RLock()
 
 
 # =============================================================================
@@ -91,16 +114,18 @@ def _compute_retry_wait(e: Exception, attempt: int = 0, max_cap: int = 120) -> f
 
 
 # =============================================================================
-# Backend configuration (OpenAI / Azure OpenAI, key-based)
+# Backend configuration (OpenAI / Azure OpenAI / OpenAI-compatible)
 # =============================================================================
 #
-# Two backends are supported, selected from environment variables:
+# Three backends are supported, selected from environment variables:
 #   - OpenAI:        OPENAI_API_KEY
 #   - Azure OpenAI:  AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT
+#   - Compatible:    LLM_API_KEY + LLM_BASE_URL
 #
-# When both are configured, set LLM_BACKEND=openai|azure to disambiguate;
-# otherwise Azure takes precedence. Azure API versions and deployment-name
-# mapping are configurable (see below).
+# When more than one is configured, set LLM_BACKEND=openai|azure|compatible to
+# disambiguate. The legacy automatic order remains Azure, then OpenAI, then the
+# compatible provider. Azure API versions and model/deployment mappings are
+# configurable (see below).
 
 AZURE_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION", "2024-10-21")
 AZURE_RESPONSES_API_VERSION = os.environ.get(
@@ -198,24 +223,54 @@ def _requires_responses_api_for_tools(model: str) -> bool:
     return clean_model_name(model).startswith("gpt-5.5")
 
 
+def _normalize_chat_payload(
+    payload: Mapping[str, Any], resolved_model: str
+) -> Dict[str, Any]:
+    """Apply narrow provider/model parameter compatibility rules."""
+    normalized = dict(payload)
+    if normalized.get("reasoning_effort") is None:
+        normalized.pop("reasoning_effort", None)
+
+    provider_model = clean_model_name(resolved_model).lower().rsplit("/", 1)[-1]
+    is_compatible_kimi_k2 = (
+        _select_backend() == "compatible" and provider_model.startswith("kimi-k2.")
+    )
+    if is_compatible_kimi_k2:
+        # Kimi K2 compatible endpoints only accept their default temperature
+        # (currently 1), so omitting the field is the portable representation.
+        normalized.pop("temperature", None)
+        if "max_tokens" in normalized:
+            normalized.setdefault(
+                "max_completion_tokens", normalized.pop("max_tokens")
+            )
+    return normalized
+
+
 # =============================================================================
 # Client construction
 # =============================================================================
 
 
 def _select_backend() -> str:
-    """Return the active backend: ``"openai"`` or ``"azure"``."""
+    """Return the active backend: ``openai``, ``azure``, or ``compatible``."""
     backend = os.environ.get("LLM_BACKEND", "").strip().lower()
+    if backend in ("generic", "openai-compatible", "openai_compatible"):
+        backend = "compatible"
     if backend in ("openai", "azure"):
+        return backend
+    if backend == "compatible":
         return backend
     if os.environ.get("AZURE_OPENAI_API_KEY") and os.environ.get("AZURE_OPENAI_ENDPOINT"):
         return "azure"
     if os.environ.get("OPENAI_API_KEY"):
         return "openai"
+    if os.environ.get("LLM_API_KEY") and os.environ.get("LLM_BASE_URL"):
+        return "compatible"
     raise RuntimeError(
-        "No LLM credentials found. Set OPENAI_API_KEY, or "
-        "AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT. When both are set, use "
-        "LLM_BACKEND=openai|azure to disambiguate."
+        "No LLM credentials found. Set OPENAI_API_KEY; "
+        "AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT; or "
+        "LLM_API_KEY + LLM_BASE_URL. When more than one backend is set, use "
+        "LLM_BACKEND=openai|azure|compatible to disambiguate."
     )
 
 
@@ -232,6 +287,30 @@ def _azure_deployment_map() -> Dict[str, str]:
         return {}
 
 
+def _compatible_model_map() -> Dict[str, str]:
+    """Return the logical-model -> provider-model map from ``LLM_MODEL_MAP``.
+
+    Unlike the legacy Azure map, a malformed compatible-provider map raises a
+    configuration error. Silently ignoring a new provider's model map can send
+    paid traffic to the wrong model.
+    """
+    raw = os.environ.get("LLM_MODEL_MAP")
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise LLMAccountingError("LLM_MODEL_MAP must be a JSON object") from exc
+    if not isinstance(parsed, dict) or not all(
+        isinstance(key, str) and isinstance(value, str)
+        for key, value in parsed.items()
+    ):
+        raise LLMAccountingError(
+            "LLM_MODEL_MAP must map string logical names to string model ids"
+        )
+    return parsed
+
+
 def resolve_model_name(model: str) -> str:
     """Resolve the model/deployment id to send to the API.
 
@@ -240,21 +319,33 @@ def resolve_model_name(model: str) -> str:
     them explicitly.
     """
     name = clean_model_name(model)
-    if _select_backend() == "azure":
+    backend = _select_backend()
+    if backend == "azure":
         return _azure_deployment_map().get(name, name)
+    if backend == "compatible":
+        return _compatible_model_map().get(name, name)
     return name
 
 
 def get_client(use_responses_api: bool = False):
-    """Create an OpenAI or Azure OpenAI client from environment credentials.
+    """Create an OpenAI, Azure, or compatible client from credentials.
 
     Args:
         use_responses_api: Select the Responses API version (Azure only).
 
     Returns:
-        An ``openai.OpenAI`` or ``openai.AzureOpenAI`` client.
+        An ``openai.OpenAI`` or ``openai.AzureOpenAI`` client. Compatible
+        providers use the standard OpenAI client with a custom ``base_url``.
     """
-    if _select_backend() == "azure":
+    backend = _select_backend()
+    if backend == "azure":
+        if not os.environ.get("AZURE_OPENAI_API_KEY") or not os.environ.get(
+            "AZURE_OPENAI_ENDPOINT"
+        ):
+            raise RuntimeError(
+                "LLM_BACKEND=azure requires AZURE_OPENAI_API_KEY and "
+                "AZURE_OPENAI_ENDPOINT"
+            )
         api_version = (
             AZURE_RESPONSES_API_VERSION if use_responses_api else AZURE_API_VERSION
         )
@@ -263,7 +354,642 @@ def get_client(use_responses_api: bool = False):
             azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
             api_version=api_version,
         )
+    if backend == "compatible":
+        if not os.environ.get("LLM_API_KEY") or not os.environ.get("LLM_BASE_URL"):
+            raise RuntimeError(
+                "LLM_BACKEND=compatible requires LLM_API_KEY and LLM_BASE_URL"
+            )
+        return OpenAI(
+            api_key=os.environ["LLM_API_KEY"],
+            base_url=os.environ["LLM_BASE_URL"],
+        )
+    if not os.environ.get("OPENAI_API_KEY"):
+        raise RuntimeError("LLM_BACKEND=openai requires OPENAI_API_KEY")
     return OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+
+# =============================================================================
+# Usage ledger and fail-closed cost cap
+# =============================================================================
+
+
+def _parse_nonnegative_float(raw: Any, setting: str) -> float:
+    """Parse a finite, non-negative configuration value."""
+    try:
+        value = float(raw)
+    except (TypeError, ValueError) as exc:
+        raise LLMAccountingError(f"{setting} must be a non-negative number") from exc
+    if not math.isfinite(value) or value < 0:
+        raise LLMAccountingError(f"{setting} must be a finite, non-negative number")
+    return value
+
+
+def _hard_cap_usd() -> Optional[float]:
+    raw = os.environ.get("LLM_COST_HARD_CAP_USD")
+    if raw is None or not raw.strip():
+        return None
+    return _parse_nonnegative_float(raw, "LLM_COST_HARD_CAP_USD")
+
+
+def _ledger_path() -> Optional[Path]:
+    raw = os.environ.get("LLM_USAGE_LEDGER_PATH", "").strip()
+    if not raw:
+        return None
+    return Path(os.path.expandvars(os.path.expanduser(raw))).resolve()
+
+
+def _price_map() -> Dict[str, Any]:
+    """Read ``LLM_PRICE_MAP``.
+
+    Each model maps to USD-per-million-token prices. The short keys are
+    ``input``, ``output``, ``cached_input``, and ``reasoning``. The latter two
+    are optional and fall back to input/output respectively. Explicit keys
+    such as ``input_usd_per_1m`` and ``output_usd_per_1m`` are also accepted.
+    A ``*`` or ``default`` entry may provide fallback prices.
+    """
+    raw = os.environ.get("LLM_PRICE_MAP", "").strip()
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise LLMAccountingError("LLM_PRICE_MAP must be a JSON object") from exc
+    if not isinstance(parsed, dict):
+        raise LLMAccountingError("LLM_PRICE_MAP must be a JSON object")
+    return parsed
+
+
+_PRICE_ALIASES = {
+    "input": (
+        "input",
+        "prompt",
+        "input_per_million",
+        "input_per_1m_usd",
+        "prompt_per_million",
+        "prompt_per_1m_usd",
+        "input_usd_per_1m",
+        "input_usd_per_million",
+        "prompt_usd_per_1m",
+    ),
+    "output": (
+        "output",
+        "completion",
+        "output_per_million",
+        "output_per_1m_usd",
+        "completion_per_million",
+        "completion_per_1m_usd",
+        "output_usd_per_1m",
+        "output_usd_per_million",
+        "completion_usd_per_1m",
+    ),
+    "cached_input": (
+        "cached_input",
+        "cached",
+        "cache_read",
+        "cached_input_per_million",
+        "cached_input_per_1m_usd",
+        "cached_input_usd_per_1m",
+        "cached_input_usd_per_million",
+        "cache_read_usd_per_1m",
+    ),
+    "reasoning": (
+        "reasoning",
+        "reasoning_output",
+        "reasoning_per_million",
+        "reasoning_per_1m_usd",
+        "reasoning_usd_per_1m",
+        "reasoning_usd_per_million",
+    ),
+}
+
+
+def _model_prices(requested_model: str, resolved_model: str) -> Optional[Dict[str, float]]:
+    prices_by_model = _price_map()
+    raw_entry: Any = None
+    matched_name: Optional[str] = None
+    for name in (requested_model, resolved_model, "*", "default"):
+        if name in prices_by_model:
+            raw_entry = prices_by_model[name]
+            matched_name = name
+            break
+    if raw_entry is None:
+        return None
+    if not isinstance(raw_entry, Mapping):
+        raise LLMAccountingError(
+            f"LLM_PRICE_MAP[{matched_name!r}] must be a JSON object"
+        )
+
+    normalized: Dict[str, float] = {}
+    for canonical, aliases in _PRICE_ALIASES.items():
+        for alias in aliases:
+            if alias in raw_entry:
+                normalized[canonical] = _parse_nonnegative_float(
+                    raw_entry[alias], f"LLM_PRICE_MAP[{matched_name!r}].{alias}"
+                )
+                break
+
+    if "input" not in normalized or "output" not in normalized:
+        raise LLMAccountingError(
+            f"LLM_PRICE_MAP[{matched_name!r}] requires input and output prices"
+        )
+    normalized.setdefault("cached_input", normalized["input"])
+    normalized.setdefault("reasoning", normalized["output"])
+    return normalized
+
+
+def _field(obj: Any, *names: str) -> Any:
+    """Get the first non-None field from a dict or SDK model."""
+    if obj is None:
+        return None
+    for name in names:
+        if isinstance(obj, Mapping):
+            value = obj.get(name)
+        else:
+            value = getattr(obj, name, None)
+        if value is not None:
+            return value
+    return None
+
+
+def _token_count(value: Any) -> int:
+    if value is None:
+        return 0
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise LLMAccountingError(f"API returned an invalid token count: {value!r}") from exc
+    if parsed < 0:
+        raise LLMAccountingError(f"API returned a negative token count: {parsed}")
+    return parsed
+
+
+def _extract_usage(response: Any) -> Optional[Dict[str, int]]:
+    """Normalize Chat Completions and Responses API token usage."""
+    usage = _field(response, "usage")
+    if usage is None:
+        return None
+
+    input_raw = _field(usage, "input_tokens", "prompt_tokens")
+    output_raw = _field(usage, "output_tokens", "completion_tokens")
+    if input_raw is None or output_raw is None:
+        return None
+
+    input_details = _field(usage, "input_tokens_details", "prompt_tokens_details")
+    output_details = _field(
+        usage, "output_tokens_details", "completion_tokens_details"
+    )
+    cached_raw = _field(
+        input_details,
+        "cached_tokens",
+        "cache_read_tokens",
+        "prompt_cache_hit_tokens",
+    )
+    if cached_raw is None:
+        cached_raw = _field(
+            usage,
+            "cached_tokens",
+            "cache_read_tokens",
+            "prompt_cache_hit_tokens",
+        )
+    reasoning_raw = _field(output_details, "reasoning_tokens")
+    if reasoning_raw is None:
+        reasoning_raw = _field(usage, "reasoning_tokens")
+
+    input_tokens = _token_count(input_raw)
+    output_tokens = _token_count(output_raw)
+    cached_tokens = _token_count(cached_raw)
+    reasoning_tokens = _token_count(reasoning_raw)
+    if cached_tokens > input_tokens:
+        raise LLMAccountingError("API cached token count exceeds input token count")
+    if reasoning_tokens > output_tokens:
+        raise LLMAccountingError("API reasoning token count exceeds output token count")
+    return {
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "reasoning_tokens": reasoning_tokens,
+        "cached_tokens": cached_tokens,
+    }
+
+
+def _usage_cost_usd(usage: Dict[str, int], prices: Dict[str, float]) -> float:
+    uncached_input = usage["input_tokens"] - usage["cached_tokens"]
+    visible_output = usage["output_tokens"] - usage["reasoning_tokens"]
+    cost = (
+        uncached_input * prices["input"]
+        + usage["cached_tokens"] * prices["cached_input"]
+        + visible_output * prices["output"]
+        + usage["reasoning_tokens"] * prices["reasoning"]
+    ) / 1_000_000
+    return round(cost, 12)
+
+
+def _estimated_payload_tokens(payload: Mapping[str, Any]) -> int:
+    """Return a conservative byte-level upper estimate for request tokens."""
+    try:
+        serialized = json.dumps(payload, ensure_ascii=False, default=str)
+    except (TypeError, ValueError) as exc:
+        raise LLMAccountingError("Unable to estimate request size for budget cap") from exc
+    # Byte-level BPE cannot use more tokens than encoded bytes. The fixed
+    # margin covers provider-side chat wrappers and special tokens.
+    return len(serialized.encode("utf-8")) + 512
+
+
+def _parse_positive_token_limit(raw: Any, setting: str) -> int:
+    try:
+        value = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise LLMAccountingError(f"{setting} must be a positive integer") from exc
+    if value <= 0:
+        raise LLMAccountingError(f"{setting} must be a positive integer")
+    return value
+
+
+def _configured_default_output_tokens() -> Optional[int]:
+    raw = os.environ.get("LLM_DEFAULT_MAX_OUTPUT_TOKENS")
+    if raw is None or not raw.strip():
+        return None
+    return _parse_positive_token_limit(raw, "LLM_DEFAULT_MAX_OUTPUT_TOKENS")
+
+
+def _default_output_reservation() -> int:
+    raw = os.environ.get("LLM_BUDGET_DEFAULT_MAX_OUTPUT_TOKENS", "4096")
+    return _parse_positive_token_limit(
+        raw, "LLM_BUDGET_DEFAULT_MAX_OUTPUT_TOKENS"
+    )
+
+
+def _estimated_call_cost_usd(
+    payload: Mapping[str, Any],
+    max_output_tokens: Optional[int],
+    prices: Dict[str, float],
+) -> float:
+    if max_output_tokens is None:
+        output_tokens = _default_output_reservation()
+    else:
+        try:
+            output_tokens = int(max_output_tokens)
+        except (TypeError, ValueError) as exc:
+            raise LLMAccountingError("Maximum output tokens must be an integer") from exc
+        if output_tokens < 0:
+            raise LLMAccountingError("Maximum output tokens cannot be negative")
+    input_rate = max(prices["input"], prices["cached_input"])
+    output_rate = max(prices["output"], prices["reasoning"])
+    return (
+        _estimated_payload_tokens(payload) * input_rate
+        + output_tokens * output_rate
+    ) / 1_000_000
+
+
+def _read_ledger_state(handle: Any, strict: bool) -> tuple[float, Dict[str, float]]:
+    """Return paid spend and unresolved reservations from a JSONL ledger."""
+    handle.seek(0)
+    spent = 0.0
+    reservations: Dict[str, float] = {}
+    for line_number, raw_line in enumerate(handle, start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError as exc:
+            if strict:
+                raise LLMAccountingError(
+                    f"Usage ledger contains invalid JSON on line {line_number}"
+                ) from exc
+            continue
+        if not isinstance(entry, Mapping):
+            if strict:
+                raise LLMAccountingError(
+                    f"Usage ledger line {line_number} must be a JSON object"
+                )
+            continue
+
+        event = entry.get("event", "usage")
+        reservation_id = entry.get("reservation_id")
+        if event == "reservation":
+            raw_reserved = entry.get("estimated_cost_usd")
+            if not isinstance(reservation_id, str) or not reservation_id:
+                if strict:
+                    raise LLMAccountingError(
+                        f"Usage ledger line {line_number} has no reservation_id"
+                    )
+                continue
+            if raw_reserved is None:
+                if strict:
+                    raise LLMAccountingError(
+                        f"Usage ledger line {line_number} has no estimated_cost_usd"
+                    )
+                continue
+            if strict and reservation_id in reservations:
+                raise LLMAccountingError(
+                    f"Usage ledger line {line_number} duplicates an active reservation"
+                )
+            reservations[reservation_id] = _parse_nonnegative_float(
+                raw_reserved,
+                f"usage ledger line {line_number} estimated_cost_usd",
+            )
+            continue
+
+        if event == "release":
+            if isinstance(reservation_id, str):
+                reservations.pop(reservation_id, None)
+            elif strict:
+                raise LLMAccountingError(
+                    f"Usage ledger line {line_number} has no reservation_id"
+                )
+            continue
+
+        if event != "usage":
+            continue
+
+        raw_cost = entry.get("cost_usd")
+        if raw_cost is None:
+            if strict:
+                raise LLMAccountingError(
+                    f"Usage ledger line {line_number} has no cost_usd; "
+                    "cannot enforce the hard cap"
+                )
+            if isinstance(reservation_id, str):
+                reservations.pop(reservation_id, None)
+            continue
+        spent += _parse_nonnegative_float(
+            raw_cost, f"usage ledger line {line_number} cost_usd"
+        )
+        if isinstance(reservation_id, str):
+            reservations.pop(reservation_id, None)
+    return spent, reservations
+
+
+def _read_ledger_spend(handle: Any, strict: bool) -> float:
+    """Backward-compatible helper returning only settled spend."""
+    return _read_ledger_state(handle, strict)[0]
+
+
+def _append_ledger_event(handle: Any, entry: Mapping[str, Any]) -> None:
+    handle.seek(0, os.SEEK_END)
+    handle.write(json.dumps(entry, sort_keys=True, separators=(",", ":")) + "\n")
+    handle.flush()
+    os.fsync(handle.fileno())
+
+
+def _with_locked_ledger(path: Path, operation):
+    """Run ``operation(handle)`` while holding an advisory file lock."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        handle = path.open("a+", encoding="utf-8")
+    except OSError as exc:
+        raise LLMAccountingError(f"Cannot open usage ledger {path}: {exc}") from exc
+    lock_module = None
+    locked = False
+    try:
+        try:
+            import fcntl as lock_module
+
+            lock_module.flock(handle.fileno(), lock_module.LOCK_EX)
+            locked = True
+        except ImportError:
+            pass
+        try:
+            return operation(handle)
+        except LLMAccountingError:
+            raise
+        except OSError as exc:
+            raise LLMAccountingError(
+                f"Unable to update usage ledger {path}: {exc}"
+            ) from exc
+    except OSError as exc:
+        raise LLMAccountingError(f"Unable to lock usage ledger {path}: {exc}") from exc
+    finally:
+        try:
+            if locked and lock_module is not None:
+                lock_module.flock(handle.fileno(), lock_module.LOCK_UN)
+        finally:
+            handle.close()
+
+
+def _reserve_budget(
+    requested_model: str,
+    resolved_model: str,
+    payload: Mapping[str, Any],
+    max_output_tokens: Optional[int],
+    api: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    cap = _hard_cap_usd()
+    if cap is None:
+        return None
+    path = _ledger_path()
+    if path is None:
+        raise LLMAccountingError(
+            "LLM_COST_HARD_CAP_USD requires LLM_USAGE_LEDGER_PATH"
+        )
+    prices = _model_prices(requested_model, resolved_model)
+    if prices is None:
+        raise LLMAccountingError(
+            f"No LLM_PRICE_MAP entry for {requested_model!r} or "
+            f"resolved model {resolved_model!r}"
+        )
+    estimated_cost = _estimated_call_cost_usd(payload, max_output_tokens, prices)
+    reservation_id = uuid.uuid4().hex
+
+    def reserve(handle: Any) -> None:
+        spent, active_reservations = _read_ledger_state(handle, strict=True)
+        active = sum(active_reservations.values())
+        projected = spent + active + estimated_cost
+        if projected > cap + 1e-12:
+            raise LLMBudgetExceeded(
+                f"LLM cost cap would be exceeded before the call: "
+                f"spent=${spent:.6f}, reserved=${active:.6f}, "
+                f"call_estimate=${estimated_cost:.6f}, cap=${cap:.6f}"
+            )
+        _append_ledger_event(
+            handle,
+            {
+                "event": "reservation",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "reservation_id": reservation_id,
+                "estimated_cost_usd": round(estimated_cost, 12),
+                "requested_model": requested_model,
+                "resolved_model": resolved_model,
+                "api": api,
+            },
+        )
+
+    with _ACCOUNTING_LOCK:
+        _with_locked_ledger(path, reserve)
+    return {
+        "id": reservation_id,
+        "path": path,
+        "cap_usd": cap,
+        "prices": prices,
+        "estimated_cost_usd": estimated_cost,
+    }
+
+
+def _release_reservation(
+    reservation: Optional[Dict[str, Any]], reason: str = "api_error"
+) -> None:
+    """Persistently release a reservation after an unbilled API failure."""
+    if reservation is None:
+        return
+
+    def release(handle: Any) -> None:
+        _, active_reservations = _read_ledger_state(handle, strict=True)
+        if reservation["id"] not in active_reservations:
+            return
+        _append_ledger_event(
+            handle,
+            {
+                "event": "release",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "reservation_id": reservation["id"],
+                "reason": reason,
+            },
+        )
+
+    with _ACCOUNTING_LOCK:
+        _with_locked_ledger(reservation["path"], release)
+
+
+def _record_response_usage(
+    response: Any,
+    requested_model: str,
+    resolved_model: str,
+    api: str,
+    reservation: Optional[Dict[str, Any]] = None,
+) -> None:
+    path = reservation["path"] if reservation is not None else _ledger_path()
+    cap = reservation["cap_usd"] if reservation is not None else _hard_cap_usd()
+    usage = _extract_usage(response)
+    if usage is None:
+        if cap is not None:
+            raise LLMAccountingError(
+                "API response has no usable token accounting; hard cap enforcement "
+                "failed closed"
+            )
+        return
+    if path is None:
+        return
+
+    prices = (
+        reservation["prices"]
+        if reservation is not None
+        else _model_prices(requested_model, resolved_model)
+    )
+    if prices is None:
+        raise LLMAccountingError(
+            f"No LLM_PRICE_MAP entry for {requested_model!r} or "
+            f"resolved model {resolved_model!r}"
+        )
+    cost = _usage_cost_usd(usage, prices) if prices is not None else None
+    backend = _select_backend()
+
+    def append_entry(handle: Any) -> tuple[float, float]:
+        spent, active_reservations = _read_ledger_state(
+            handle, strict=cap is not None
+        )
+        reservation_id = reservation["id"] if reservation is not None else None
+        if reservation_id is not None and reservation_id not in active_reservations:
+            raise LLMAccountingError(
+                f"Usage reservation {reservation_id} is missing from {path}; "
+                "hard cap enforcement failed closed"
+            )
+        if reservation_id is not None:
+            active_reservations.pop(reservation_id)
+        cumulative = spent + (cost or 0.0)
+        entry = {
+            "event": "usage",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "backend": backend,
+            "api": api,
+            "requested_model": requested_model,
+            "resolved_model": resolved_model,
+            **usage,
+            "cost_usd": cost,
+            "cumulative_cost_usd": round(cumulative, 12) if cost is not None else None,
+        }
+        if reservation_id is not None:
+            entry["reservation_id"] = reservation_id
+        _append_ledger_event(handle, entry)
+        committed = cumulative + sum(active_reservations.values())
+        return cumulative, committed
+
+    cumulative, committed = _with_locked_ledger(path, append_entry)
+    if cap is not None and committed > cap + 1e-12:
+        raise LLMBudgetExceeded(
+            f"LLM cost cap exceeded after the call: "
+            f"spent=${cumulative:.6f}, committed=${committed:.6f}, "
+            f"cap=${cap:.6f}. "
+            f"Usage was recorded in {path}."
+        )
+
+
+def _accounted_api_call(
+    create,
+    payload: Dict[str, Any],
+    *,
+    requested_model: str,
+    resolved_model: str,
+    api: str,
+    max_output_tokens: Optional[int] = None,
+):
+    """Call an SDK endpoint with budget reservation and usage accounting."""
+    # Plan-specific output limits are independent of accounting policy. A
+    # hard cap still supplies its conservative fallback for unbounded calls.
+    payload = dict(payload)
+    if api == "chat.completions":
+        payload = _normalize_chat_payload(payload, resolved_model)
+    if _ledger_path() is not None and _model_prices(
+        requested_model, resolved_model
+    ) is None:
+        raise LLMAccountingError(
+            f"No LLM_PRICE_MAP entry for {requested_model!r} or "
+            f"resolved model {resolved_model!r}"
+        )
+    if max_output_tokens is None:
+        for field in ("max_output_tokens", "max_completion_tokens", "max_tokens"):
+            if field in payload:
+                try:
+                    max_output_tokens = int(payload[field])
+                except (TypeError, ValueError) as exc:
+                    raise LLMAccountingError(
+                        f"{field} must be an integer"
+                    ) from exc
+                break
+    if max_output_tokens is None:
+        default_output_tokens = _configured_default_output_tokens()
+        if default_output_tokens is not None or _hard_cap_usd() is not None:
+            max_output_tokens = (
+                default_output_tokens
+                if default_output_tokens is not None
+                else _default_output_reservation()
+            )
+            if api == "responses":
+                payload["max_output_tokens"] = max_output_tokens
+            elif _needs_max_completion_tokens(
+                requested_model
+            ) or _needs_max_completion_tokens(resolved_model):
+                payload["max_completion_tokens"] = max_output_tokens
+            else:
+                payload["max_tokens"] = max_output_tokens
+
+    reservation = _reserve_budget(
+        requested_model, resolved_model, payload, max_output_tokens, api=api
+    )
+    try:
+        response = create(**payload)
+    except BaseException:
+        _release_reservation(reservation, reason="api_error")
+        raise
+
+    with _ACCOUNTING_LOCK:
+        _record_response_usage(
+            response=response,
+            requested_model=requested_model,
+            resolved_model=resolved_model,
+            api=api,
+            reservation=reservation,
+        )
+    return response
 
 
 def generate_json(
@@ -315,7 +1041,13 @@ def generate_json(
                 if reasoning_effort:
                     api_params["reasoning"] = {"effort": reasoning_effort}
                 
-                response = client.responses.create(**api_params)
+                response = _accounted_api_call(
+                    client.responses.create,
+                    api_params,
+                    requested_model=model,
+                    resolved_model=deployment_name,
+                    api="responses",
+                )
                 response_content = response.output_text
             else:
                 # Use Chat Completions API
@@ -330,7 +1062,13 @@ def generate_json(
                 else:
                     api_params["temperature"] = temperature
                 
-                response = client.chat.completions.create(**api_params)
+                response = _accounted_api_call(
+                    client.chat.completions.create,
+                    api_params,
+                    requested_model=model,
+                    resolved_model=deployment_name,
+                    api="chat.completions",
+                )
                 response_content = response.choices[0].message.content
                 if response_content is None:
                     response_content = getattr(response.choices[0].message, "reasoning_content", None)
@@ -346,6 +1084,9 @@ def generate_json(
                 raise
             time.sleep(1)
             
+        except LLMAccountingError:
+            raise
+
         except Exception as e:
             error_str = str(e)
             # Handle rate limit errors separately (don't count as failure)
@@ -437,7 +1178,14 @@ def generate_text(
                 if max_tokens is not None:
                     api_params["max_output_tokens"] = max_tokens
                 
-                response = client.responses.create(**api_params)
+                response = _accounted_api_call(
+                    client.responses.create,
+                    api_params,
+                    requested_model=model,
+                    resolved_model=deployment_name,
+                    api="responses",
+                    max_output_tokens=max_tokens,
+                )
                 return response.output_text
             else:
                 # Use Chat Completions API
@@ -458,7 +1206,14 @@ def generate_text(
                     else:
                         kwargs["max_tokens"] = max_tokens
                     
-                response = client.chat.completions.create(**kwargs)
+                response = _accounted_api_call(
+                    client.chat.completions.create,
+                    kwargs,
+                    requested_model=model,
+                    resolved_model=deployment_name,
+                    api="chat.completions",
+                    max_output_tokens=max_tokens,
+                )
                 if not response.choices:
                     raise RuntimeError("API returned empty choices")
                 content = response.choices[0].message.content
@@ -468,6 +1223,9 @@ def generate_text(
                     content = getattr(response.choices[0].message, "reasoning_content", None)
                 return content
             
+        except LLMAccountingError:
+            raise
+
         except Exception as e:
             error_str = str(e)
             print(f"Error on attempt {attempt + 1}: {e}")
@@ -577,7 +1335,14 @@ def generate_multi_turn(
     last_error: Optional[Exception] = None
     for attempt in range(max_retries):
         try:
-            response = client.responses.create(**api_params)
+            response = _accounted_api_call(
+                client.responses.create,
+                api_params,
+                requested_model=model,
+                resolved_model=deployment_name,
+                api="responses",
+                max_output_tokens=max_tokens,
+            )
             text = response.output_text
             output_items = [
                 item.model_dump(exclude_none=True) for item in response.output
@@ -592,6 +1357,9 @@ def generate_multi_turn(
                     "(reasoning may have exhausted token budget)"
                 )
             return text, output_items
+        except LLMAccountingError:
+            raise
+
         except Exception as e:
             last_error = e
             error_str = str(e)
@@ -706,10 +1474,20 @@ def generate_with_tools(
                 else:
                     kwargs["max_tokens"] = max_tokens
 
-            response = client.chat.completions.create(**kwargs)
+            response = _accounted_api_call(
+                client.chat.completions.create,
+                kwargs,
+                requested_model=model,
+                resolved_model=deployment_name,
+                api="chat.completions",
+                max_output_tokens=max_tokens,
+            )
             if not response.choices:
                 raise RuntimeError("API returned empty choices")
             return response
+
+        except LLMAccountingError:
+            raise
 
         except Exception as e:
             last_error = e
@@ -824,8 +1602,18 @@ def generate_with_tools_responses(
             if reasoning_effort is not None:
                 api_params["reasoning"] = {"effort": reasoning_effort}
 
-            response = client.responses.create(**api_params)
+            response = _accounted_api_call(
+                client.responses.create,
+                api_params,
+                requested_model=model,
+                resolved_model=deployment_name,
+                api="responses",
+                max_output_tokens=max_tokens,
+            )
             return response
+
+        except LLMAccountingError:
+            raise
 
         except Exception as e:
             last_error = e

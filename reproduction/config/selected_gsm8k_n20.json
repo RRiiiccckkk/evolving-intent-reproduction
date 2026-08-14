@@ -1,0 +1,28 @@
+{
+  "source": "intent_construction/eval_indices/gsm8k_eval_ids.json",
+  "selection_rule": "first 20 entries",
+  "seed": 42,
+  "fallback_rule": "first 10 of the same ordered entries",
+  "samples": [
+    {"position": 1, "task_id": "extracted-gsm8k-test-12", "original_id": 12},
+    {"position": 2, "task_id": "extracted-gsm8k-test-14", "original_id": 14},
+    {"position": 3, "task_id": "extracted-gsm8k-test-16", "original_id": 16},
+    {"position": 4, "task_id": "extracted-gsm8k-test-36", "original_id": 36},
+    {"position": 5, "task_id": "extracted-gsm8k-test-40", "original_id": 40},
+    {"position": 6, "task_id": "extracted-gsm8k-test-43", "original_id": 43},
+    {"position": 7, "task_id": "extracted-gsm8k-test-49", "original_id": 49},
+    {"position": 8, "task_id": "extracted-gsm8k-test-50", "original_id": 50},
+    {"position": 9, "task_id": "extracted-gsm8k-test-60", "original_id": 60},
+    {"position": 10, "task_id": "extracted-gsm8k-test-62", "original_id": 62},
+    {"position": 11, "task_id": "extracted-gsm8k-test-63", "original_id": 63},
+    {"position": 12, "task_id": "extracted-gsm8k-test-70", "original_id": 70},
+    {"position": 13, "task_id": "extracted-gsm8k-test-80", "original_id": 80},
+    {"position": 14, "task_id": "extracted-gsm8k-test-87", "original_id": 87},
+    {"position": 15, "task_id": "extracted-gsm8k-test-90", "original_id": 90},
+    {"position": 16, "task_id": "extracted-gsm8k-test-95", "original_id": 95},
+    {"position": 17, "task_id": "extracted-gsm8k-test-100", "original_id": 100},
+    {"position": 18, "task_id": "extracted-gsm8k-test-115", "original_id": 115},
+    {"position": 19, "task_id": "extracted-gsm8k-test-118", "original_id": 118},
+    {"position": 20, "task_id": "extracted-gsm8k-test-122", "original_id": 122}
+  ]
+}

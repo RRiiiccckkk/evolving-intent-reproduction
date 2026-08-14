@@ -204,7 +204,7 @@
   <header>
     <div class="header-inner">
       <h1>《LLMs Get Lost in Evolving User Intent》复现计划</h1>
-      <p class="subtitle">决策版 v0.1 · 2026-08-14 20:32 CST · 目标时区 Asia/Shanghai</p>
+      <p class="subtitle">执行版 v0.2 · 2026-08-14 22:15 CST · 目标时区 Asia/Shanghai</p>
     </div>
   </header>
 
@@ -212,26 +212,26 @@
     <section>
       <div class="decision">
         <h3>结论</h3>
-        <p><strong>今天能稳妥完成的是“小样本、单领域、单模型的科学复现”，不是论文全部实验。</strong></p>
-        <p>建议选择方案 A：GSM8K 20 题、GPT-5.1、单轮与 7 轮意图变化对比，再加同轮数但不改变意图的控制组。目标是验证方向，不承诺复刻论文的精确百分比。</p>
+        <p><strong>方案 A 已确认并执行：GSM8K 10 题、Kimi K2.6、四组配对趋势复现。</strong></p>
+        <p>四组为单轮、4 轮意图变化、7 轮重复控制、7 轮意图变化。目标是验证方向，不承诺复刻论文的精确百分比。</p>
       </div>
     </section>
 
     <section>
       <h2>已确认条件</h2>
       <div class="facts">
-        <div class="fact"><div class="fact-label">距今日结束</div><div class="fact-value">约 3 小时 28 分</div></div>
-        <div class="fact"><div class="fact-label">GitHub</div><div class="fact-value">RRiiiccckkk 已登录，可建仓</div></div>
+        <div class="fact"><div class="fact-label">硬截止</div><div class="fact-value">今天 23:59 CST</div></div>
+        <div class="fact"><div class="fact-label">GitHub</div><div class="fact-value">私有仓库已创建</div></div>
         <div class="fact"><div class="fact-label">本机</div><div class="fact-value">M3 / 16 GB / 8 CPU</div></div>
         <div class="fact"><div class="fact-label">可用磁盘</div><div class="fact-value">约 11 GiB</div></div>
         <div class="fact"><div class="fact-label">Docker</div><div class="fact-value">未安装</div></div>
-        <div class="fact"><div class="fact-label">LLM API 凭据</div><div class="fact-value">当前环境未检测到</div></div>
-        <div class="fact"><div class="fact-label">工作区</div><div class="fact-value">空目录，尚未建仓</div></div>
+        <div class="fact"><div class="fact-label">LLM API</div><div class="fact-value">CC Switch / Kimi K2.6 已接通</div></div>
+        <div class="fact"><div class="fact-label">运行规模</div><div class="fact-value">N=10，小样本趋势检查</div></div>
         <div class="fact"><div class="fact-label">官方代码版本</div><div class="fact-value"><code>993d6be</code></div></div>
       </div>
 
-      <div class="blocker" style="margin-top: 14px;">
-        <strong>当前硬阻塞：</strong>没有 <code>OPENAI_API_KEY</code> 或 Azure OpenAI 凭据，无法生成论文所需数据，也无法运行模型评估。ChatGPT/Codex 订阅不能直接替代 API 余额。
+      <div class="warning" style="margin-top: 14px;">
+        <strong>当前状态：</strong>真实 API 实验正在断点续跑；token 和估算费用继续写入账本，不设置 30 美元本地硬停止。
       </div>
     </section>
 
@@ -274,11 +274,11 @@
             <tr class="recommended">
               <td><strong>A. 当日最小科学复现</strong></td>
               <td>收到确认后约 3 小时 10 分</td>
-              <td>预计 $8-30；硬上限 $30</td>
-              <td>GSM8K 20 题；GPT-5.1；Single、4-turn、7-turn repeat、7-turn evolve</td>
-              <td>1/4 数据集；1/9 主模型；20/200 GSM8K；2/72 主表单元；3/3 意图变化类型</td>
-              <td class="yes">推荐，可行</td>
-              <td>准确率最小步长 5%，置信区间宽；只能验证趋势</td>
+              <td>持续记账；无本地金额硬上限</td>
+              <td>GSM8K 10 题；Kimi K2.6；Single、4-turn、7-turn repeat、7-turn evolve</td>
+              <td>1/4 数据集；1/9 主模型；10/200 GSM8K；4 个配对设置；3/3 意图变化类型</td>
+              <td class="yes">执行中</td>
+              <td>准确率最小步长 10%，置信区间宽；只能验证趋势</td>
             </tr>
             <tr>
               <td>B. 当日冲刺版</td>
@@ -310,19 +310,19 @@
           </tbody>
         </table>
       </div>
-      <p class="small">预算只含外部 API/云资源，不含人工时间。官方代码不记录 token 成本，以上是风险预留；正式运行前会加入逐调用 token 账本和自动停机上限。</p>
+      <p class="small">预算只含外部 API/云资源，不含人工时间。方案 A 逐调用记录 provider token 和估算费用，但不按 30 美元阈值停止。</p>
     </section>
 
     <section>
       <h2>推荐方案 A 的当日时间表</h2>
       <div class="warning">
-        该时间表要求最迟约 20:45 CST 获得确认和可用 API 凭据。更晚开始时，为守住 23:59，将样本数自动降到 10，并明确标注为 pilot。
+        已按硬截止降为 N=10 pilot；各阶段写 checkpoint，23:59 前以共同成功样本生成趋势报告。
       </div>
       <div class="timeline" style="margin-top: 13px;">
         <div class="time">20:45-21:10</div><div>创建私有 GitHub 仓库；导入并注明官方 MIT 来源；锁定 commit；建立 Python 3.10 轻量环境。</div>
-        <div class="time">21:10-21:35</div><div>修复模板参数错误；添加调度器、答案验证、成本上限和 mock API 回归测试；启用断点续跑。</div>
-        <div class="time">21:35-22:35</div><div>按固定 seed 构造 GSM8K 20 题：抽取、反事实参数、前置任务、质量验证。</div>
-        <div class="time">22:35-23:20</div><div>在同一题集上运行 4 个设置；最多 380 个评估轮次；失败项只重试一次。</div>
+        <div class="time">21:10-21:35</div><div>修复模板参数错误；添加调度器、答案验证、成本账本和 mock API 回归测试；启用断点续跑。</div>
+        <div class="time">21:35-22:35</div><div>按固定 seed 构造 GSM8K 10 题：抽取、反事实参数、前置任务、质量验证。</div>
+        <div class="time">22:35-23:20</div><div>在同一题集上运行 4 个设置；最多 190 个评估轮次；失败项保留并可续跑。</div>
         <div class="time">23:20-23:42</div><div>计算准确率、差值、Wilson 区间、逐题配对变化；生成表格与图。</div>
         <div class="time">23:42-23:59</div><div>复跑离线测试；检查密钥与大文件未入库；提交、推送并写清结论与偏差。</div>
       </div>
@@ -332,7 +332,7 @@
       <h2>方案 A 的完成标准</h2>
       <ol>
         <li>仓库可从空环境按一条命令安装；上游 commit、Python 和依赖版本可追溯。</li>
-        <li>20 个固定题目全部经过 3 个数据构造阶段和质量检查；失败与剔除原因有记录。</li>
+        <li>10 个固定题目经过 3 个数据构造阶段和质量检查；失败与剔除原因有记录。</li>
         <li>同一题集完成 Single、4-turn evolve、7-turn repeat、7-turn evolve 四个设置。</li>
         <li>报告真实结果，不预设论文结论。若差异不明显，结论写“本次小样本未能确认”，不写“复现成功”。</li>
         <li>发布逐题结果、聚合结果、运行参数、环境清单、token/费用账本和已知偏差；不提交密钥。</li>
@@ -347,34 +347,26 @@
         <li><strong>本地算力：</strong>16 GB M3 不适合论文中的 32B 激活 MoE 模型；本地也没有模型缓存。</li>
         <li><strong>BrowseComp+：</strong>需外部语料、约 1.64 GB 索引、Qwen3-Embedding-8B 权重和 GPU；当前磁盘与 MPS 条件不适合今天部署。</li>
         <li><strong>SWE-Bench：</strong>当前无 Docker；每个镜像约 3 GB，单题约 5-30 分钟，11 GiB 空盘无法覆盖论文集合。</li>
-        <li><strong>多模型：</strong>官方代码只实现 OpenAI/Azure OpenAI 路径，论文其余供应商不是一键可跑。</li>
+        <li><strong>多模型：</strong>复现层已补 OpenAI-compatible 路径；不同模型仍需各自可用凭据、名称映射和价格表。</li>
         <li><strong>许可：</strong>新仓库先只提交代码、固定 ID、manifest 和聚合结果。原始数据库、语料、Docker 镜像和生成数据公开前逐项审查许可。</li>
       </ul>
     </section>
 
     <section>
-      <h2>预算依据</h2>
-      <p>截至 2026-08-14，OpenAI 官方文档列出的标准 API 价格为：GPT-5.1 输入 $1.25/百万 token、输出 $10/百万 token；GPT-5.2 为 $1.75/$14；GPT-5.5 为 $5/$30。最终费用还取决于推理 token、重试和上下文增长。</p>
-      <p class="small">来源：<a href="https://developers.openai.com/api/docs/models/gpt-5.1">GPT-5.1</a>、<a href="https://developers.openai.com/api/docs/models/gpt-5.2">GPT-5.2</a>、<a href="https://developers.openai.com/api/docs/models/gpt-5.5">GPT-5.5</a>、<a href="https://developers.openai.com/api/docs/pricing">OpenAI API Pricing</a>。</p>
+      <h2>预算与记账</h2>
+      <p>真实运行按配置价格表和 provider 返回的 token usage 估算费用；推理 token、缓存 token、重试和上下文增长分别记入 JSONL 账本。</p>
+      <p class="small">账本用于透明报告，不再触发 30 美元 fail-closed；供应商账户自身的额度和限流仍然有效。</p>
     </section>
 
     <section>
-      <h2>请确认</h2>
-      <ol class="question-list">
-        <li><strong>范围：</strong>选方案 0、A、B、C 还是 D？建议 A。</li>
-        <li><strong>仓库：</strong>是否使用 <code>RRiiiccckkk/evolving-intent-reproduction</code>，先设为 private？建议是。若要 public，请明确。</li>
-        <li><strong>API：</strong>你能否在本机环境中配置 <code>OPENAI_API_KEY</code>，并确认账号可调用固定快照 <code>gpt-5.1-2025-11-13</code>？不要把密钥粘贴到聊天中。也可提供 Azure OpenAI 环境变量。</li>
-        <li><strong>花费上限：</strong>方案 A 是否允许 API 硬上限 $30？达到上限时自动停止并保留已有结果。</li>
-        <li><strong>验收口径：</strong>是否接受“验证 Single、重复轮次、意图变化之间的方向和效应量”，而不是要求复刻论文的精确百分比？建议接受。</li>
-        <li><strong>截止：</strong>是否以今天 23:59 CST 为硬截止？若确认较晚，是否允许自动把 20 题降为 10 题以守住截止？</li>
+      <h2>已确认决策</h2>
+      <ol>
+        <li>执行方案 A，接受小样本趋势复现。</li>
+        <li>仓库为 <code>RRiiiccckkk/evolving-intent-reproduction</code>，保持 private。</li>
+        <li>当前用 CC Switch 中的 Kimi 凭据和 <code>kimi-k2.6</code>；兼容层保留切换其他模型的能力。</li>
+        <li>不设置 30 美元 fail-closed，继续记录 token 和估算费用。</li>
+        <li>今天 23:59 CST 为硬截止，运行规模降为 N=10。</li>
       </ol>
-      <div class="reply">回复模板：
-1. 方案 A
-2. 仓库名：evolving-intent-reproduction；private
-3. API 已在本机配置；可调用 gpt-5.1-2025-11-13
-4. 上限：$30
-5. 接受趋势复现
-6. 23:59 硬截止；允许降到 10 题</div>
     </section>
   </main>
 

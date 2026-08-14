@@ -440,7 +440,10 @@ Reply with EXACTLY one word: SIMILAR or DIFFERENT"""
         Returns True if too similar (should reject), False if different enough.
         Uses dataset-specific similarity prompt loaded from prompts directory.
         """
-        prompt = self.similarity_prompt_template.format(function_a=function_a, function_b=function_b)
+        prompt = self.similarity_prompt_template.format(
+            goal_a=function_a,
+            goal_b=function_b,
+        )
         try:
             response = generate_text(
                 [{"role": "user", "content": prompt}],

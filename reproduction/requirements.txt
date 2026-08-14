@@ -1,0 +1,7 @@
+# Live Plan A dependencies only. The upstream full requirements include
+# SWE-bench, PyTorch, and Transformers, which are not needed for GSM8K.
+datasets>=2.14.0,<5
+httpx[socks]>=0.27.0,<1
+openai>=1.0.0,<3
+tqdm>=4.65.0
+math-verify>=0.7.0

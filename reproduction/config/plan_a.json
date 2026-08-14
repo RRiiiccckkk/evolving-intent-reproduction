@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "plan": "A",
+  "upstream_commit": "993d6be9597ac03854b46362ccd647eb1bfd267a",
+  "dataset": "gsm8k",
+  "split": "test",
+  "sample_count": 20,
+  "fallback_sample_count": 10,
+  "seed": 42,
+  "selection": {
+    "eval_manifest": "intent_construction/eval_indices/gsm8k_eval_ids.json",
+    "rule": "first_n_published_eval_ids"
+  },
+  "deadline": {
+    "operational_cutoff": "2026-08-14T23:59:00+08:00",
+    "guard_minutes": 15,
+    "fallback_threshold_minutes": 210
+  },
+  "budget": {
+    "currency": "USD",
+    "planned_range_usd": [8, 30],
+    "hard_cap_usd": null,
+    "note": "Provider token usage and estimated cost are recorded without a local spend cutoff."
+  },
+  "construction": {
+    "default_model": "kimi-k2.6",
+    "default_max_output_tokens": 8192,
+    "workers": 4,
+    "max_verification_attempts": 3,
+    "model_verification": true,
+    "counterfactuals_per_argument": 2,
+    "predecessors_per_sample": 2,
+    "independence_runs": 1,
+    "max_independence_retries": 1
+  },
+  "evaluation": {
+    "default_model": "kimi-k2.6",
+    "workers": 4,
+    "temperature": null,
+    "max_tokens": 2048,
+    "reasoning_effort": null,
+    "settings": [
+      {
+        "name": "single_t1",
+        "kind": "standard",
+        "turns": 1,
+        "switches": 0,
+        "revisions": 0
+      },
+      {
+        "name": "evolve_t4_g1_p1",
+        "kind": "standard",
+        "turns": 4,
+        "switches": 1,
+        "revisions": 1
+      },
+      {
+        "name": "repeat_control_t7",
+        "kind": "repeat_control",
+        "turns": 7,
+        "repeat_turns": 3,
+        "base": {
+          "turns": 4,
+          "switches": 1,
+          "revisions": 1
+        }
+      },
+      {
+        "name": "evolve_t7_g2_p2",
+        "kind": "standard",
+        "turns": 7,
+        "switches": 2,
+        "revisions": 2
+      }
+    ]
+  }
+}
