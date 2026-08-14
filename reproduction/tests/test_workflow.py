@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import patch
 
 from reproduction.workflow import (
@@ -16,6 +17,7 @@ from reproduction.workflow import (
     build_manifest,
     contains_secret_material,
     load_config,
+    read_json,
     repeat_last_user_turn,
     select_official_samples,
     summarize_ledger,
@@ -54,6 +56,8 @@ class SettingTests(unittest.TestCase):
         self.assertIsNone(config["budget"]["hard_cap_usd"])
         self.assertIsNone(config["evaluation"]["temperature"])
         self.assertIsNone(config["evaluation"]["reasoning_effort"])
+        self.assertEqual(config["evaluation"]["max_tokens"], 8192)
+        self.assertTrue(config["evaluation"]["paired_first"])
         settings = config["evaluation"]["settings"]
         self.assertEqual(tuple(item["name"] for item in settings), PLAN_A_SETTING_NAMES)
         t4 = settings[1]
@@ -171,6 +175,72 @@ class SettingTests(unittest.TestCase):
         repeat_plan = repeat.metadata["change_plan"]
         self.assertTrue(all(item["type"] == "repeat" for item in repeat_plan["transitions"][-3:]))
         self.assertEqual(repeat_plan["intent_trajectory"][-3:], [repeat_plan["intent_trajectory"][3]] * 3)
+
+    def test_paired_batches_preserve_prior_setting_results(self):
+        from reproduction.plan_a import _run_evaluation_setting
+
+        task_ids = [f"task-{index}" for index in range(4)]
+        samples = [
+            SimpleNamespace(
+                task_id=task_id,
+                turns=[{"role": "user", "content": task_id}],
+                label="1",
+                metadata={},
+            )
+            for task_id in task_ids
+        ]
+
+        def evaluate_sample(sample, *_args, **_kwargs):
+            return {
+                "task_id": sample.task_id,
+                "prediction": "1",
+                "ground_truth": "1",
+                "correct": True,
+                "decoding": ["1"],
+                "success": True,
+                "error": None,
+                "metadata": {},
+            }
+
+        fake_runner = ModuleType("evaluation.runners.run_experiment")
+        fake_runner.evaluate_sample = evaluate_sample
+        config = {
+            "evaluation": {
+                "temperature": None,
+                "max_tokens": 8192,
+                "reasoning_effort": None,
+            }
+        }
+        manifest = {"run_id": "paired-test", "seed": 42}
+        setting = {"name": "single_t1", "turns": 1}
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            sys.modules,
+            {"evaluation.runners.run_experiment": fake_runner},
+        ), patch(
+            "reproduction.plan_a.build_setting_samples",
+            return_value=samples,
+        ):
+            run_dir = Path(tmp)
+            for batch in (task_ids[:2], task_ids[2:]):
+                _run_evaluation_setting(
+                    config,
+                    manifest,
+                    run_dir,
+                    setting,
+                    task_ids=task_ids,
+                    model="offline-model",
+                    workers=2,
+                    retry_failed=False,
+                    deadline=None,
+                    deadline_buffer=0,
+                    ignore_deadline=True,
+                    only_task_ids=batch,
+                )
+            checkpoint = read_json(run_dir / "results/single_t1.json")
+
+        self.assertEqual(checkpoint["selected_task_ids"], task_ids)
+        self.assertEqual(list(checkpoint["results"]), task_ids)
 
 
 class StatisticsTests(unittest.TestCase):

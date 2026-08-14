@@ -792,6 +792,7 @@ def _run_evaluation_setting(
     deadline,
     deadline_buffer: int,
     ignore_deadline: bool,
+    only_task_ids: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     from evaluation.runners.run_experiment import evaluate_sample
 
@@ -805,6 +806,9 @@ def _run_evaluation_setting(
             if bool(result.get("success", True)) and result.get("error") is None
         }
     pending_ids = [task_id for task_id in task_ids if task_id not in completed]
+    if only_task_ids is not None:
+        allowed = set(only_task_ids)
+        pending_ids = [task_id for task_id in pending_ids if task_id in allowed]
     if not pending_ids:
         print(f"[{setting['name']}] already complete")
         return {"path": result_path, "new_results": {}}
@@ -949,29 +953,44 @@ def run_evaluation(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
         raise WorkflowError("workers must be at least 1")
     model = manifest["models"]["evaluation"]
     requested_settings = args.setting or list(PLAN_A_SETTING_NAMES)
-    for name in requested_settings:
-        setting = _setting_by_name(manifest, name)
-        outcome = _run_evaluation_setting(
-            config,
-            manifest,
-            run_dir,
-            setting,
-            task_ids=eligible_ids,
-            model=model,
-            workers=workers,
-            retry_failed=args.retry_failed,
-            deadline=deadline,
-            deadline_buffer=int(config["deadline"]["guard_minutes"]),
-            ignore_deadline=args.ignore_deadline,
-        )
-        path = outcome["path"]
-        manifest["artifacts"][f"result_{name}"] = {
-            "path": _rel(path),
-            "sha256": file_sha256(path),
-        }
-        _save_manifest(manifest_path, manifest, "evaluating")
+    paired_first = bool(config["evaluation"].get("paired_first", False))
+    task_batches: list[Sequence[str] | None]
+    if paired_first and len(requested_settings) > 1:
+        task_batches = [
+            eligible_ids[offset : offset + workers]
+            for offset in range(0, len(eligible_ids), workers)
+        ]
+    else:
+        task_batches = [None]
 
-    complete = all((run_dir / "results" / f"{name}.json").exists() for name in PLAN_A_SETTING_NAMES)
+    for task_batch in task_batches:
+        for name in requested_settings:
+            setting = _setting_by_name(manifest, name)
+            outcome = _run_evaluation_setting(
+                config,
+                manifest,
+                run_dir,
+                setting,
+                task_ids=eligible_ids,
+                model=model,
+                workers=workers,
+                retry_failed=args.retry_failed,
+                deadline=deadline,
+                deadline_buffer=int(config["deadline"]["guard_minutes"]),
+                ignore_deadline=args.ignore_deadline,
+                only_task_ids=task_batch,
+            )
+            path = outcome["path"]
+            manifest["artifacts"][f"result_{name}"] = {
+                "path": _rel(path),
+                "sha256": file_sha256(path),
+            }
+            _save_manifest(manifest_path, manifest, "evaluating")
+
+    complete = all(
+        path.exists() and len(unwrap_results(read_json(path))) == len(eligible_ids)
+        for _, path in iter_result_files(run_dir)
+    )
     _save_manifest(manifest_path, manifest, "evaluated" if complete else "evaluating")
     return manifest, run_dir
 

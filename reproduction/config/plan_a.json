@@ -36,8 +36,9 @@
   "evaluation": {
     "default_model": "kimi-k2.6",
     "workers": 4,
+    "paired_first": true,
     "temperature": null,
-    "max_tokens": 2048,
+    "max_tokens": 8192,
     "reasoning_effort": null,
     "settings": [
       {

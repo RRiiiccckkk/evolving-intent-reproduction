@@ -38,6 +38,10 @@ class LLMBudgetExceeded(LLMAccountingError):
     """Raised before or after a call that would exceed the configured cap."""
 
 
+class LLMIncompleteResponse(RuntimeError):
+    """Raised when a provider returns reasoning but no complete final answer."""
+
+
 _ACCOUNTING_LOCK = threading.RLock()
 
 
@@ -509,6 +513,23 @@ def _field(obj: Any, *names: str) -> Any:
         if value is not None:
             return value
     return None
+
+
+def _chat_final_content(response: Any) -> str:
+    """Return complete Chat Completions content, never hidden reasoning."""
+    choices = _field(response, "choices")
+    if not choices:
+        raise LLMIncompleteResponse("API returned no chat completion choice")
+    choice = choices[0]
+    finish_reason = _field(choice, "finish_reason")
+    if finish_reason in {"length", "max_tokens"}:
+        raise LLMIncompleteResponse(
+            f"API response was truncated before a final answer ({finish_reason})"
+        )
+    content = _field(_field(choice, "message"), "content")
+    if not isinstance(content, str) or not content.strip():
+        raise LLMIncompleteResponse("API returned no final answer content")
+    return content
 
 
 def _token_count(value: Any) -> int:
@@ -1069,9 +1090,7 @@ def generate_json(
                     resolved_model=deployment_name,
                     api="chat.completions",
                 )
-                response_content = response.choices[0].message.content
-                if response_content is None:
-                    response_content = getattr(response.choices[0].message, "reasoning_content", None)
+                response_content = _chat_final_content(response)
             result = json.loads(response_content)
             
             print(f"[{step}] Success!")
@@ -1214,16 +1233,9 @@ def generate_text(
                     api="chat.completions",
                     max_output_tokens=max_tokens,
                 )
-                if not response.choices:
-                    raise RuntimeError("API returned empty choices")
-                content = response.choices[0].message.content
-                # Reasoning models may put output in reasoning_content when
-                # content is None (e.g., token budget exhausted during thinking)
-                if content is None:
-                    content = getattr(response.choices[0].message, "reasoning_content", None)
-                return content
+                return _chat_final_content(response)
             
-        except LLMAccountingError:
+        except (LLMAccountingError, LLMIncompleteResponse):
             raise
 
         except Exception as e:

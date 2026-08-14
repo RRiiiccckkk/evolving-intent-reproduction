@@ -16,9 +16,19 @@ def _chat_response(
     output_tokens=50,
     cached_tokens=20,
     reasoning_tokens=10,
+    finish_reason="stop",
+    reasoning_content=None,
 ):
     return SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content=content))],
+        choices=[
+            SimpleNamespace(
+                finish_reason=finish_reason,
+                message=SimpleNamespace(
+                    content=content,
+                    reasoning_content=reasoning_content,
+                ),
+            )
+        ],
         usage=SimpleNamespace(
             prompt_tokens=input_tokens,
             completion_tokens=output_tokens,
@@ -168,6 +178,42 @@ class ProviderConfigurationTests(unittest.TestCase):
         self.assertEqual(payload["temperature"], 0.7)
         self.assertEqual(payload["max_tokens"], 77)
         self.assertNotIn("max_completion_tokens", payload)
+
+    def test_reasoning_content_is_never_used_as_final_answer(self):
+        os.environ.update(
+            {
+                "LLM_BACKEND": "compatible",
+                "LLM_API_KEY": "key",
+                "LLM_BASE_URL": "https://example.invalid/v1",
+                "LLM_MODEL_MAP": json.dumps({"plan-a": "kimi-k2.6"}),
+            }
+        )
+        create = Mock(
+            return_value=_chat_response(
+                content=None,
+                reasoning_content="unfinished reasoning ending in 42",
+                finish_reason="stop",
+            )
+        )
+        client = SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=create))
+        )
+
+        with patch.object(llm_utils, "get_client", return_value=client):
+            with self.assertRaises(llm_utils.LLMIncompleteResponse):
+                llm_utils.generate_text(
+                    [{"role": "user", "content": "solve"}],
+                    model="plan-a",
+                    max_retries=3,
+                    max_tokens=8192,
+                )
+
+        create.assert_called_once()
+
+    def test_length_truncated_content_is_rejected(self):
+        response = _chat_response(content="42", finish_reason="length")
+        with self.assertRaises(llm_utils.LLMIncompleteResponse):
+            llm_utils._chat_final_content(response)
 
 
 class UsageAccountingTests(unittest.TestCase):

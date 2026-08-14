@@ -61,6 +61,7 @@ except ImportError:
 
 from intent_construction.intent_extraction.core.llm_utils import (
     LLMAccountingError,
+    LLMIncompleteResponse,
     generate_text,
     generate_multi_turn,
     clean_model_name,
@@ -239,7 +240,7 @@ def call_with_retry(
                 max_tokens=max_tokens,
                 reasoning_effort=reasoning_effort,
             )
-        except LLMAccountingError:
+        except (LLMAccountingError, LLMIncompleteResponse):
             raise
         except Exception as e:
             last_error = e

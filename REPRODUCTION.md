@@ -43,7 +43,10 @@ python -m pip install -r reproduction/requirements.txt
 
 The model helper supports OpenAI, Azure OpenAI, and OpenAI-compatible APIs.
 Plan A defaults to `kimi-k2.6`, the paper model, with provider-default sampling
-(`temperature: null`) and no reasoning-effort override. Set credentials only
+(`temperature: null`), no reasoning-effort override, and an 8192-token output
+limit for construction and evaluation. Empty or length-truncated final answers
+are recorded as failed calls rather than treating hidden reasoning as an answer.
+Set credentials only
 in the environment or an untracked `.env.local`; never put a key in a command,
 manifest, or tracked file.
 
@@ -90,7 +93,9 @@ keeps its checkpoints.
 
 Construction and evaluation files are updated after each small batch. Re-run
 the same command and `--run-id` to resume. Failed evaluation calls can be
-retried without replacing successful results.
+retried without replacing successful results. Evaluation completes all four
+settings for each worker-sized task batch before starting the next batch, so a
+deadline-limited run retains a paired subset.
 
 ```bash
 python -m reproduction.plan_a inspect --run-id plan-a-20260814

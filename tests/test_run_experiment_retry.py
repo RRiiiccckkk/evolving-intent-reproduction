@@ -6,10 +6,14 @@ from evaluation.runners import run_experiment
 from intent_construction.intent_extraction.core.llm_utils import (
     LLMAccountingError,
     LLMBudgetExceeded,
+    LLMIncompleteResponse,
 )
 
 
-@pytest.mark.parametrize("error_type", [LLMAccountingError, LLMBudgetExceeded])
+@pytest.mark.parametrize(
+    "error_type",
+    [LLMAccountingError, LLMBudgetExceeded, LLMIncompleteResponse],
+)
 def test_accounting_errors_are_not_retried_or_delayed(monkeypatch, error_type):
     api_call = Mock(side_effect=error_type("stop immediately"))
     sleep = Mock()
