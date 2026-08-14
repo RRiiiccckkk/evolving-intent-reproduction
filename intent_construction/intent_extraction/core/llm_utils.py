@@ -532,6 +532,17 @@ def _chat_final_content(response: Any) -> str:
     return content
 
 
+def _responses_final_content(response: Any) -> str:
+    """Return completed Responses API text or raise an explicit failure."""
+    status = _field(response, "status")
+    if status == "incomplete" or _field(response, "incomplete_details") is not None:
+        raise LLMIncompleteResponse("Responses API returned an incomplete response")
+    content = _field(response, "output_text")
+    if not isinstance(content, str) or not content.strip():
+        raise LLMIncompleteResponse("Responses API returned no final answer content")
+    return content
+
+
 def _token_count(value: Any) -> int:
     if value is None:
         return 0
@@ -1205,7 +1216,7 @@ def generate_text(
                     api="responses",
                     max_output_tokens=max_tokens,
                 )
-                return response.output_text
+                return _responses_final_content(response)
             else:
                 # Use Chat Completions API
                 kwargs = {
@@ -1355,21 +1366,12 @@ def generate_multi_turn(
                 api="responses",
                 max_output_tokens=max_tokens,
             )
-            text = response.output_text
+            text = _responses_final_content(response)
             output_items = [
                 item.model_dump(exclude_none=True) for item in response.output
             ]
-            if not text and not any(
-                it.get("type") == "message" for it in output_items
-            ):
-                # Reasoning emitted but no message item (e.g. token budget
-                # exhausted during thinking). Surface as retryable error.
-                raise RuntimeError(
-                    "Responses API returned no message item "
-                    "(reasoning may have exhausted token budget)"
-                )
             return text, output_items
-        except LLMAccountingError:
+        except (LLMAccountingError, LLMIncompleteResponse):
             raise
 
         except Exception as e:

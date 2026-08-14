@@ -215,6 +215,24 @@ class ProviderConfigurationTests(unittest.TestCase):
         with self.assertRaises(llm_utils.LLMIncompleteResponse):
             llm_utils._chat_final_content(response)
 
+    def test_incomplete_responses_api_output_is_rejected(self):
+        response = SimpleNamespace(
+            status="incomplete",
+            incomplete_details=SimpleNamespace(reason="max_output_tokens"),
+            output_text="42",
+        )
+        with self.assertRaises(llm_utils.LLMIncompleteResponse):
+            llm_utils._responses_final_content(response)
+
+    def test_empty_responses_api_output_is_rejected(self):
+        response = SimpleNamespace(
+            status="completed",
+            incomplete_details=None,
+            output_text="",
+        )
+        with self.assertRaises(llm_utils.LLMIncompleteResponse):
+            llm_utils._responses_final_content(response)
+
 
 class UsageAccountingTests(unittest.TestCase):
     def setUp(self):

@@ -755,6 +755,36 @@ def _load_result_checkpoint(path: Path) -> tuple[dict[str, Any], dict[str, dict[
     return payload if isinstance(payload, dict) else {}, unwrap_results(payload)
 
 
+def _validate_result_checkpoint(
+    path: Path,
+    header: Mapping[str, Any],
+    *,
+    manifest: Mapping[str, Any],
+    setting: Mapping[str, Any],
+    model: str,
+    task_ids: Sequence[str],
+) -> None:
+    if not header:
+        return
+    mismatches = []
+    if header.get("run_id") != manifest["run_id"]:
+        mismatches.append("run_id")
+    if header.get("model") != model:
+        mismatches.append("model")
+    checkpoint_setting = header.get("setting")
+    if not isinstance(checkpoint_setting, Mapping) or checkpoint_setting.get(
+        "name"
+    ) != setting.get("name"):
+        mismatches.append("setting")
+    if header.get("selected_task_ids") != list(task_ids):
+        mismatches.append("selected_task_ids")
+    if mismatches:
+        raise WorkflowError(
+            f"result checkpoint {path} does not match the requested run "
+            f"({', '.join(mismatches)}); use a new run_id"
+        )
+
+
 def _save_result_checkpoint(
     path: Path,
     *,
@@ -797,7 +827,15 @@ def _run_evaluation_setting(
     from evaluation.runners.run_experiment import evaluate_sample
 
     result_path = run_dir / "results" / f"{setting['name']}.json"
-    _, results = _load_result_checkpoint(result_path)
+    header, results = _load_result_checkpoint(result_path)
+    _validate_result_checkpoint(
+        result_path,
+        header,
+        manifest=manifest,
+        setting=setting,
+        model=model,
+        task_ids=task_ids,
+    )
     completed = set(results)
     if retry_failed:
         completed = {
@@ -987,11 +1025,26 @@ def run_evaluation(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
             }
             _save_manifest(manifest_path, manifest, "evaluating")
 
-    complete = all(
-        path.exists() and len(unwrap_results(read_json(path))) == len(eligible_ids)
-        for _, path in iter_result_files(run_dir)
+    checkpoints = {
+        name: unwrap_results(read_json(path)) if path.exists() else {}
+        for name, path in iter_result_files(run_dir)
+    }
+    attempted = all(
+        set(results) == set(eligible_ids) for results in checkpoints.values()
     )
-    _save_manifest(manifest_path, manifest, "evaluated" if complete else "evaluating")
+    successful = attempted and all(
+        bool(result.get("success", True)) and result.get("error") is None
+        for results in checkpoints.values()
+        for result in results.values()
+    )
+    status = (
+        "evaluated"
+        if successful
+        else "evaluated_with_failures"
+        if attempted
+        else "evaluating"
+    )
+    _save_manifest(manifest_path, manifest, status)
     return manifest, run_dir
 
 

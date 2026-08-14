@@ -242,6 +242,24 @@ class SettingTests(unittest.TestCase):
         self.assertEqual(checkpoint["selected_task_ids"], task_ids)
         self.assertEqual(list(checkpoint["results"]), task_ids)
 
+    def test_result_checkpoint_rejects_model_mixing(self):
+        from reproduction.plan_a import _validate_result_checkpoint
+
+        with self.assertRaisesRegex(WorkflowError, "model.*use a new run_id"):
+            _validate_result_checkpoint(
+                Path("result.json"),
+                {
+                    "run_id": "run-a",
+                    "model": "old-model",
+                    "setting": {"name": "single_t1"},
+                    "selected_task_ids": ["task-1"],
+                },
+                manifest={"run_id": "run-a"},
+                setting={"name": "single_t1"},
+                model="new-model",
+                task_ids=["task-1"],
+            )
+
 
 class StatisticsTests(unittest.TestCase):
     def test_wilson_interval_contains_observed_accuracy(self):
