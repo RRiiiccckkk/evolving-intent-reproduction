@@ -583,7 +583,7 @@ def read_ledger(path: str | Path) -> list[dict[str, Any]]:
 
 def _usage_totals(events: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     return {
-        "requests": len(events),
+        "usage_events": len(events),
         "actual_usd_recorded": round(
             sum(float(event.get("cost_usd") or 0.0) for event in events), 6
         ),
@@ -665,9 +665,11 @@ def summarize_ledger(
         "hard_cap_usd": budget.get("hard_cap_usd"),
         "planned_range_usd": budget.get("planned_range_usd"),
         "measurement_note": (
-            "Provider-reported usage is priced with LLM_PRICE_MAP. Formal experiment "
-            "totals include only the manifest models; billing_usage includes every "
-            "ledger usage event. No local spend cutoff was applied."
+            "Provider-reported usage is priced with LLM_PRICE_MAP. Manifest-model "
+            "totals include every ledger usage event labelled with a manifest model, "
+            "including calibration and restart activity; they are not a count of "
+            "physical API requests or canonical evaluation calls. billing_usage "
+            "includes every ledger usage event. No local spend cutoff was applied."
         ),
     }
 
@@ -783,7 +785,7 @@ def aggregate_results(
         )
 
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "run_id": manifest["run_id"],
         "generated_at": iso_now(),
         "models": model_names,
@@ -811,7 +813,7 @@ def write_summary_csv(summary: Mapping[str, Any], path: str | Path) -> None:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     with target.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.writer(handle)
+        writer = csv.writer(handle, lineterminator="\n")
         writer.writerow(
             [
                 "setting",
@@ -950,8 +952,9 @@ def write_summary_html(summary: Mapping[str, Any], path: str | Path) -> None:
     <section>
       <h2>费用与运行策略</h2>
       <ul>
-        <li>正式 K2.6 usage 估算：${cost['actual_usd_recorded']:.6f}，{cost['requests']} 次响应。</li>
-        <li>完整账务 usage 估算：${float(billing.get('actual_usd_recorded', 0.0)):.6f}；其中排除的意外异模型调用为 ${float(excluded.get('actual_usd_recorded', 0.0)):.6f} / {int(excluded.get('requests', 0))} 次。</li>
+        <li>K2.6 标签 usage 估算（含校准与重启活动）：${cost['actual_usd_recorded']:.6f}，{cost['usage_events']} 条 usage 记录。</li>
+        <li>完整账务 usage 估算：${float(billing.get('actual_usd_recorded', 0.0)):.6f}；其中排除的意外异模型 usage 为 ${float(excluded.get('actual_usd_recorded', 0.0)):.6f} / {int(excluded.get('usage_events', 0))} 条记录。</li>
+        <li>usage 记录数不是物理 API 请求数；账本中的预检记录合并了两次成功调用。</li>
         <li>未结算本地 reservation：${float(outstanding.get('estimated_usd', 0.0)):.6f} / {int(outstanding.get('count', 0))} 条；它们不是确认账单。</li>
         <li>计划区间 {planned_text} 不是硬上限；<code>hard_cap_usd=null</code>，全程只记账，不按 30 美元 fail-closed。</li>
         <li>构建与评测请求不发送客户端输出 token 上限；provider 明确截断或空正文仍记为失败。</li>

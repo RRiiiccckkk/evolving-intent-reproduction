@@ -1075,6 +1075,10 @@ def run_aggregation(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
         "path": _rel(paths["summary_html"]),
         "sha256": file_sha256(paths["summary_html"]),
     }
+    manifest["artifacts"]["summary_csv"] = {
+        "path": _rel(paths["summary_csv"]),
+        "sha256": file_sha256(paths["summary_csv"]),
+    }
     all_complete = all(
         summary["settings"][name]["completed"]
         == summary["settings"][name]["requested"]

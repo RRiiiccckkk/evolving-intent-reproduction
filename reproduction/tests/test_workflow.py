@@ -367,7 +367,7 @@ class StatisticsTests(unittest.TestCase):
                 + "\n"
             )
             summary = summarize_ledger(ledger, {"hard_cap_usd": None})
-        self.assertEqual(summary["requests"], 1)
+        self.assertEqual(summary["usage_events"], 1)
         self.assertEqual(summary["actual_usd_recorded"], 0.25)
         self.assertEqual(summary["input_tokens"], 100)
         self.assertEqual(summary["reasoning_tokens"], 5)
@@ -416,13 +416,15 @@ class StatisticsTests(unittest.TestCase):
                 formal_models=["kimi-k2.6"],
             )
 
-        self.assertEqual(summary["requests"], 1)
+        self.assertEqual(summary["usage_events"], 1)
         self.assertEqual(summary["actual_usd_recorded"], 0.25)
-        self.assertEqual(summary["billing_usage"]["requests"], 2)
+        self.assertEqual(summary["billing_usage"]["usage_events"], 2)
         self.assertEqual(summary["billing_usage"]["actual_usd_recorded"], 0.3)
-        self.assertEqual(summary["excluded_incidental_usage"]["requests"], 1)
+        self.assertEqual(summary["excluded_incidental_usage"]["usage_events"], 1)
         self.assertEqual(
-            summary["excluded_incidental_usage"]["by_model"]["moonshot-v1-8k"]["requests"],
+            summary["excluded_incidental_usage"]["by_model"]["moonshot-v1-8k"][
+                "usage_events"
+            ],
             1,
         )
         self.assertEqual(summary["outstanding_reservations"]["count"], 1)
