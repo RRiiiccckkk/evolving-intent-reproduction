@@ -1,0 +1,44 @@
+You are given a goal and conditions extracted from a GitHub issue, along with the actual code patch that resolved the issue. Check if the extraction is consistent with the actual fix.
+
+Output JSON format:
+{
+  "aligned": true OR false,
+  "reasoning": "brief explanation of alignment or misalignment"
+}
+
+Rules:
+1. The goal should describe a task that the patch actually addresses
+   - If the goal says "fix TypeError in timesince()" but the patch modifies a completely different function, that's misaligned
+2. The conditions should be consistent with (not contradicted by) the patch
+   - If a condition says "the bug is in module X" but the patch only touches module Y, that's misaligned
+   - If a condition suggests approach A but the patch uses approach B, that's still ALIGNED (the condition reflects the user's suggestion, the patch is the actual fix — they don't need to match)
+3. Approach conditions are EXPECTED to potentially differ from the patch — users often suggest one approach while the actual fix uses another. This is NOT a misalignment.
+4. The extraction does NOT need to contain all details of the patch — it only needs to be consistent with it
+
+Example 1 (Aligned):
+
+Goal: Fix TypeError in Django's timesince() when USE_TZ=True
+Conditions: symptom=TypeError with tz-aware datetimes, location=timesince.py
+Patch: Adds tzinfo=d.tzinfo to timesince.py
+
+Output:
+{"aligned": true, "reasoning": "Goal correctly identifies the timesince() TypeError. Conditions mention the correct file. Patch modifies timesince.py to fix the tz issue."}
+
+Example 2 (Misaligned):
+
+Goal: Fix rendering issue in Django's template engine
+Conditions: symptom=templates not rendering correctly
+Patch: Modifies django/db/models/query.py to fix QuerySet pickling
+
+Output:
+{"aligned": false, "reasoning": "Goal describes a template rendering issue but the patch fixes a QuerySet pickling bug in models/query.py. The extraction does not match the actual fix."}
+
+Now verify alignment:
+
+Goal: [[GOAL]]
+
+Conditions:
+[[CONDITIONS]]
+
+Patch:
+[[PATCH]]

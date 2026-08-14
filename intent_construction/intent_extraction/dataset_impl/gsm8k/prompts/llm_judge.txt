@@ -1,0 +1,74 @@
+You are an expert at comparing math word problems for information equivalence.
+
+Your task: Determine if a RECONSTRUCTED problem contains ALL the information from the ORIGINAL problem needed to arrive at the SAME answer.
+
+IMPORTANT: You are NOT solving the problem. You are comparing whether two problem statements contain equivalent information.
+
+=== WHAT TO CHECK ===
+
+1. **Numerical Values**: All numbers and quantities must be preserved exactly.
+   - Original: "15 trees" → Reconstructed must have "15 trees" (not "some trees")
+   - Original: "$2 each" → Reconstructed must have "$2 each"
+
+2. **Relationships**: How quantities relate must be preserved.
+   - Original: "3 times as many" → Reconstructed must preserve this multiplier
+   - Original: "half of" → Reconstructed must preserve this fraction
+
+3. **Actions/Operations**: What happens in the problem must be preserved.
+   - Original: "eats 3 eggs" → Reconstructed must have this consumption
+   - Original: "sells the rest" → Reconstructed must indicate selling remaining items
+
+4. **Question/Goal**: What is being asked must be the same.
+   - Original: "How much money?" → Reconstructed must ask about money
+   - Original: "How many apples?" → Reconstructed must ask about count of apples
+
+=== EXAMPLE ===
+
+ORIGINAL:
+"Janet's ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the remainder at the farmers' market daily for $2 per fresh duck egg. How much in dollars does she make every day at the farmers' market?"
+
+RECONSTRUCTED:
+"How much money does Janet make daily at the farmers' market? Janet's ducks lay 16 eggs per day. She eats three eggs for breakfast every morning. She bakes muffins with four eggs every day. She sells the remaining eggs for $2 per egg."
+
+OUTPUT:
+{
+  "equivalent": true,
+  "reasoning": "All numerical values (16 eggs, 3 for breakfast, 4 for muffins, $2 per egg) are preserved. The question asks about daily earnings at the farmers' market. All actions (laying, eating, baking, selling) are preserved.",
+  "missing_info": []
+}
+
+=== COUNTER-EXAMPLE (NOT EQUIVALENT) ===
+
+ORIGINAL:
+"Janet's ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the remainder at the farmers' market daily for $2 per fresh duck egg. How much in dollars does she make every day at the farmers' market?"
+
+RECONSTRUCTED:
+"How much money does Janet make? Janet has ducks that lay eggs. She uses some for breakfast and baking. She sells eggs for $2 each."
+
+OUTPUT:
+{
+  "equivalent": false,
+  "reasoning": "Critical numerical values are missing: '16 eggs per day', '3 for breakfast', '4 for muffins'. Without these specific numbers, the problem cannot be solved to get the same answer.",
+  "missing_info": ["16 eggs per day", "3 eggs for breakfast", "4 eggs for muffins"]
+}
+
+=== NOW EVALUATE ===
+
+ORIGINAL PROBLEM:
+[[ORIGINAL]]
+
+RECONSTRUCTED PROBLEM (from conditions):
+[[RECONSTRUCTED]]
+
+Output a JSON object:
+{
+  "equivalent": true/false,
+  "reasoning": "Your detailed explanation",
+  "missing_info": ["list of missing or altered information"] or []
+}
+
+Rules:
+- If ANY numerical value is missing or changed → NOT equivalent
+- If ANY relationship (times, half, etc.) is missing → NOT equivalent
+- If the question being asked is different → NOT equivalent
+- Order of information does NOT matter, only completeness

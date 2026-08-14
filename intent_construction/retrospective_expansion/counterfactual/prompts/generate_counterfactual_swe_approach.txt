@@ -1,0 +1,89 @@
+You are given a GitHub issue (problem statement) decomposed into a goal and conditions. Your task is to generate a PERTURBED version of a target APPROACH condition.
+
+An "approach" condition is a fix strategy explicitly suggested by the issue author (e.g., "Adding tzinfo arguments should fix this", "Add a hook get_inlines(request, obj=None)", "Return NotImplemented from rich comparison methods").
+
+"Perturbed" means generating an ALTERNATE approach the user *could plausibly have proposed instead*. The user later corrects back to the original. The perturbed version must be:
+
+1. PLAUSIBLE: a real alternative way to fix this same bug
+2. CONTRADICTORY: following it would produce a meaningfully different patch
+3. SELF-CONTAINED: understandable without other conditions
+4. SAME PROBLEM: still addresses the same root issue (don't change the problem)
+5. SIMILAR LEVEL OF DETAIL: don't go from "add X" to "rewrite the entire module"
+
+Common perturbation moves for approach:
+- Implementation pivot: "add tzinfo arg" → "use a different timezone-aware constructor"
+- API design swap: "add a hook get_inlines()" → "add a class attribute inlines_per_request"
+- Algorithmic alternative: "return NotImplemented from __eq__" → "override __eq__ to use isinstance check"
+- Layer swap: "fix in base class" → "fix in subclass overrides"
+- Mechanism swap: "use signal" → "use middleware"
+
+AVOID:
+- Approaches that don't actually fix the bug
+- Approaches at a completely different level of abstraction (vague vs concrete)
+- Approaches that would also require fixing the symptom condition itself
+
+Output JSON format:
+{
+  "counterfactual_argument": "The full perturbed approach sentence",
+  "counterfactual_type": "implementation_pivot | api_design_swap | algorithmic_alt | layer_swap | mechanism_swap",
+  "what_changed": "Brief description of what specifically differs",
+  "reasoning": "Why this is plausible in context and how it would lead to a different fix"
+}
+
+===== EXAMPLES =====
+
+Example 1 (implementation_pivot):
+
+Goal: Fix TypeError in Django's timesince() when USE_TZ=True
+Target Condition (approach): "Adding tzinfo arguments to the datetime call in the pivot construction should fix the issue."
+
+Output:
+{
+  "counterfactual_argument": "Wrapping the pivot datetime construction with django.utils.timezone.make_aware() should fix the issue.",
+  "counterfactual_type": "implementation_pivot",
+  "what_changed": "Mechanism for adding timezone awareness (constructor tzinfo arg → make_aware() wrapper)",
+  "reasoning": "make_aware() is a Django utility that achieves the same end (tz-aware datetime) via a different code path. The patch would import and call this utility instead of passing tzinfo to the constructor."
+}
+
+---
+
+Example 2 (api_design_swap):
+
+Goal: add ModelAdmin.get_inlines() hook to allow set inlines based on the request or model instance
+Target Condition (approach): "Add a hook get_inlines(request, obj=None)."
+
+Output:
+{
+  "counterfactual_argument": "Allow ModelAdmin.inlines to be a callable that takes (request, obj=None).",
+  "counterfactual_type": "api_design_swap",
+  "what_changed": "API surface (new hook method → callable attribute)",
+  "reasoning": "Both designs let inlines depend on request/obj. A user could prefer not adding a new method and instead allowing the existing `inlines` attribute to be callable. The fix would change `_get_inlines_for_request` resolution logic, not add a new method."
+}
+
+---
+
+Example 3 (algorithmic_alt):
+
+Goal: Return NotImplemented instead of False from rich comparison methods when they cannot make sense of the arguments
+Target Condition (approach): "If sympy.Basic.__eq__ returns NotImplemented, the statement s == f will delegate to Foo.__eq__, thus maintaining a symmetric relation."
+
+Output:
+{
+  "counterfactual_argument": "If sympy.Basic.__eq__ checks isinstance(other, Basic) first and only proceeds when the check passes, the statement s == f will delegate to Foo.__eq__ via Python's default fallback.",
+  "counterfactual_type": "algorithmic_alt",
+  "what_changed": "Mechanism (return NotImplemented unconditionally → isinstance gate then return)",
+  "reasoning": "Same end behavior (delegating to Foo.__eq__) achieved via an explicit isinstance check rather than relying on NotImplemented. The fix would add a type guard, not change the return statement."
+}
+
+===== END EXAMPLES =====
+
+Now generate a perturbed version of this approach condition:
+
+Goal: [[GOAL]]
+Issue context (problem statement):
+[[PROBLEM_STATEMENT]]
+All Conditions (for context):
+[[CONDITIONS]]
+Target Condition to Perturb (category=approach): [[TARGET_CONDITION]]
+
+Output:

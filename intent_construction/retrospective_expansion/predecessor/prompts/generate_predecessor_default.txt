@@ -1,0 +1,68 @@
+You are designing a realistic multi-turn conversation. You will generate a PREDECESSOR goal — a question or task the user asked BEFORE moving on to the next goal.
+
+=== SCENARIO ===
+
+The user will eventually move on to asking: "[[NEXT_GOAL]]"
+using these conditions:
+[[NEXT_CONDITIONS]]
+
+Your task: Generate a PREDECESSOR goal — what the user was asking about BEFORE they moved to the goal above.
+
+=== KEY CONCEPT ===
+
+The predecessor and next goal must form a coherent multi-turn conversation. The predecessor should be CAUSALLY RELATED to the next goal — the answer or output of the predecessor naturally motivates, enables, or leads to the next question.
+
+The predecessor must be GENUINELY DIFFERENT from the next goal — not a rephrasing or minor variation.
+
+[[CHAIN_TYPE_INSTRUCTION]]
+
+=== CONDITION SET ===
+
+The predecessor goal must have its OWN set of conditions:
+1. Select a SUBSET of conditions from the next goal as "shared" conditions — these provide continuity across turns
+2. Generate 1-3 NEW conditions specific to the predecessor's question
+3. New conditions must NOT contradict any shared conditions
+4. New conditions must be SELF-CONTAINED — understandable without reading other conditions
+
+=== CRITICAL: FUNCTIONAL INDEPENDENCE ===
+
+Your new conditions must NOT change the answer to the next goal. The next goal's answer must remain exactly the same whether or not your new conditions are present.
+
+Think of it this way: the new conditions add context for the PREDECESSOR question only. They should be INVISIBLE to the next goal's computation or answer.
+
+**Safe new conditions:**
+- Introduce context, quantities, or facts that only the predecessor question needs
+- Add logistical/descriptive details with no impact on the next goal's answer
+- Reference different entities, time periods, or categories not involved in the next goal
+
+**Dangerous new conditions (AVOID):**
+- Any fact that would change the numerical answer, entity, or output of the next goal
+- Values that interact with the next goal's computation chain
+- Constraints that would alter what the next goal's correct response should be
+
+Before finalizing, verify: "If I add these new conditions to the next goal's condition set, does the answer change?" If YES, choose different new conditions.
+
+=== RULES ===
+
+- The predecessor must ask a GENUINELY DIFFERENT question — not a rephrasing of the next goal
+- The predecessor question must be SELF-CONTAINED — do NOT use phrases like "the same person", "this scenario", or any reference that assumes prior context
+- The predecessor question must be SHORT and natural — like a real user typing in a chat (MAX 25 words)
+- Do NOT embed specific condition values into the goal — put those in conditions
+- The question must have a SPECIFIC answer (not vague/open-ended)
+[[FUTURE_CHAIN]]
+[[AVOID_GOALS]]
+[[SHARE_NUM_INSTRUCTION]]
+
+=== OUTPUT FORMAT ===
+
+Output valid JSON:
+{
+  "predecessor_function": "The earlier question the user was asking (short, natural, SELF-CONTAINED, MAX 25 words)",
+  "entity_sought": "The TYPE of answer sought (e.g., 'total cost', 'person name', 'bullet list'). Must be 1-3 words.",
+  "relevant_argument_ids": [list of integer condition IDs shared with the next goal],
+  "new_arguments": ["New condition 1 specific to predecessor", "New condition 2 if needed"],
+  "transition_reason": "Explain how the ANSWER to this predecessor naturally led the user to ask the next question",
+  "transition_type": "The chain archetype used (from the CHAIN TYPE instruction above)",
+  "causal_link": "Explain specifically WHY the predecessor's answer motivates or connects to the next question",
+  "reasoning": "Brief explanation of why this predecessor goal is natural and how the new conditions make it answerable"
+}

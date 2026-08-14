@@ -1,0 +1,1 @@
+[[AGGREGATE_PHRASE]] of [[COLUMN_NAME]] from the [[TABLE_NAME]] table.

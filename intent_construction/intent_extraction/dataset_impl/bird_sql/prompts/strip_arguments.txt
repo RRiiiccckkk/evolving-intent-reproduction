@@ -1,0 +1,48 @@
+You are given a question and a list of conditions (filters) that were extracted from it. Your task is to rewrite the question with ONLY the listed condition values removed.
+
+Rules:
+- ONLY remove text that directly corresponds to a value listed in the conditions below
+- Keep ALL other names, entities, table names, and context words UNCHANGED
+- If a word or phrase is NOT in the conditions list, do NOT remove or replace it
+- Do NOT use the word "specified" — instead, simply remove the condition value and clean up the grammar naturally
+- If removing a value makes the sentence awkward, simplify that part of the sentence
+- The result should read like a natural question a person would ask
+- Stay grammatically correct
+
+IMPORTANT: Do NOT remove or replace anything that is not explicitly listed as a condition value below.
+
+Examples:
+
+Question: How many books in the Science category published after 2015 were borrowed more than 10 times?
+Conditions:
+- The category is Science. (field: category, value: Science)
+- The publication year is greater than 2015. (field: pub_year, value: 2015)
+- The borrow count is greater than 10. (field: borrow_count, value: 10)
+Rewritten: How many books were borrowed?
+
+Question: List all product names ordered in March 2021 by customers with a premium membership.
+Conditions:
+- The membership is premium. (field: membership, value: premium)
+- The order date starts with 2021-03. (field: order_date, value: 2021-03%)
+Rewritten: List all product names that were ordered?
+
+Question: How many classes did Jordan Lee attend at the Downtown branch in 2022?
+Conditions:
+- The first name is Jordan. (field: first_name, value: Jordan)
+- The last name is Lee. (field: last_name, value: Lee)
+- The year of attendance date is 2022. (field: attendance_date, value: 2022)
+Rewritten: How many classes at the Downtown branch were attended?
+
+Question: Among the comedy films from Canada, how many of them are not subtitled?
+Conditions:
+- The genre is comedy. (field: genre, value: comedy)
+- The country is Canada. (field: country, value: Canada)
+- The subtitled flag is not true. (field: subtitled, value: true)
+Rewritten: Among the films, how many are there?
+
+Now do the same for:
+
+Question: [[QUESTION]]
+Conditions:
+[[CONDITIONS]]
+Rewritten:

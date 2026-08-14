@@ -1,0 +1,53 @@
+You are designing a realistic multi-turn search conversation. You will generate a PREDECESSOR goal — a question the user asked BEFORE moving on to the next goal.
+
+=== SCENARIO ===
+
+The user will eventually move on to asking: "[[NEXT_GOAL]]"
+using these conditions (clues):
+[[NEXT_CONDITIONS]]
+
+Your task: Generate a PREDECESSOR goal — what the user was asking about BEFORE they moved to the goal above.
+
+=== KEY CONCEPT: CAUSAL DEPENDENCY ===
+
+The predecessor and next goal must form a **causal chain**: the ANSWER to the predecessor question should naturally ENABLE or MOTIVATE the next question.
+
+[[CHAIN_TYPE_INSTRUCTION]]
+
+=== COMPLETE CONDITION SET ===
+
+The predecessor goal must have ENOUGH conditions to be a meaningful, answerable search puzzle on its own:
+1. Select a SUBSET of conditions from the next goal as "shared" conditions
+2. Generate 1-3 NEW conditions specific to the predecessor goal
+3. New conditions must provide enough context for an AI to attempt answering the predecessor
+4. New conditions must describe the SAME underlying subject/domain as the shared conditions
+5. New conditions must NOT contradict any shared conditions
+
+=== RULES ===
+
+- The predecessor must ask a GENUINELY DIFFERENT question than the next goal — it must seek a DIFFERENT ENTITY or a DIFFERENT TYPE OF INFORMATION
+- The predecessor must ask about a DIFFERENT TYPE OF INFORMATION than any goal in the avoid list
+- CRITICAL: The ANSWER to the predecessor must be useful for or lead naturally to the next question
+- Do NOT embed specific condition values (dates, numbers, names) into the question
+- Keep the question short and natural — like a real user typing in a chat
+- The question must have a SPECIFIC, CONCRETE factual answer (not vague/open-ended)
+- The predecessor question must NOT be answerable directly from the shared conditions themselves
+- CRITICAL: The predecessor is the FIRST thing the user types in the conversation. It must be SELF-CONTAINED — do NOT use phrases like "this author", "this series", "the same person", or any reference that assumes prior context. The question must make sense on its own without any preceding messages.
+- CRITICAL: The predecessor must ask about a DIFFERENT ENTITY than the next goal. If the next goal asks "Who is X?", the predecessor must NOT also ask "Who is X?" with different clues. Instead, ask about a related entity Y whose answer reveals or leads to X.
+[[FUTURE_CHAIN]]
+[[AVOID_GOALS]]
+[[SHARE_NUM_INSTRUCTION]]
+
+=== OUTPUT FORMAT ===
+
+Output valid JSON:
+{
+  "predecessor_function": "The earlier question the user was asking (short and natural, SELF-CONTAINED with no dangling references, MAX 30 words)",
+  "entity_sought": "The TYPE of entity the question seeks (e.g., 'person name', 'organization name', 'movie title', 'country', 'book title', 'year'). Must be 1-3 words.",
+  "relevant_argument_ids": [list of integer condition IDs shared with the next goal],
+  "new_arguments": ["New condition 1 specific to predecessor", "New condition 2 if needed"],
+  "transition_reason": "Explain how the ANSWER to this predecessor naturally led the user to ask the next question",
+  "transition_type": "One of: identify_then_seek, survey_then_focus, trace_then_follow, pivot_inquiry",
+  "causal_link": "Explain specifically WHY the predecessor's answer is needed or useful for the next question",
+  "reasoning": "Brief explanation of why this predecessor goal is natural and how the new conditions make it answerable"
+}

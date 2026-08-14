@@ -1,0 +1,88 @@
+You are given a GitHub issue (problem statement) decomposed into a goal and conditions. Your task is to generate a PERTURBED version of a target SCOPE condition.
+
+A "scope" condition defines what the fix should *also* cover beyond the immediate bug, or what other related entity should be considered (e.g., "Card.fromstring likely needs the same treatment", "could also be applied to Min and Max aggregate classes", "expand to other dtypes too").
+
+"Perturbed" means generating an ALTERNATE scope that the user *could plausibly have stated instead*. The user later corrects this back to the original. The perturbed version must be:
+
+1. PLAUSIBLE: a related entity / module / case that would naturally be in scope
+2. CONTRADICTORY-OR-DIFFERENT: pursuing it would produce a different fix (different files touched, different code changed)
+3. SELF-CONTAINED: understandable without other conditions
+4. STAY ON-TOPIC: same module / same general area
+5. SAME GRAIN: if the original adds 1 sibling, the perturbed adds 1 sibling (don't replace 1 with 5)
+
+Common perturbation moves for scope:
+- Sibling swap: "Card.fromstring" → "Header.fromfile" (different sibling, similar role)
+- Family swap: "Min and Max aggregate classes" → "Avg and Count aggregate classes"
+- Direction flip: expand → reduce ("apply to N classes" ↔ "apply only to one specific class")
+- Generalize/narrow within reason: "categorical dtypes" → "numeric dtypes"
+
+AVOID:
+- Replacing with something completely unrelated to the issue area
+- Replacing scope with something that's actually goal-level (the bug itself)
+- Trivial paraphrases
+
+Output JSON format:
+{
+  "counterfactual_argument": "The full perturbed scope sentence",
+  "counterfactual_type": "sibling_swap | family_swap | direction_flip | generalize | narrow",
+  "what_changed": "Brief description of what specifically differs",
+  "reasoning": "Why this is plausible in context and how it would lead to a different fix"
+}
+
+===== EXAMPLES =====
+
+Example 1 (sibling_swap):
+
+Goal: Change Header.fromstring to accept unicode or bytes string types and apply a similar treatment to Card.fromstring
+Target Condition (scope): "Card.fromstring likely needs a similar treatment."
+
+Output:
+{
+  "counterfactual_argument": "Header.fromfile likely needs a similar treatment.",
+  "counterfactual_type": "sibling_swap",
+  "what_changed": "Sibling target (Card.fromstring → Header.fromfile)",
+  "reasoning": "Header.fromfile is another related method on the same Header class that takes input data; a user could plausibly have asked for that instead of Card.fromstring. The fix would touch a different secondary method, producing a meaningfully different patch."
+}
+
+---
+
+Example 2 (family_swap):
+
+Goal: Add DISTINCT support for Avg and Sum aggregates
+Target Condition (scope): "The same change to allow DISTINCT could also be applied to the Min and Max aggregate classes."
+
+Output:
+{
+  "counterfactual_argument": "The same change to allow DISTINCT could also be applied to the Count and Variance aggregate classes.",
+  "counterfactual_type": "family_swap",
+  "what_changed": "Aggregate family (Min/Max → Count/Variance)",
+  "reasoning": "Count and Variance are also Django ORM aggregate classes. A user could naturally have flagged them instead. The fix would extend a different pair of classes."
+}
+
+---
+
+Example 3 (generalize):
+
+Goal: Optionally preserve the dtypes of the input using pandas output for transformers that do not modify the input values
+Target Condition (scope): "This is relevant not only for the categorical dtypes, but could expand to others dtypes (existing, future and custom)."
+
+Output:
+{
+  "counterfactual_argument": "This is relevant only for the categorical dtypes; numeric and datetime dtypes should not be affected.",
+  "counterfactual_type": "narrow",
+  "what_changed": "Direction (expand to all dtypes → restrict to categorical only)",
+  "reasoning": "User could have specified a narrower scope to avoid unintended dtype preservation in numeric/datetime transformers. The fix would special-case only categorical dtype preservation."
+}
+
+===== END EXAMPLES =====
+
+Now generate a perturbed version of this scope condition:
+
+Goal: [[GOAL]]
+Issue context (problem statement):
+[[PROBLEM_STATEMENT]]
+All Conditions (for context):
+[[CONDITIONS]]
+Target Condition to Perturb (category=scope): [[TARGET_CONDITION]]
+
+Output:

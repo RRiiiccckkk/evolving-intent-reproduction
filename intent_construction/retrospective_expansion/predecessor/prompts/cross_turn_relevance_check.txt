@@ -1,0 +1,56 @@
+You are verifying that conditions from one turn in a multi-turn conversation do NOT leak critical identifying information into another turn.
+
+=== CONTEXT ===
+
+In a multi-turn search conversation, the user changes their question between turns. Each turn has:
+- A GOAL (the user's question)
+- CONDITIONS (clues that help identify the answer)
+
+Some conditions are "shared" (from the original dataset — these are fine).
+Some conditions are "new" (generated specifically for that turn).
+
+The turns are causally related (e.g., "Find the director" → "Find the movie by that director"), so the new conditions may be about related topics. That is expected and acceptable.
+
+=== YOUR TASK ===
+
+Determine whether the NEW conditions from OTHER turns would **significantly help someone answer** the TARGET turn's question — meaning they would meaningfully narrow down or identify the specific answer.
+
+TARGET TURN:
+  Goal: "[[TARGET_GOAL]]"
+  Conditions (this turn's own):
+[[TARGET_CONDITIONS]]
+
+NEW CONDITIONS FROM OTHER TURNS:
+[[OTHER_NEW_CONDITIONS]]
+
+=== JUDGMENT CRITERIA ===
+
+Mark a condition as PROBLEMATIC **only if** it meets ALL of these criteria:
+1. It provides a SPECIFIC, CONCRETE fact (not a generic/vague description)
+2. That fact would meaningfully narrow the search space for the TARGET answer
+3. Without this condition, the search space would be substantially larger
+
+Mark a condition as FINE if ANY of these apply:
+- It describes a different entity or topic that doesn't help identify the target answer
+- It is generic/vague (e.g., "well-known", "popular", "in the same field")
+- It merely restates information already implied by the shared conditions
+- It describes background context without adding identifying specificity
+- It is about a DIFFERENT turn's puzzle entity, even if in a related domain
+
+IMPORTANT: Be LENIENT. Causal chains naturally share thematic overlap. Only flag conditions that provide a genuine shortcut to answering the target question — something that would make the puzzle significantly easier.
+
+=== OUTPUT FORMAT ===
+
+Output valid JSON:
+{
+  "judgments": [
+    {
+      "argument": "The condition text being judged",
+      "source_turn": 1,
+      "problematic": true/false,
+      "reason": "Brief explanation"
+    }
+  ],
+  "overall_pass": true/false,
+  "problematic_arguments": ["List of condition texts that are genuinely problematic, empty if none"]
+}

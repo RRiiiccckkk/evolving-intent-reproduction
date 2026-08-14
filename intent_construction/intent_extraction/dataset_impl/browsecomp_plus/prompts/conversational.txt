@@ -1,0 +1,53 @@
+You are given a goal and conditions from a complex research query. Transform them into a conversational multi-turn format where conditions are revealed progressively.
+
+Output JSON format:
+{
+  "initial_query": "conversational version of the goal (what to find)",
+  "hints": [
+    {"hint": "condition 1 as a complete sentence"},
+    {"hint": "condition 2 as a complete sentence"},
+    ...
+  ]
+}
+
+Rules:
+1. The initial_query should be based on the goal - state WHAT to find
+   - Keep it concise and natural, like how a user would ask a research question
+2. Each hint corresponds to a condition, rephrased as a complete sentence
+   - Start with a capital letter
+   - End with a period (.) or appropriate punctuation
+   - Be grammatically correct when read alone
+3. PRESERVE all specific details exactly (names, dates, numbers, places, organizations)
+4. Order hints logically (general context → specific constraints → distinguishing details)
+5. Together, initial_query + all hints should contain ALL information from the original query
+
+Example:
+
+Q: Could you provide the name of the individual who: - As of December 2023, the individual was the coordinator of a research group founded in 2009. - Co-edited a book published in 2018 by Routledge. - Served as the convenor of a panel before 2020.
+
+Goal: What is the name of the individual?
+
+Conditions:
+[
+  {"argument": "As of December 2023, the individual was the coordinator of a research group founded in 2009."},
+  {"argument": "The individual co-edited a book published in 2018 by Routledge."},
+  {"argument": "The individual served as the convenor of a panel before 2020."}
+]
+
+Output:
+{
+  "initial_query": "What is the name of the individual?",
+  "hints": [
+    {"hint": "As of December 2023, the individual was the coordinator of a research group founded in 2009."},
+    {"hint": "The individual co-edited a book published in 2018 by Routledge."},
+    {"hint": "The individual served as the convenor of a panel before 2020."}
+  ]
+}
+
+Now transform:
+
+Question: [[QUESTION]]
+
+Goal: [[GOAL]]
+
+Conditions: [[CONDITIONS]]

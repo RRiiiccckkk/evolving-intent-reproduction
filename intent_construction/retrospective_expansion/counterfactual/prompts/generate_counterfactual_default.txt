@@ -1,0 +1,136 @@
+You are given a problem with multiple conditions. Your task is to generate a PERTURBED version of the target condition.
+
+"Perturbed" means creating a condition that is SIMILAR but SLIGHTLY DIFFERENT from the original. The perturbed condition should be plausible and stay relevant to the overall problem context.
+
+Requirements:
+1. Change exactly ONE detail: a number, a name, a date, or a specific attribute
+2. The change should be PLAUSIBLE and CONTEXTUALLY APPROPRIATE
+3. Keep the same sentence structure and general topic
+4. CRITICAL: Do NOT change the main subject/entity to something unrelated
+5. The perturbed value should be similar but different (small, meaningful change)
+
+Output JSON format:
+{
+  "counterfactual_argument": "The condition with perturbed value",
+  "original_value": "The original value/detail",
+  "counterfactual_value": "The perturbed value/detail you used",
+  "reasoning": "Brief explanation of what was changed and why it's plausible"
+}
+
+===== EXAMPLES =====
+
+Example 1:
+
+Question: How many items did John buy in total from the two stores?
+All Conditions:
+[
+  {"argument_id": 1, "argument": "How many items did John buy in total?"},
+  {"argument_id": 2, "argument": "John bought 15 items from Store A."},
+  {"argument_id": 3, "argument": "He bought 8 items from Store B."}
+]
+Target Condition: {"argument_id": 2, "argument": "John bought 15 items from Store A."}
+
+Output:
+{
+  "counterfactual_argument": "John bought 18 items from Store A.",
+  "original_value": "15",
+  "counterfactual_value": "18",
+  "reasoning": "Changed the number of items from 15 to 18. Both are reasonable quantities for shopping, and the change is small but affects the final calculation."
+}
+
+---
+
+Example 2:
+
+Question: What is the total distance traveled by the car?
+All Conditions:
+[
+  {"argument_id": 1, "argument": "What is the total distance traveled?"},
+  {"argument_id": 2, "argument": "The car traveled at 60 mph for the first leg."},
+  {"argument_id": 3, "argument": "It traveled for 3 hours on the first leg."},
+  {"argument_id": 4, "argument": "Then it traveled at 45 mph for 2 hours on the second leg."}
+]
+Target Condition: {"argument_id": 3, "argument": "It traveled for 3 hours on the first leg."}
+
+Output:
+{
+  "counterfactual_argument": "It traveled for 4 hours on the first leg.",
+  "original_value": "3 hours",
+  "counterfactual_value": "4 hours",
+  "reasoning": "Changed the duration from 3 hours to 4 hours. Both are realistic travel durations, and this perturbation maintains the problem structure while changing the result."
+}
+
+---
+
+Example 3:
+
+Question: How old will Sarah be in 5 years?
+All Conditions:
+[
+  {"argument_id": 1, "argument": "How old will Sarah be in 5 years?"},
+  {"argument_id": 2, "argument": "Sarah is currently 25 years old."},
+  {"argument_id": 3, "argument": "You need to calculate her age 5 years from now."}
+]
+Target Condition: {"argument_id": 2, "argument": "Sarah is currently 25 years old."}
+
+Output:
+{
+  "counterfactual_argument": "Sarah is currently 28 years old.",
+  "original_value": "25 years old",
+  "counterfactual_value": "28 years old",
+  "reasoning": "Changed Sarah's current age from 25 to 28. Both ages are plausible for an adult, and this is a minor numerical perturbation."
+}
+
+---
+
+Example 4:
+
+Question: Calculate the area of the rectangle.
+All Conditions:
+[
+  {"argument_id": 1, "argument": "Calculate the area of the rectangle."},
+  {"argument_id": 2, "argument": "The rectangle has a length of 12 meters."},
+  {"argument_id": 3, "argument": "The rectangle has a width of 5 meters."}
+]
+Target Condition: {"argument_id": 2, "argument": "The rectangle has a length of 12 meters."}
+
+Output:
+{
+  "counterfactual_argument": "The rectangle has a length of 15 meters.",
+  "original_value": "12 meters",
+  "counterfactual_value": "15 meters",
+  "reasoning": "Changed the length from 12 to 15 meters. Both are reasonable dimensions for a rectangle, maintaining physical plausibility."
+}
+
+---
+
+Example 5:
+
+Question: What is the profit if the company sells all products?
+All Conditions:
+[
+  {"argument_id": 1, "argument": "What is the profit?"},
+  {"argument_id": 2, "argument": "The company produces 100 units of product."},
+  {"argument_id": 3, "argument": "Each unit costs $5 to produce."},
+  {"argument_id": 4, "argument": "Each unit sells for $12."}
+]
+Target Condition: {"argument_id": 4, "argument": "Each unit sells for $12."}
+
+Output:
+{
+  "counterfactual_argument": "Each unit sells for $15.",
+  "original_value": "$12",
+  "counterfactual_value": "$15",
+  "reasoning": "Changed the selling price from $12 to $15. Both prices are reasonable and maintain a profit margin above the $5 production cost."
+}
+
+===== END EXAMPLES =====
+
+Now generate a perturbed version of this condition:
+
+Question: [[QUESTION]]
+All Conditions (for context):
+[[CONDITIONS]]
+Target Condition to Perturb: [[TARGET_CONDITION]]
+
+Output:

@@ -1,0 +1,106 @@
+You are given a GitHub issue (problem statement) from a Python software project. Decompose it into a GOAL and CONDITIONS.
+
+Output a JSON object with this format:
+{
+  "function": "What needs to be done (using only terms from the issue text)",
+  "arguments": [
+    {"argument": "first piece of information", "category": "symptom|trigger|location|approach|scope|constraint"},
+    {"argument": "second piece of information", "category": "symptom|trigger|location|approach|scope|constraint"},
+    ...
+  ]
+}
+
+CATEGORY DEFINITIONS:
+- "symptom": Error type, error message, incorrect behavior observed
+- "trigger": Steps or conditions that reproduce the issue
+- "location": File, module, function, or class where the issue occurs
+- "approach": Suggested fix strategy or method (only if the issue author explicitly suggests one)
+- "scope": Requirements about the fix scope (e.g., "minimal fix", "maintain backward compatibility")
+- "constraint": Other constraints mentioned (performance, API stability, version requirements)
+
+Rules:
+1. GOAL: A concise description of WHAT needs to be done
+   - Use ONLY names, terms, and identifiers that appear verbatim in the problem statement
+   - If the issue says "timesince()" → use "timesince()". If it only says "HTML table output" → do NOT expand to "astropy.io.ascii.write()"
+   - Do NOT add module paths, class names, or function names from your own knowledge that are NOT in the issue text
+   - Moderate specificity: NOT "fix a bug" (too vague), NOT the full implementation details (too specific)
+   - The goal MUST be self-contained and make sense alone
+   - The goal MUST end with sentence-terminal punctuation (`.`, `!`, or `?`). When the goal ends with a closing parenthesis or bracket like `save()` or `[A]`, append a period after it (e.g., `Fix ... overwritten on save().`). This prevents run-on sentences when the goal is concatenated with the next condition during conversation rendering.
+   - Good: "Fix TypeError in Django's timesince() when called with timezone-aware datetimes." (timesince is mentioned in the issue)
+   - Bad: "Fix the bug" (too vague)
+   - Bad: "Add tzinfo=d.tzinfo to line 97 of timesince.py" (too specific — this is a condition, not a goal)
+   - Bad: "Fix django.utils.timesince.timesince()" when the issue only says "timesince()" (do NOT add the full module path unless the issue states it)
+   - Bad: "Fix the primary key reset on save()" (missing terminal period after the closing paren)
+2. CONDITIONS: The specific details and constraints from the issue
+   - Extract ONLY information explicitly stated in the problem statement
+   - Do NOT infer or add information from your own knowledge of the codebase
+   - Do NOT fill in module paths, internal function names, or implementation details that are not in the issue text
+   - If the issue says "the HTML writer" do NOT expand it to "astropy.io.ascii.html.HTMLOutputter"
+   - Each condition must be self-contained (no back-references like "the above error", "that function")
+   - Assign the most appropriate category to each condition
+3. APPROACH conditions should ONLY be included if the issue author explicitly suggests a fix approach
+   - If the author says "I think adding X would fix this" → include as approach condition
+   - If the author only describes the bug → do NOT invent an approach condition
+4. Do NOT include meta-conditions describing the issue itself
+   - WRONG: {"argument": "This is a regression introduced in version 4.1", "category": "symptom"}
+   - RIGHT: {"argument": "The bug was introduced in commit abc123", "category": "trigger"}
+5. LOCATION conditions should only be included if the author explicitly mentions a file/function
+6. Strip GitHub issue boilerplate (contributing guidelines, templates, HTML comments)
+7. Do NOT over-split: closely related facts should stay in ONE condition
+   - If the issue says "formats works for csv, rst, and mrt but not html" → ONE condition, not four
+   - If the issue gives a code example and describes its output → ONE condition combining both
+   - Multiple code examples that illustrate the SAME point should be merged into one condition
+   - Do NOT rephrase the same fact as separate conditions (e.g., "X is broken" and "X does not work" are the same)
+   - Do NOT create a condition that merely restates the goal as an expectation (e.g., "X should work correctly")
+   - Aim for 2-5 conditions. More than 6 almost certainly means over-splitting
+
+Example 1 (Bug with author-suggested fix):
+
+Issue: timesince() raises TypeError with USE_TZ=True and >1 month interval.
+As of commit 8d67e16, calling timesince() with a datetime object that's one month or more in the past and USE_TZ=True results in: TypeError: can't subtract offset-naive and offset-aware datetimes.
+I believe this is because the pivot instantiated at django/utils/timesince.py:93-100 does not take into account the datetime object's tzinfo. Adding tzinfo arguments seems to fix this.
+
+Output:
+{
+  "function": "Fix TypeError in Django's timesince() when USE_TZ=True and the time interval exceeds one month.",
+  "arguments": [
+    {"argument": "Calling timesince() with a datetime more than one month in the past and USE_TZ=True raises TypeError: can't subtract offset-naive and offset-aware datetimes.", "category": "symptom"},
+    {"argument": "The bug was introduced in commit 8d67e16.", "category": "trigger"},
+    {"argument": "The pivot datetime instantiated at django/utils/timesince.py lines 93-100 does not account for the datetime object's tzinfo.", "category": "location"},
+    {"argument": "Adding tzinfo arguments to the datetime call in the pivot construction should fix the issue.", "category": "approach"}
+  ]
+}
+
+Example 2 (Feature request, no fix approach mentioned):
+
+Issue: Require a non-empty name for Blueprints.
+Things do not work correctly if a Blueprint is given an empty name (e.g. #4944). It would be helpful if a ValueError was raised when trying to do that.
+
+Output:
+{
+  "function": "Add validation to raise ValueError when a Flask Blueprint is registered with an empty name.",
+  "arguments": [
+    {"argument": "Registering a Blueprint with an empty name causes incorrect behavior.", "category": "symptom"},
+    {"argument": "A ValueError should be raised when an empty name is provided.", "category": "constraint"}
+  ]
+}
+
+Example 3 (Bug with reproduction steps):
+
+Issue: hist() no longer respects range=... when density=True
+When calling hist() with both density=True and range=(...), the range parameter is ignored and the histogram uses the full data range instead.
+Code: plt.hist(data, density=True, range=(0, 10))
+
+Output:
+{
+  "function": "Fix matplotlib's hist() to respect the range parameter when density=True.",
+  "arguments": [
+    {"argument": "When calling hist() with both density=True and range=(...), the range parameter is ignored.", "category": "symptom"},
+    {"argument": "The histogram uses the full data range instead of the specified range when density=True.", "category": "symptom"},
+    {"argument": "Reproduction: plt.hist(data, density=True, range=(0, 10)).", "category": "trigger"}
+  ]
+}
+
+Now decompose this issue:
+
+Issue: [[PROBLEM_STATEMENT]]

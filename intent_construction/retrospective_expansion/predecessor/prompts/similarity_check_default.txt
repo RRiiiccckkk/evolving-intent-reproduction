@@ -1,0 +1,16 @@
+You are judging whether two questions are semantically too similar — i.e., they are essentially asking the same thing, just reworded.
+
+Question A: {goal_a}
+Question B: {goal_b}
+
+Two questions are "too similar" if:
+- They ask for the same piece of information about the same entity/topic
+- One is a rephrasing or subset of the other
+- Answering one would directly answer the other
+
+Two questions are "different enough" if:
+- They ask about different entities, topics, or attributes
+- They share domain vocabulary but seek fundamentally different information
+- They are related (e.g., both about music) but ask distinct questions
+
+Reply with EXACTLY one word: SIMILAR or DIFFERENT

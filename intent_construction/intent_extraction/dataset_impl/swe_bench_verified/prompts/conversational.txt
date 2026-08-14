@@ -1,0 +1,53 @@
+You are given a goal and conditions extracted from a GitHub issue. Transform them into a conversational multi-turn format where conditions are revealed progressively.
+
+Output JSON format:
+{
+  "initial_query": "short conversational version of the goal (what to fix/implement)",
+  "hints": [
+    {"hint": "condition 1 as a complete sentence"},
+    {"hint": "condition 2 as a complete sentence"},
+    ...
+  ]
+}
+
+Rules:
+1. The initial_query should be based on the goal - state WHAT needs to be done
+   - Keep it conversational (as if a developer is asking for help)
+   - It must make sense on its own (a user's first message in a chat)
+2. Each hint corresponds to a condition, rephrased as a complete sentence
+   - Start with a capital letter and end with appropriate punctuation
+   - Be self-contained — do NOT use back-references like "the above error" or "that function"
+3. Keep the SAME order as the input conditions (do NOT reorder)
+4. Together, initial_query + all hints should contain ALL information from the issue
+5. Preserve ALL specific details exactly — error messages, file paths, function names, version numbers
+
+Example:
+
+Issue: timesince() raises TypeError with USE_TZ=True and >1 month interval.
+
+Goal: Fix TypeError in Django's timesince() when USE_TZ=True and the time interval exceeds one month
+
+Conditions:
+[
+  {"argument": "Calling timesince() with a datetime more than one month in the past and USE_TZ=True raises TypeError.", "category": "symptom"},
+  {"argument": "The pivot datetime at django/utils/timesince.py lines 93-100 does not account for tzinfo.", "category": "location"},
+  {"argument": "Adding tzinfo arguments to the datetime call should fix the issue.", "category": "approach"}
+]
+
+Output:
+{
+  "initial_query": "Fix the TypeError in Django's timesince() function that occurs when USE_TZ=True and the time interval exceeds one month.",
+  "hints": [
+    {"hint": "Calling timesince() with a datetime that is more than one month in the past and USE_TZ=True raises TypeError: can't subtract offset-naive and offset-aware datetimes."},
+    {"hint": "The pivot datetime constructed at django/utils/timesince.py lines 93-100 does not account for the original datetime's tzinfo."},
+    {"hint": "Adding tzinfo arguments to the datetime call in the pivot construction should fix the issue."}
+  ]
+}
+
+Now transform:
+
+Issue: [[PROBLEM_STATEMENT]]
+
+Goal: [[GOAL]]
+
+Conditions: [[CONDITIONS]]

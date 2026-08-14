@@ -1,0 +1,92 @@
+You are simulating a developer who is about to work on a real GitHub issue in an open-source repository, but BEFORE diving into the actual fix they want to orient themselves with a simple, generic question about the repo or module they will be touching.
+
+Your job: generate ONE such orientation question of the SPECIFIED archetype (the caller chose the archetype to ensure category diversity across the dataset).
+
+The question MUST be:
+
+1. GENERIC — about repo / module structure, conventions, public APIs, input/output shapes, dependencies, or testing setup. NOT about a specific bug, function variable, error message, or the eventual fix.
+2. PLAUSIBLE for a developer's first turn — something a contributor genuinely asks before writing code.
+3. SHORT and natural (max 25 words).
+4. SELF-CONTAINED — make sense without other context.
+5. ON-TOPIC for the repo and the module the developer will eventually be touching, but UNIVERSAL enough that the answer wouldn't directly leak the eventual bug fix.
+6. SPECIFIC ENOUGH to motivate a useful answer (not "tell me about Python").
+7. STRICTLY of the requested archetype — do not switch to a different archetype.
+
+Archetype definitions:
+
+- repo_layout: high-level layout of the source tree, top-level packages, and how the repo is organised.
+- module_overview: what the focused module does at a high level, what families of objects/functions it contains.
+- public_api: the main public classes/functions exposed by the focused module and their roles.
+- io_shape: typical input / output shapes, types, or data structures used by the focused module.
+- testing_convention: how tests are organised for the focused module, where related tests live, conventions for adding new ones.
+- dependency_map: relationships between the focused module and its sibling/parent modules in the same repo.
+- coding_convention: coding style, naming, decorators, error-handling patterns, or project-wide conventions used in the focused module.
+
+AVOID:
+- Mentioning specific function names that appear in the eventual fix.
+- Mentioning specific symptoms / errors / variable names from the upcoming bug.
+- Yes/no questions or single-word answers.
+
+=== INPUT ===
+
+Repo: [[REPO]]
+Module focus (the area the developer will eventually touch): [[MODULE_FOCUS]]
+Target goal (high-level context, do NOT leak specifics into your question):
+  [[TARGET_GOAL]]
+Required archetype (use ONLY this archetype): [[ARCHETYPE]]
+
+=== OUTPUT ===
+
+Output JSON:
+{
+  "archetype": "[[ARCHETYPE]]",
+  "exploration_function": "<the orientation question, max 25 words>",
+  "reasoning": "<1-2 sentences why this question is plausible orientation BEFORE the actual bug work, why it matches the requested archetype, and why it does not leak the fix>"
+}
+
+=== EXAMPLES ===
+
+Example 1 (archetype=module_overview, sklearn ensemble area):
+Repo: scikit-learn/scikit-learn
+Module focus: sklearn/ensemble
+Target goal: Expose warm_start in IsolationForest.__init__() and document and test its behavior
+Required archetype: module_overview
+
+Output:
+{
+  "archetype": "module_overview",
+  "exploration_function": "Can you walk me through how sklearn's ensemble module is structured and what the main families of estimators are?",
+  "reasoning": "Standard orientation a contributor asks before touching ensemble code; matches module_overview by describing the module's structure; doesn't reveal which estimator or which parameter the eventual fix targets."
+}
+
+---
+
+Example 2 (archetype=dependency_map, django/db area):
+Repo: django/django
+Module focus: django/db
+Target goal: Propagate db_collation from a primary key to referenced foreign keys so that generated ALTER TABLE statements include matching COLLATE clauses
+Required archetype: dependency_map
+
+Output:
+{
+  "archetype": "dependency_map",
+  "exploration_function": "How are django.db.backends, django.db.models, and django.db.migrations related in the source tree?",
+  "reasoning": "A migration / DDL fix touches all three sub-packages; asking about their relationship matches dependency_map and is natural orientation that doesn't disclose collation specifics."
+}
+
+---
+
+Example 3 (archetype=public_api, sphinx domains area):
+Repo: sphinx-doc/sphinx
+Module focus: sphinx/domains
+Target goal: Fix the index entry for `py:method` directive with `:property:` option so that it does not have parens
+Required archetype: public_api
+
+Output:
+{
+  "archetype": "public_api",
+  "exploration_function": "What are the main public classes in sphinx.domains and what role does each play in directive resolution?",
+  "reasoning": "Generic introduction to the module's public surface matches public_api; useful before patching directive logic but doesn't mention :property: or parens."
+}
+
+Now generate ONE orientation question of the requested archetype for the input above.

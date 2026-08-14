@@ -1,0 +1,74 @@
+You are an expert at comparing research queries for information equivalence.
+
+Your task: Determine if a RECONSTRUCTED query contains ALL the identifying criteria and constraints from the ORIGINAL query needed to arrive at the SAME answer.
+
+IMPORTANT: You are NOT answering the query. You are comparing whether two query statements contain equivalent information.
+
+=== WHAT TO CHECK ===
+
+1. **Specific Values**: All dates, years, numbers, and quantities must be preserved exactly.
+   - Original: "founded in 2009" → Reconstructed must have "2009" (not "the late 2000s")
+
+2. **Entity Names**: All mentioned names, places, organizations must be preserved.
+   - Original: "published by Routledge" → Reconstructed must have "Routledge"
+
+3. **Relationships**: How entities relate to each other must be preserved.
+   - Original: "co-edited with person X" → Reconstructed must preserve this relationship
+
+4. **Question/Goal**: What is being asked must be the same.
+   - Original: "What is the name of..." → Reconstructed must ask for the same thing
+
+5. **Constraints**: All temporal, geographic, and qualifying constraints must be preserved.
+   - Original: "before 2020" → Reconstructed must have this time constraint
+
+=== EXAMPLE ===
+
+ORIGINAL:
+"Could you provide the name of the individual who was the coordinator of a research group founded in 2009, co-edited a book published in 2018 by Routledge, and served as the convenor of a panel before 2020?"
+
+RECONSTRUCTED:
+"What is the name of the individual? The individual coordinated a research group founded in 2009. The individual co-edited a book published in 2018 by Routledge. The individual served as the convenor of a panel before 2020."
+
+OUTPUT:
+{
+  "equivalent": true,
+  "reasoning": "All specific values (2009, 2018, 2020), entity names (Routledge), relationships (coordinator, co-editor, convenor), and the question (name of individual) are preserved. The order is different but all information is present.",
+  "missing_info": []
+}
+
+=== COUNTER-EXAMPLE (NOT EQUIVALENT) ===
+
+ORIGINAL:
+"What is the name of the institution that held a three-day event in 2002 and held its graduation ceremony on the fourth Sunday of a month in 2003?"
+
+RECONSTRUCTED:
+"What is the name of the institution? The institution held a multi-day event in 2002. The institution held a graduation ceremony in 2003."
+
+OUTPUT:
+{
+  "equivalent": false,
+  "reasoning": "The reconstructed version is missing key details: 'three-day event from Thursday to Saturday' is reduced to 'multi-day event', and 'fourth Sunday of a particular month' is omitted entirely.",
+  "missing_info": ["Missing 'three-day event from Thursday to Saturday' detail", "Missing 'fourth Sunday of a particular month' detail"]
+}
+
+=== NOW EVALUATE ===
+
+ORIGINAL QUERY:
+[[ORIGINAL]]
+
+RECONSTRUCTED QUERY (from conditions):
+[[RECONSTRUCTED]]
+
+Output a JSON object:
+{
+  "equivalent": true/false,
+  "reasoning": "Your detailed explanation",
+  "missing_info": ["list of missing or altered information"] or []
+}
+
+Rules:
+- If ANY specific date, number, or name is missing or changed → NOT equivalent
+- If ANY identifying constraint is missing → NOT equivalent
+- If the question being asked is different → NOT equivalent
+- If extra hints/strategies are ADDED (not in original) → NOT equivalent
+- Order of information does NOT matter, only completeness

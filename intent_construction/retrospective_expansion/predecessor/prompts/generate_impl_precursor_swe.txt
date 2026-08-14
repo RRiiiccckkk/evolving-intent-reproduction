@@ -1,0 +1,131 @@
+You are simulating a developer who is about to fix a real bug in an open-source repository, but BEFORE the bug fix they were planning a related new feature implementation. They asked you to PLAN the implementation (analyze the codebase and outline the approach, NOT write actual code).
+
+Your job: generate ONE implementation-planning request for a feature that is **adjacent / orthogonal** to the bug, NOT directly inspecting the buggy code path.
+
+The implementation request MUST:
+
+1. Be **planning, not coding**. Phrased as "Can you analyze the codebase and outline how you'd implement X?" — read-only exploration only, no actual code edits.
+
+2. Be **non-trivial and substantive**. Since it's only a plan, the feature itself can be moderately complex (touching multiple files, integrating with existing systems). Avoid trivial one-liner additions.
+
+3. **CRITICAL — be ADJACENT, not OVERLAPPING with the buggy code**:
+   - The feature must live in a **sibling module / sibling subsystem / related-but-different subpackage** of the repo. Not the file/class/function where the bug lives. Examples of adjacency:
+     * Bug is in `django/db/models/fields/related.py` (FK collation) → impl plan touches `django/db/models/manager.py` or `django/db/migrations/operations/`, NOT the same fields/related code.
+     * Bug is in `astropy/io/fits/header.py` (Header.fromstring) → impl plan touches `astropy/io/fits/diff.py` or `astropy/io/registry.py`, NOT header.py.
+     * Bug is in `xarray/core/computation.py` (xr.where scalar bug) → impl plan touches `xarray/core/dataset.py` or `xarray/plot/`, NOT computation.py.
+   - The plan should be **plausibly possible without ever reading the buggy file**. The agent could in principle complete the plan without inspecting the buggy function.
+   - The two share **conceptual/topical context** (same repo subsystem, similar developer audience, related domain) so the conversation feels natural, but they exercise **different code paths**.
+   - **Avoid plans whose natural exploration path traverses the buggy class's `__repr__` / `__str__` / `__deepcopy__` / `info()` / `summary()` / `format()` / `to_string()` methods.** When the bug is in a low-level formatting / parsing / repr / dunder method, do NOT propose a high-level "summary", "info", "describe", or "convenience-info" helper that would naturally call into those methods. Pick a feature that touches a different *behavioral* axis (e.g. iteration, configuration, registration, side-effects, lifecycle, validation, plumbing) instead.
+
+4. **NO direct dependency on the buggy API**:
+   - Do NOT say "must wrap / call / mirror / depend on" the buggy function.
+   - The feature can use *unrelated* APIs from the same repo, public adjacent classes, or different functionality entirely.
+   - Bug discovery should happen **only after the user explicitly pivots in turn 3**, NOT as a side effect of analyzing the impl plan.
+
+5. **Plausibility**: a real developer might propose this feature first and only later remember the unrelated bug they wanted fixed.
+
+6. **Distinctness from bug fix**: implementation does NOT solve the bug; the bug is in a separate part of the codebase.
+
+7. Provide 2-4 implementation conditions/specs as design constraints. Use SOFT verbs ("could", "should ideally", "preferably") rather than imperative "must" — this is a plan, not a contract.
+
+8. **Transition phrase** must read as the developer remembering an UNRELATED bug, not "as I analyzed this I noticed":
+   - Good: "Hmm, before I dive into the design, I just remembered there's an outstanding issue in [different module] I should fix first — let me deal with that and then come back to this plan."
+   - Bad: "While analyzing X, I noticed X has a bug" (this implies the impl analysis exposed the bug — we want orthogonality).
+
+The implementation must NOT:
+- Be a simple rephrasing or generalization of the bug fix.
+- Suggest fixing the bug as part of the implementation.
+- Mention the specific symptom / error / variable names from the eventual bug fix.
+- Live in the same file or class as the bug.
+
+=== INPUT ===
+
+Repo: [[REPO]]
+Module focus: [[MODULE_FOCUS]]
+Target bug fix (the FINAL goal — note its module/class/function so you can pick something ELSEWHERE):
+  [[TARGET_GOAL]]
+Affected files of the bug fix (your impl plan must touch DIFFERENT files):
+  [[AFFECTED_FILES]]
+
+=== OUTPUT ===
+
+Output JSON:
+{
+  "implementation_request": "<the planning request, 2-4 sentences, in natural developer voice; touches files DIFFERENT from the bug's affected files>",
+  "topical_relation": "<1 sentence: how this feature shares topical context with the bug WITHOUT touching its code path>",
+  "implementation_arguments": [
+    {"argument": "<short spec for the new feature; use soft verbs>", "category": "<constraint|requirement|interface|ux>", "perturbable": <true|false>},
+    ...
+  ],
+  "transition_phrase": "<natural sentence: developer pauses planning because they remember an unrelated outstanding bug, e.g. 'Hmm, before I dive deeper into this design, I just remembered an outstanding issue in [different area] that I should clear up first.'>",
+  "implementation_taxonomy": "<one of: sibling_feature | adjacent_api | parallel_subsystem | new_helper | tooling_addition>",
+  "reasoning": "<2-3 sentences: why the impl plan is topically related but does NOT touch the buggy code path; what files the agent would actually read; why a developer would naturally pivot to the unrelated bug at turn 3>"
+}
+
+=== EXAMPLES ===
+
+Example 1 — django/django parse_duration() bug
+Repo: django/django
+Module focus: django/utils
+Target bug fix: Fix parse_duration() so that it correctly parses some negative durations.
+Affected files: ['django/utils/dateparse.py']
+
+Output:
+{
+  "implementation_request": "I'd like to add a `format_timesince(td, *, threshold=None)` helper in `django/utils/timesince.py` that produces human-friendly relative-time strings (\"3 minutes ago\", \"in 2 hours\") given a `datetime.timedelta`, with optional thresholds for switching units. Can you analyze how the existing `timesince` / `timeuntil` helpers in `django/utils/timesince.py` are structured today and how they integrate with translation and template tags, and outline a step-by-step plan for the new helper (where it lives, how it composes with the existing ones, how it should be threaded through the templatetags layer)? Don't write any code yet — design level only.",
+  "topical_relation": "Both features deal with `timedelta`-based formatting/parsing in `django/utils`, but the implementation lives in `timesince.py` while the bug lives in `dateparse.py`.",
+  "implementation_arguments": [
+    {"argument": "The helper should ideally reuse existing translation infrastructure used by `timesince()`.", "category": "constraint", "perturbable": true},
+    {"argument": "The implementation could expose a corresponding template tag for symmetry with `timesince`.", "category": "interface", "perturbable": true},
+    {"argument": "Threshold semantics should be configurable per call rather than module-global.", "category": "interface", "perturbable": true}
+  ],
+  "transition_phrase": "Hmm, actually before I get into this `format_timesince` design, I just remembered there's an outstanding bug in `parse_duration` for negative durations that I keep meaning to clean up — let me fix that first and come back to this plan.",
+  "implementation_taxonomy": "sibling_feature",
+  "reasoning": "Both helpers handle timedeltas in django/utils, sharing topical context, but `timesince.py` and `dateparse.py` are distinct files with independent code paths. Agent reading `timesince.py` does not surface the negative-duration parsing bug; the user's pivot is naturally framed as remembering an unrelated outstanding issue."
+}
+
+---
+
+Example 2 — astropy/astropy Header.fromstring() bug
+Repo: astropy/astropy
+Module focus: astropy/io/fits
+Target bug fix: Change Header.fromstring to accept unicode or bytes string types and apply a similar treatment to Card.fromstring.
+Affected files: ['astropy/io/fits/header.py', 'astropy/io/fits/card.py']
+
+Output:
+{
+  "implementation_request": "I'd like to add a streaming-friendly diff helper in `astropy.io.fits.diff` — something like `iter_header_diff(hdul1, hdul2, *, only_keywords=None)` — that yields per-HDU diff records lazily so callers can pipe results into UIs/notebooks without materialising a full `HeaderDiff` object up front. Can you analyze how the existing `HeaderDiff` / `HDUDiff` classes in `astropy/io/fits/diff.py` produce their reports, what their `report()` method walks, and outline a step-by-step plan for a generator-style API that yields the same logical content incrementally? Don't implement anything yet — I want a clean design plan I can review.",
+  "topical_relation": "Both features live in `astropy/io/fits` and operate on Header objects conceptually, but the implementation touches `diff.py` while the bug is in `header.py`/`card.py` parsing.",
+  "implementation_arguments": [
+    {"argument": "The generator should ideally yield the same record types `HeaderDiff.report()` already emits.", "category": "interface", "perturbable": true},
+    {"argument": "The implementation could thread `only_keywords` through to existing diff filtering.", "category": "interface", "perturbable": true},
+    {"argument": "Memory usage should preferably stay sub-linear in the size of the HDU list.", "category": "constraint", "perturbable": true}
+  ],
+  "transition_phrase": "Hmm, before I dive deeper into the streaming diff design, I just remembered there's a long-standing issue with `Header.fromstring` (and `Card.fromstring`) handling bytes vs unicode that I should fix first while it's still on my mind.",
+  "implementation_taxonomy": "adjacent_api",
+  "reasoning": "Diff.py operates on Header objects but never reads or invokes the parsing path in header.py/card.py. Agent reading diff.py to plan the streaming API will not encounter the fromstring bytes/unicode bug. The pivot reads as a developer remembering an unrelated tracked issue."
+}
+
+---
+
+Example 3 — sphinx-doc/sphinx :property: directive bug
+Repo: sphinx-doc/sphinx
+Module focus: sphinx/domains
+Target bug fix: Fix the index entry for `py:method` directive with `:property:` option so that it does not have parens.
+Affected files: ['sphinx/domains/python.py']
+
+Output:
+{
+  "implementation_request": "I'd like to add a small CLI tool — `sphinx-graph-domain DOMAIN` — under `sphinx.cmd` that prints a graph of inter-directive references inside a built docs tree (e.g. which `py:method`s reference which `py:class`es) for diagnostic purposes. Can you analyze how the build process exposes resolved cross-references (through `BuildEnvironment` and the domain `XRefRole` machinery), where the resolved reference data lives after a build, and outline an implementation plan for this CLI subcommand including how it would discover the build directory, load environment data, and emit an output suitable for piping into `dot`? Stop at the plan; no code yet.",
+  "topical_relation": "Both touch the Python domain conceptually, but the CLI tool reads `BuildEnvironment` cross-reference data via `sphinx.cmd` while the bug is in `sphinx/domains/python.py`'s index-entry rendering.",
+  "implementation_arguments": [
+    {"argument": "The tool should ideally degrade gracefully when run against incomplete build environments.", "category": "ux", "perturbable": true},
+    {"argument": "Output format could default to `dot` but support `json` for tooling integration.", "category": "interface", "perturbable": true},
+    {"argument": "The implementation should preferably reuse existing `Sphinx` builder loading rather than reimplementing config discovery.", "category": "constraint", "perturbable": true}
+  ],
+  "transition_phrase": "Wait, before I get further into this CLI design, I want to clear up an outstanding documentation rendering bug I noticed earlier with `:property:` index entries — let me fix that first so it doesn't keep nagging me.",
+  "implementation_taxonomy": "tooling_addition",
+  "reasoning": "The CLI subcommand reads cross-reference graphs from BuildEnvironment but never touches the index-entry rendering in domains/python.py. Agent planning this would explore sphinx.cmd and BuildEnvironment, leaving the buggy file untouched. The pivot reads naturally as a developer remembering a separate, unrelated rendering issue."
+}
+
+Now generate ONE implementation-planning request for the input above.

@@ -1,0 +1,34 @@
+# ROLE
+You convert a SQL query into a SHORT, NATURAL follow-up question that a user
+would say after they already asked the previous question. Your output sounds
+conversational, not like a SQL gloss.
+
+# CONTEXT
+The user previously asked:
+  "[[ORIGINAL_QUESTION]]"
+
+That question was answered by this SQL:
+  ORIGINAL_SQL: [[ORIGINAL_SQL]]
+
+The user now wants to know something new, expressed by this NEW SQL:
+  NEW_SQL: [[NEW_SQL]]
+
+These SQL clauses changed: [[CHANGED_CLAUSES]]
+These SQL clauses are unchanged (they came from the user's earlier filters): [[PRESERVED_CLAUSES]]
+
+# STYLE RULES
+- Output ONE sentence, at most 25 words.
+- Be EPISODIC: rely on the prior question as context. Do NOT restate
+  WHERE / HAVING / LIMIT filter values; do NOT mention specific names,
+  numbers, dates, or thresholds that came from the preserved clauses.
+- Refer to the new goal in user-friendly language (real entity names from
+  the schema), not raw SQL column names like "T1.firstName".
+- Do NOT begin with a connector like "Among those," / "From the same group,"
+  / "Within those," — the surrounding system will prepend such a phrase.
+- Do NOT mention SQL, tables, columns, JOIN, GROUP BY, ORDER BY, LIMIT.
+- End with a question mark when phrased as a question, or a period for an
+  imperative.
+
+# OUTPUT FORMAT
+Return strict JSON only:
+{"text": "..."}

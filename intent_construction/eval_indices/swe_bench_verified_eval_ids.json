@@ -1,0 +1,209 @@
+{
+  "dataset": "swe_bench_verified",
+  "split": "test",
+  "num_samples": 50,
+  "source_file": "final_dataset/swe_bench_verified_n50.json",
+  "id_field": "original_id",
+  "samples": [
+    {
+      "task_id": "extracted-swe_bench_verified-test-astropy__astropy-13236",
+      "original_id": "astropy__astropy-13236"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-astropy__astropy-14508",
+      "original_id": "astropy__astropy-14508"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-astropy__astropy-14995",
+      "original_id": "astropy__astropy-14995"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-astropy__astropy-8707",
+      "original_id": "astropy__astropy-8707"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-django__django-10914",
+      "original_id": "django__django-10914"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-django__django-11066",
+      "original_id": "django__django-11066"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-django__django-11163",
+      "original_id": "django__django-11163"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-django__django-12143",
+      "original_id": "django__django-12143"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-django__django-13089",
+      "original_id": "django__django-13089"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-django__django-13343",
+      "original_id": "django__django-13343"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-django__django-13410",
+      "original_id": "django__django-13410"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-django__django-13658",
+      "original_id": "django__django-13658"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-django__django-13786",
+      "original_id": "django__django-13786"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-django__django-14493",
+      "original_id": "django__django-14493"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-django__django-14608",
+      "original_id": "django__django-14608"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-django__django-14765",
+      "original_id": "django__django-14765"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-django__django-15368",
+      "original_id": "django__django-15368"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-django__django-15569",
+      "original_id": "django__django-15569"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-django__django-15572",
+      "original_id": "django__django-15572"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-matplotlib__matplotlib-14623",
+      "original_id": "matplotlib__matplotlib-14623"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-matplotlib__matplotlib-20676",
+      "original_id": "matplotlib__matplotlib-20676"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-matplotlib__matplotlib-20859",
+      "original_id": "matplotlib__matplotlib-20859"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-matplotlib__matplotlib-22871",
+      "original_id": "matplotlib__matplotlib-22871"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-mwaskom__seaborn-3069",
+      "original_id": "mwaskom__seaborn-3069"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-psf__requests-1724",
+      "original_id": "psf__requests-1724"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-psf__requests-5414",
+      "original_id": "psf__requests-5414"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-pydata__xarray-4695",
+      "original_id": "pydata__xarray-4695"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-pydata__xarray-6461",
+      "original_id": "pydata__xarray-6461"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-pydata__xarray-6721",
+      "original_id": "pydata__xarray-6721"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-pydata__xarray-6992",
+      "original_id": "pydata__xarray-6992"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-pylint-dev__pylint-6528",
+      "original_id": "pylint-dev__pylint-6528"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-pylint-dev__pylint-6903",
+      "original_id": "pylint-dev__pylint-6903"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-pylint-dev__pylint-7080",
+      "original_id": "pylint-dev__pylint-7080"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-pylint-dev__pylint-7277",
+      "original_id": "pylint-dev__pylint-7277"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-pytest-dev__pytest-5809",
+      "original_id": "pytest-dev__pytest-5809"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-pytest-dev__pytest-6202",
+      "original_id": "pytest-dev__pytest-6202"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-scikit-learn__scikit-learn-12973",
+      "original_id": "scikit-learn__scikit-learn-12973"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-scikit-learn__scikit-learn-14087",
+      "original_id": "scikit-learn__scikit-learn-14087"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-scikit-learn__scikit-learn-14496",
+      "original_id": "scikit-learn__scikit-learn-14496"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-scikit-learn__scikit-learn-14894",
+      "original_id": "scikit-learn__scikit-learn-14894"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-sphinx-doc__sphinx-10466",
+      "original_id": "sphinx-doc__sphinx-10466"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-sphinx-doc__sphinx-7910",
+      "original_id": "sphinx-doc__sphinx-7910"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-sphinx-doc__sphinx-8269",
+      "original_id": "sphinx-doc__sphinx-8269"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-sphinx-doc__sphinx-9230",
+      "original_id": "sphinx-doc__sphinx-9230"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-sphinx-doc__sphinx-9320",
+      "original_id": "sphinx-doc__sphinx-9320"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-sphinx-doc__sphinx-9591",
+      "original_id": "sphinx-doc__sphinx-9591"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-sympy__sympy-12489",
+      "original_id": "sympy__sympy-12489"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-sympy__sympy-13091",
+      "original_id": "sympy__sympy-13091"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-sympy__sympy-13372",
+      "original_id": "sympy__sympy-13372"
+    },
+    {
+      "task_id": "extracted-swe_bench_verified-test-sympy__sympy-15599",
+      "original_id": "sympy__sympy-15599"
+    }
+  ]
+}

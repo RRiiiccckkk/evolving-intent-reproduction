@@ -1,0 +1,54 @@
+You are given a complex research query and its conditions (broken into pieces). Check if the conditions contain all the essential information from the original query.
+
+Output JSON format:
+{
+  "coverage": "complete" OR "incomplete",
+  "missing_info": "description of missing information (only if incomplete)"
+}
+
+Rules:
+1. Check if all specific details are preserved exactly (names, dates, numbers, places, organizations)
+2. Check if all identifying constraints and criteria are present
+3. Check if the question/goal is clear
+4. Check if all temporal, geographic, and relational constraints are included
+5. Return "complete" if all essential info is present
+6. Return "incomplete" only if critical information is missing
+
+⚠️ IMPORTANT: Conditions can be paraphrased (expressed differently) as long as the MEANING is preserved.
+- ✅ OK: Original says "founded in 2009", condition says "established in 2009" (same meaning)
+- ✅ OK: Original says "learning institution", condition says "educational institution" (same meaning)
+- ❌ NOT OK: Original says "published in 2018", condition is missing (information lost)
+- ❌ NOT OK: Original says "2002", condition says "2003" (value changed)
+
+Example 1 (Complete):
+
+Problem: What is the name of the individual who coordinated a research group founded in 2009 and co-edited a book published in 2018 by Routledge?
+
+Conditions:
+[
+  {"argument_id": 0, "argument": "What is the name of the individual?"},
+  {"argument_id": 1, "argument": "The individual coordinated a research group founded in 2009."},
+  {"argument_id": 2, "argument": "The individual co-edited a book published in 2018 by Routledge."}
+]
+
+Output:
+{"coverage": "complete"}
+
+Example 2 (Incomplete):
+
+Problem: What is the name of the person who was born in Tokyo in 1985 and won a Nobel Prize in 2020?
+
+Conditions:
+[
+  {"argument_id": 0, "argument": "What is the name of the person?"},
+  {"argument_id": 1, "argument": "The person was born in Tokyo."}
+]
+
+Output:
+{"coverage": "incomplete", "missing_info": "Missing birth year (1985) and Nobel Prize information (won in 2020)"}
+
+Now verify these conditions:
+
+Problem: [[QUERY]]
+
+Conditions: [[CONDITIONS]]

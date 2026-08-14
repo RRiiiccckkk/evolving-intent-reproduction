@@ -1,0 +1,303 @@
+You are given a complex search/research problem with multiple conditions. Your task is to generate a PERTURBED version of the target condition.
+
+"Perturbed" means REPLACING one specific detail with a GENUINELY DIFFERENT value so the condition points to a DIFFERENT answer. The perturbed condition must remain plausible and relevant.
+
+KEY PRINCIPLE: The perturbed value must create a REAL FACTUAL CONTRADICTION with the original. Someone hearing the original value after the perturbed value must recognize that information ACTUALLY CHANGED. Synonyms, near-synonyms, rephrases, and subset/superset values are all FORBIDDEN — they do not create real contradictions.
+
+Requirements:
+1. REPLACE exactly ONE detail with a different value. This can be:
+   - A year or date (e.g., 2016 → 2017)
+   - A number or quantity (e.g., "eight" → "ten", "42 months" → "36 months")
+   - A temporal range endpoint (e.g., "between 2015 and 2020" → "between 2015 and 2018")
+   - A descriptive attribute or category (e.g., "horror thriller" → "psychological thriller", "grocery delivery" → "meal delivery")
+   - A relative temporal phrase (e.g., "early 1990s" → "late 1990s")
+   - A role, profession, or relationship (e.g., "assistant professor" → "associate professor")
+   - A specific qualifier (e.g., "three-day event" → "two-day event", "gold medal" → "silver medal")
+2. The change should be PLAUSIBLE and CONTEXTUALLY APPROPRIATE — it must make sense within the same domain
+3. Keep the EXACT same sentence structure — the perturbed condition must have the same length and form as the original, with only one value swapped
+4. CRITICAL: Do NOT change the main subject/entity being searched for
+   - If the question is about a specific person, company, or event, the perturbed condition must still be about that same entity
+   - Only change a QUALIFYING DETAIL, not the core subject
+5. The perturbed value should be close but different — a nearby alternative that is realistic
+6. CRITICAL: The perturbation must be a VALUE SWAP, NOT an addition or elaboration:
+   - WRONG: "road accident" → "road accident in 2021" (adds new info — the original doesn't mention a year)
+   - WRONG: "popular nickname" → "widely used nickname" (synonym — not a meaningful change)
+   - WRONG: "perfection" → "obsession with perfection" (elaboration — the original concept is preserved)
+   - WRONG: "worked at Company X" → "worked at Company X in a marketing role" (adds a qualifier not in original)
+   - CORRECT: "road accident" → "motorcycle accident" (swaps "road" for "motorcycle")
+   - CORRECT: "popular nickname" → "famous nickname" is still bad; instead find a real detail to change elsewhere in the condition
+   - CORRECT: "2018" → "2019" (swaps year value)
+   - CORRECT: "Tennessee" → "Kentucky" (swaps state)
+   The reason: in our evaluation framework, the original condition will later REPLACE the perturbed one. If the perturbation ADDS information, the original cannot contradict it — the added detail becomes an orphan that persists. Only a value SWAP ensures the original directly contradicts the perturbed version.
+7. CRITICAL: The perturbed condition must be obtainable by a SINGLE find-and-replace of original_value → counterfactual_value in the original condition. NO other characters may change:
+   - Do NOT change articles (a/an) — if the swap would require "a" → "an" (e.g., "a multinomial" → "an ordinal"), either pick a different counterfactual_value that keeps the same article (e.g., "a binary"), OR include the article in both values (original_value: "an apocalyptic", counterfactual_value: "a dystopian")
+   - Similarly, if the swap affects a determiner or surrounding word, INCLUDE those words in both original_value and counterfactual_value (e.g., original_value: "the same school", counterfactual_value: "a different school")
+   - Do NOT change apostrophes or punctuation (e.g., "worker's" must stay "worker's", not become "workers")
+   - Do NOT rephrase surrounding words (e.g., "when they made" must not become "while they were finishing")
+   - SELF-CHECK: mentally do find-and-replace of original_value → counterfactual_value in the original condition. If the result doesn't exactly match your counterfactual_condition, fix it.
+8. The perturbed value must be the SAME TYPE of attribute as the original — both must describe the same dimension:
+   - WRONG: "short-lived" → "moderately successful" (duration vs. quality — these are orthogonal, not contradicting)
+   - WRONG: "when they made the sketch" → "while they were finishing the sketch" (rephrasing, not a value swap)
+   - CORRECT: "short-lived" → "long-running" (both describe duration)
+   - CORRECT: "early" → "late" (both describe temporal position — NOT "in the middle of" which changes structure)
+9. CRITICAL: Do NOT use synonyms, near-synonyms, or subset/superset values. The perturbed value must genuinely CONTRADICT the original when the original replaces it:
+   - WRONG: "popular" → "well-known" or "famous" (synonyms — no contradiction)
+   - WRONG: "different" → "distinct" (synonym)
+   - WRONG: "sell by date" → "expiration date" (synonym)
+   - WRONG: "mythological" → "legendary" (near-synonym)
+   - WRONG: "made with insects" → "made from insects" (near-synonym)
+   - WRONG: "particular" → "specific" (synonym)
+   - WRONG: "not using" → "not utilizing" (synonym)
+   - WRONG: "music band" → "music group" (synonym)
+   - WRONG: "other forms" → "various forms" (synonym)
+   - WRONG: "have no sell by date" → "are timeless" (paraphrase — same meaning in different words)
+   - WRONG: "1990s" → "early 1990s" (subset — "early 1990s" is PART OF "1990s", no contradiction)
+   - WRONG: "1990s" → "late 1990s" (subset)
+   - WRONG: "after" → "shortly after" (subset — "shortly after" IS "after")
+   - WRONG: "multinomial logistic regression" → "logistic regression" (deletion — removes a qualifier)
+   - WRONG: "African" → "of African descent" (elaboration, not swap)
+   - WRONG: "2010s" → "2011s" (nonsensical — "2011s" is not a real decade)
+   - WRONG: "insects" → "mythology" (nonsensical in context — "food made with mythology" makes no sense. Swap with another plausible ingredient like "plants" or "honey")
+   - CORRECT: "popular" → "controversial" (genuinely different attribute)
+   - CORRECT: "1990s" → "1980s" (different decade entirely)
+   - CORRECT: "African" → "South American" (different region)
+   - CORRECT: "music band" → "solo artist" (genuinely different)
+   - CORRECT: "insects" → "plants" (same category: food ingredients)
+   TEST: Ask yourself — if someone first hears the perturbed value, then hears the original value as a correction, would they recognize an actual CHANGE in factual content? If not, pick a different value.
+
+Output JSON format:
+{
+  "counterfactual_argument": "The full condition with the perturbed value",
+  "original_value": "The original value/detail that was changed",
+  "counterfactual_value": "The new value/detail used as replacement",
+  "reasoning": "Brief explanation of what was changed and why it's plausible"
+}
+
+===== EXAMPLES =====
+
+Example 1 (Year perturbation):
+
+Question: An article was published and then updated 29 minutes later, sometime between 2020 and 2023. The article reported that an individual had sued a company for withdrawing their job offer.
+All Conditions:
+[
+  {"argument_id": 0, "argument": "According to the company's blog post, what percentage of employees recommend the company as a workplace?"},
+  {"argument_id": 1, "argument": "An article was published sometime between 2020 and 2023 and was updated 29 minutes after it was first published."},
+  {"argument_id": 2, "argument": "The article reported that an individual had sued a company for withdrawing their job offer."},
+  {"argument_id": 3, "argument": "The article included a link to a blog post by the company posted on the same day."},
+  {"argument_id": 4, "argument": "Later that same year, the company offered a sign-on bonus and benefit for new hires."}
+]
+Target Condition: {"argument_id": 1, "argument": "An article was published sometime between 2020 and 2023 and was updated 29 minutes after it was first published."}
+
+Output:
+{
+  "counterfactual_argument": "An article was published sometime between 2020 and 2023 and was updated 45 minutes after it was first published.",
+  "original_value": "29 minutes",
+  "counterfactual_value": "45 minutes",
+  "reasoning": "Changed the update delay from 29 to 45 minutes. Both are plausible time gaps for an article update, and this specific timing detail helps uniquely identify the article."
+}
+
+---
+
+Example 2 (Descriptive attribute perturbation):
+
+Question: I am looking for an actor whose debut movie was highly successful. The actor holds a degree from a US university established in the 1800s.
+All Conditions:
+[
+  {"argument_id": 0, "argument": "Can you help me identify the actor I'm thinking of?"},
+  {"argument_id": 1, "argument": "The actor was never married as of December 31, 2023."},
+  {"argument_id": 2, "argument": "The actor holds a degree from a United States university that was established in the 1800s."},
+  {"argument_id": 3, "argument": "The actor's debut movie was highly successful and was added to the Guinness Book of World Records."},
+  {"argument_id": 4, "argument": "The actor was involved in a controversy for misbehavior on a flight in 2006."}
+]
+Target Condition: {"argument_id": 4, "argument": "The actor was involved in a controversy for misbehavior on a flight in 2006."}
+
+Output:
+{
+  "counterfactual_argument": "The actor was involved in a controversy for misbehavior on a flight in 2008.",
+  "original_value": "2006",
+  "counterfactual_value": "2008",
+  "reasoning": "Changed the year of the flight incident from 2006 to 2008. Both are plausible years for such an incident and this changes which specific event is being referenced."
+}
+
+---
+
+Example 3 (Quantity / qualifier perturbation):
+
+Question: In 2006, an EU-funded project with a budget of €1.30 million was launched and completed within 42 months. The second phase started in 2015.
+All Conditions:
+[
+  {"argument_id": 0, "argument": "What was the abbreviation used for the first EU-funded project?"},
+  {"argument_id": 1, "argument": "In 2006, an EU-funded project with a budget of €1.30 million was launched and completed within 42 months."},
+  {"argument_id": 2, "argument": "The second phase of this project started in 2015 with a budget of €1.6 million."},
+  {"argument_id": 3, "argument": "The project was carried out in cooperation with artisans and shopkeepers."}
+]
+Target Condition: {"argument_id": 1, "argument": "In 2006, an EU-funded project with a budget of €1.30 million was launched and completed within 42 months."}
+
+Output:
+{
+  "counterfactual_argument": "In 2006, an EU-funded project with a budget of €1.30 million was launched and completed within 36 months.",
+  "original_value": "42 months",
+  "counterfactual_value": "36 months",
+  "reasoning": "Changed the project duration from 42 to 36 months. Both are realistic durations for EU-funded projects (3-4 years), and this alters a specific identifying detail."
+}
+
+---
+
+Example 4 (Role / profession perturbation):
+
+Question: At the beginning of 2021, a person was an assistant professor at a Canadian university. The person was one of six authors of an article published in 2022.
+All Conditions:
+[
+  {"argument_id": 0, "argument": "What is the name of this researcher?"},
+  {"argument_id": 1, "argument": "At the beginning of 2021, the person was an assistant professor at a Canadian university located in the capital city of a province."},
+  {"argument_id": 2, "argument": "The person was one of six authors of an article published in the International Journal of Health Policy and Management in 2022."},
+  {"argument_id": 3, "argument": "The person completed a Ph.D. from a university in a Canadian province that was formed in 1905."}
+]
+Target Condition: {"argument_id": 2, "argument": "The person was one of six authors of an article published in the International Journal of Health Policy and Management in 2022."}
+
+Output:
+{
+  "counterfactual_argument": "The person was one of four authors of an article published in the International Journal of Health Policy and Management in 2022.",
+  "original_value": "six",
+  "counterfactual_value": "four",
+  "reasoning": "Changed the number of co-authors from six to four. Both are common co-author counts for academic papers, and this changes the identifying detail of the specific publication."
+}
+
+---
+
+Example 5 (Temporal phrase perturbation):
+
+Question: In the 1850s, a steam-powered passenger version of an ancient machine was designed. The first electrical version was built in the 1880s.
+All Conditions:
+[
+  {"argument_id": 0, "argument": "What is the name of this machine?"},
+  {"argument_id": 1, "argument": "In the 3rd century BC, a machine was invented and was used in the tunnels and animal pens beneath the Colosseum for gladiator battles."},
+  {"argument_id": 2, "argument": "In the 1850s, a steam-powered passenger version of this machine was designed."},
+  {"argument_id": 3, "argument": "The first electrical-powered version of this machine was built in the 1880s."}
+]
+Target Condition: {"argument_id": 2, "argument": "In the 1850s, a steam-powered passenger version of this machine was designed."}
+
+Output:
+{
+  "counterfactual_argument": "In the 1860s, a steam-powered passenger version of this machine was designed.",
+  "original_value": "1850s",
+  "counterfactual_value": "1860s",
+  "reasoning": "Changed the decade from 1850s to 1860s. Both decades are within the industrial revolution era when steam-powered innovations were common, maintaining plausibility."
+}
+
+---
+
+Example 6 (Category / descriptive text perturbation):
+
+Question: The individual was featured on a song by a prominent musician. The individual won an award in the dancehall category.
+All Conditions:
+[
+  {"argument_id": 0, "argument": "What is the name of this musician?"},
+  {"argument_id": 1, "argument": "In an interview, the individual revealed that a love for music was because of their father, who is a fan of Jamaican music."},
+  {"argument_id": 2, "argument": "The individual was featured on a song by a prominent musician in North America between 2012 and 2022 inclusive."},
+  {"argument_id": 3, "argument": "The individual won an award in the dancehall category at an award ceremony that took place in a North American country between 2015 and 2020 inclusive."}
+]
+Target Condition: {"argument_id": 3, "argument": "The individual won an award in the dancehall category at an award ceremony that took place in a North American country between 2015 and 2020 inclusive."}
+
+Output:
+{
+  "counterfactual_argument": "The individual won an award in the reggae category at an award ceremony that took place in a North American country between 2015 and 2020 inclusive.",
+  "original_value": "dancehall",
+  "counterfactual_value": "reggae",
+  "reasoning": "Changed the music genre from dancehall to reggae. Both are Jamaican music genres consistent with the father's love of Jamaican music mentioned in condition 1, making this a plausible category perturbation."
+}
+
+---
+
+Example 7 (WRONG PATTERNS - DO NOT DO THESE):
+
+Question: An African author tragically passed away in a road accident. As a child, he'd wanted to be a police officer. He lectured at a private university from 2018 until his death.
+All Conditions:
+[
+  {"argument_id": 0, "argument": "In which years did this African author work as a probation officer?"},
+  {"argument_id": 1, "argument": "The individual is an African author who passed away in a tragic road accident."},
+  {"argument_id": 2, "argument": "The individual has a popular nickname."},
+  {"argument_id": 3, "argument": "The main theme of the manga is perfection."}
+]
+
+WRONG #1 - ADDITIVE (adds info not in original):
+Target: {"argument_id": 1, "argument": "The individual is an African author who passed away in a tragic road accident."}
+{
+  "counterfactual_argument": "The individual is an African author who passed away in a tragic road accident in 2021.",
+  "original_value": "road accident",
+  "counterfactual_value": "road accident in 2021"
+}
+WHY WRONG: This ADDS "in 2021" — info that doesn't exist in the original. When the original replaces this later, it says "road accident" without any year, so "2021" is never contradicted and persists as an orphaned belief.
+
+WRONG #2 - SYNONYM (same meaning, different words):
+Target: {"argument_id": 2, "argument": "The individual has a popular nickname."}
+{
+  "counterfactual_argument": "The individual has a widely known nickname.",
+  "original_value": "popular",
+  "counterfactual_value": "widely known"
+}
+WHY WRONG: "popular" and "widely known" mean the same thing. When the original replaces this, nothing actually changes. There is no contradiction.
+
+WRONG #3 - ELABORATION (expands on same concept):
+Target: {"argument_id": 3, "argument": "The main theme of the manga is perfection."}
+{
+  "counterfactual_argument": "The main theme of the manga is the pursuit of perfection.",
+  "original_value": "perfection",
+  "counterfactual_value": "the pursuit of perfection"
+}
+WHY WRONG: "the pursuit of perfection" still contains "perfection" — the original concept is preserved, not contradicted.
+
+WRONG #4 - ARTICLE CHANGE (collateral grammar change):
+Target: {"argument_id": 4, "argument": "The paper presents the findings of a multinomial logistic regression."}
+{
+  "counterfactual_argument": "The paper presents the findings of an ordinal logistic regression.",
+  "original_value": "multinomial",
+  "counterfactual_value": "ordinal"
+}
+WHY WRONG: Replacing "multinomial" with "ordinal" also changes "a" to "an". The perturbed sentence is NOT obtainable by simple find-and-replace of "multinomial" → "ordinal". Pick a value that keeps the same article, e.g., "binary" ("a binary logistic regression").
+
+WRONG #5 - ORTHOGONAL ATTRIBUTE (different dimension, not contradicting):
+Target: {"argument_id": 2, "argument": "The television series was short-lived."}
+{
+  "counterfactual_argument": "The television series was moderately successful.",
+  "original_value": "short-lived",
+  "counterfactual_value": "moderately successful"
+}
+WHY WRONG: "short-lived" describes DURATION; "moderately successful" describes QUALITY. A show can be both short-lived AND moderately successful. These don't contradict each other. Use "long-running" instead (same dimension: duration).
+
+WRONG #6 - STRUCTURAL REPHRASE (changes sentence structure):
+Target: {"argument_id": 6, "argument": "The manga was released early in the first decade of the 2000s."}
+{
+  "counterfactual_argument": "The manga was released in the middle of the first decade of the 2000s.",
+  "original_value": "early",
+  "counterfactual_value": "in the middle of"
+}
+WHY WRONG: Replacing "early" with "in the middle of" changes the sentence structure (1 word → 5 words). The perturbed condition is NOT obtainable by a single find-and-replace. Use "late" instead ("released late in the first decade").
+
+CORRECT versions:
+Target 1: {"argument_id": 1, "argument": "The individual is an African author who passed away in a tragic road accident."}
+{
+  "counterfactual_argument": "The individual is an African author who passed away in a tragic motorcycle accident.",
+  "original_value": "road accident",
+  "counterfactual_value": "motorcycle accident",
+  "reasoning": "Swapped the type of accident from 'road' to 'motorcycle'. Both are plausible causes of death, and when the original 'road accident' replaces this, it directly contradicts 'motorcycle accident'."
+}
+
+Target 3: {"argument_id": 3, "argument": "The main theme of the manga is perfection."}
+{
+  "counterfactual_argument": "The main theme of the manga is redemption.",
+  "original_value": "perfection",
+  "counterfactual_value": "redemption",
+  "reasoning": "Swapped the theme from 'perfection' to 'redemption'. Both are common manga themes, and the swap creates a clear contradiction when the original replaces it."
+}
+
+===== END EXAMPLES =====
+
+Now generate a perturbed version of this condition:
+
+Question: [[QUESTION]]
+All Conditions (for context):
+[[CONDITIONS]]
+Target Condition to Perturb: [[TARGET_CONDITION]]
+
+Output:

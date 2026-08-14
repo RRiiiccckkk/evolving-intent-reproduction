@@ -1,0 +1,114 @@
+You are given a GitHub issue (problem statement) decomposed into a goal and conditions. Your task is to generate a PERTURBED version of a target CONSTRAINT condition.
+
+A "constraint" condition expresses a requirement, environment limitation, compatibility need, or expected behavior the fix must satisfy (e.g., "must work on Postgres", "should not break backward compatibility", "must raise ValueError", "psql expects options before dbname").
+
+"Perturbed" means generating an ALTERNATE constraint that the user *could plausibly have stated instead* — same form, different specific requirement. The user later corrects this back to the original. The perturbed version must be:
+
+1. PLAUSIBLE: a constraint a real user might state in this issue's context
+2. SPECIFIC: not vaguer than the original
+3. CONTRADICTORY-OR-DIFFERENT: it should DIFFER from the original such that following it produces a different fix
+4. SELF-CONTAINED: understandable without other conditions
+5. STAY ON-TOPIC: same module / same general area as the original
+6. **PRESERVE GOAL DIRECTION**: do NOT reverse the user's overall intent. If the user wants behavior X enabled, the perturbed constraint must also assume X is wanted — only the *parameters* of how X is constrained should change. NEVER turn a "should support" into a "should NOT support" or vice versa. The user is reporting the same bug; only the requirement details differ.
+
+Common perturbation moves for constraints:
+- Value swap: "Postgres" → "MySQL", "SQLite < 3.9.0" → "SQLite < 3.12.0"
+- Tighten/loosen: "Python 3.6+" → "Python 3.10+"
+- Swap exception type: "must raise ValueError" → "must raise TypeError" (different class, but still raising)
+- Add a side-requirement: "must preserve backward compat" → "must preserve backward compat AND not affect query performance"
+- Swap target version: "introduced in 4.1" → "introduced in 3.2"
+
+AVOID:
+- Reversing the user's goal direction (e.g., "X should work" → "X should not work")
+- Trivial paraphrases (no semantic change)
+- Changes so drastic the constraint no longer makes sense in this issue
+- Constraints that contradict the symptom or trigger of the bug
+- Replacing a positive requirement with its negation
+
+Output JSON format:
+{
+  "counterfactual_argument": "The full perturbed constraint sentence",
+  "counterfactual_type": "value_swap | tighten | loosen | exception_type_swap | swap_target | add_side_req",
+  "what_changed": "Brief description of what specifically differs",
+  "reasoning": "Why this is plausible in context and how it would lead to a different fix"
+}
+
+===== EXAMPLES =====
+
+Example 1 (value_swap):
+
+Goal: Drop support for SQLite < 3.9.0
+Target Condition (constraint): "Ubuntu Xenial ships with SQLite 3.11.0 and will EOL in April 2021."
+
+Output:
+{
+  "counterfactual_argument": "Ubuntu Bionic ships with SQLite 3.22.0 and will EOL in April 2023.",
+  "counterfactual_type": "value_swap",
+  "what_changed": "Distribution version (Xenial → Bionic), SQLite version (3.11.0 → 3.22.0), EOL date (2021 → 2023)",
+  "reasoning": "If the user originally cited Bionic instead of Xenial, the cutoff version would be different (3.22.0 not 3.11.0), pushing the SQLite minimum higher. Same form of constraint, different specific values."
+}
+
+---
+
+Example 2 (exception_type_swap — keeps the GOAL of raising an exception, just swaps which one):
+
+Goal: Add validation to raise ValueError when a Flask Blueprint is registered with an empty name
+Target Condition (constraint): "A ValueError should be raised when an empty name is provided."
+
+Output:
+{
+  "counterfactual_argument": "A RuntimeError should be raised when an empty name is provided.",
+  "counterfactual_type": "exception_type_swap",
+  "what_changed": "Exception type (ValueError → RuntimeError), still raising on empty name",
+  "reasoning": "The user could have asked for RuntimeError instead. The fix would change the exception class raised but still validates the empty name. NOTE: We do NOT flip to 'no exception should be raised' because that would reverse the goal direction."
+}
+
+---
+
+Example 3 (swap_target):
+
+Goal: Fix constant expressions of an ExpressionWrapper object being incorrectly placed at the GROUP BY clause
+Target Condition (constraint): "The problem is specific to Postgres where a GROUP BY clause that includes a constant together with an aggregate function is considered invalid."
+
+Output:
+{
+  "counterfactual_argument": "The problem is specific to Oracle where a GROUP BY clause that includes a constant together with an aggregate function is considered invalid.",
+  "counterfactual_type": "swap_target",
+  "what_changed": "Database backend (Postgres → Oracle)",
+  "reasoning": "Same constraint shape — DB-specific GROUP BY rule — but a different DB target. The fix would conditionally branch on Oracle backend instead of Postgres."
+}
+
+---
+
+Example 4 (BAD perturbation to AVOID — reverses goal direction):
+
+Goal: Restore the ability to override get_FIELD_display on models in Django 2.2+
+Target Condition (constraint): "The expected behavior is that it should be possible to override the get_FIELD_display function on models."
+
+BAD Output (DO NOT DO THIS):
+{
+  "counterfactual_argument": "The expected behavior is that overriding get_FIELD_display should not be supported and Django should always return the choice label.",
+  "counterfactual_type": "negate",
+  "reasoning": "BAD because this reverses the user's overall goal. The user wants override to work; flipping that turns the bug report into the opposite request."
+}
+
+GOOD Output instead:
+{
+  "counterfactual_argument": "The expected behavior is that it should be possible to override the get_FIELD_display function on models, and the override must be picked up regardless of whether choices are defined as a tuple or a list.",
+  "counterfactual_type": "add_side_req",
+  "what_changed": "Added a parameter (choices container type) to the constraint while keeping the override-should-work intent",
+  "reasoning": "The user could plausibly have added a sub-requirement about how choices are declared. The fix would need to handle both tuple and list cases, producing a slightly different patch. Goal direction (override should work) is preserved."
+}
+
+===== END EXAMPLES =====
+
+Now generate a perturbed version of this constraint condition:
+
+Goal: [[GOAL]]
+Issue context (problem statement):
+[[PROBLEM_STATEMENT]]
+All Conditions (for context):
+[[CONDITIONS]]
+Target Condition to Perturb (category=constraint): [[TARGET_CONDITION]]
+
+Output:

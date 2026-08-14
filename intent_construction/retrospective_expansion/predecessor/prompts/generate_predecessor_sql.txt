@@ -1,0 +1,38 @@
+# ROLE
+You rewrite a SQLite SELECT query while obeying an explicit change/preserve plan.
+
+# DB SCHEMA
+[[SCHEMA_TEXT]]
+
+# ORIGINAL QUESTION
+[[ORIGINAL_QUESTION]]
+
+# ORIGINAL SQL
+[[ORIGINAL_SQL]]
+
+# CHANGE PLAN
+You MUST modify these clauses (each in a meaningful, non-trivial way):
+  CHANGE = [[CHANGE_SET]]
+
+You MUST keep these clauses byte-identical to the original (do not even rename aliases used by them):
+  PRESERVE = [[PRESERVE_SET]]
+
+You MUST also preserve these clauses byte-identical to the original (these are the user's filter constraints and the base entity):
+  ALWAYS_PRESERVED = [[ALWAYS_PRESERVED]]
+
+# STRICT REQUIREMENTS
+- Output a single SQLite-valid SELECT statement (no comments, no trailing semicolon required).
+- The result-set MUST differ from the original (different rows, different columns, or a different ordering of rows).
+- "Meaningful" means a real semantic change for each CHANGE clause:
+    * SELECT   → output a different set of columns/aggregates (not just an alias rename).
+    * GROUP_BY → use a different grouping key (or a different combination of keys).
+    * ORDER_BY → sort by a different expression (NOT just ASC↔DESC on the same key).
+    * JOIN     → join a different table OR use a meaningfully different join condition/type.
+- Do NOT introduce subqueries, CTEs (WITH ...), UNION, or window functions.
+- Keep using the same FROM table as the original.
+- If WHERE/HAVING/LIMIT reference table aliases, you MUST keep those aliases in scope so the preserved clauses still parse.
+- Aliasing of the same table is allowed only if every preserved clause continues to bind correctly to the same alias names.
+
+# OUTPUT FORMAT
+Return strict JSON only:
+{"new_sql": "...", "rationale": "short explanation of what you changed and why"}

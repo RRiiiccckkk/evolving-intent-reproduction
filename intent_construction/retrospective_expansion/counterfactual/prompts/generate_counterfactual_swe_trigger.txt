@@ -1,0 +1,91 @@
+You are given a GitHub issue (problem statement) decomposed into a goal and conditions. Your task is to generate a PERTURBED version of a target TRIGGER condition.
+
+A "trigger" condition describes HOW to reproduce the bug — the steps, code snippet, input, command, or sequence of actions that produce the buggy behavior (e.g., "Reproduction: clone(StandardScaler())", "Run `make clean; make gettext`", "Sequence: change email, then use the password reset link").
+
+"Perturbed" means generating an ALTERNATE trigger that the user *could plausibly have stated initially* — the lazy / unsure user who half-remembers what they did. The user later corrects this back to the original. The perturbed version must be:
+
+1. PLAUSIBLE: a real-sounding reproduction in the same module / same general API surface
+2. CONFIDENTLY-WRONG: stated as a factual recap of what the user did, even though it's the wrong recipe
+3. SAME PROBLEM CLASS: still the kind of trigger that *could* produce a similar-looking error in this area
+4. SELF-CONTAINED: understandable without other conditions
+5. SAME GRAIN: if the original gives a code snippet, the perturbed gives a code snippet (don't drop to "I ran something and it broke")
+
+Common perturbation moves for triggers:
+- Sibling API call: `clone(StandardScaler())` → `clone(LogisticRegression())`
+- Slightly different params: `cv=5, solver='saga', tol=1e-2` → `cv=10, solver='liblinear', tol=1e-3`
+- Different method on same class: `Header.fromstring(b)` → `Header.fromfile(path)`
+- Different command in pipeline: `make gettext` → `make html`
+- Different sequence step: "change email then reset" → "reset then change email"
+- Different input data shape: `coords=[('x', [0,1,2])]` → `coords=[('x', [10,20,30])]`
+
+AVOID:
+- Triggers that look totally unrelated to the issue area (e.g., wrong package, wrong language)
+- Vague triggers that can't be acted on ("I ran a thing and it broke")
+- Triggers that obviously couldn't produce the symptom described
+- Triggers that match the original exactly (must be DIFFERENT)
+
+Output JSON format:
+{
+  "counterfactual_argument": "The full perturbed trigger sentence",
+  "counterfactual_type": "sibling_api | param_swap | method_swap | command_swap | sequence_swap | data_shape_swap",
+  "what_changed": "Brief description of what specifically differs",
+  "reasoning": "Why a half-remembering user could plausibly have stated this trigger first"
+}
+
+===== EXAMPLES =====
+
+Example 1 (sibling_api):
+
+Goal: Fix clone to work when one or more instance parameters are estimator types
+Target Condition (trigger): "The issue can be reproduced with the following code: from sklearn.preprocessing import StandardScaler; from sklearn.base import clone; clone(StandardScaler(with_mean=StandardScaler))."
+
+Output:
+{
+  "counterfactual_argument": "The issue can be reproduced with the following code: from sklearn.linear_model import LogisticRegression; from sklearn.base import clone; clone(LogisticRegression(penalty=LogisticRegression)).",
+  "counterfactual_type": "sibling_api",
+  "what_changed": "Reproduction estimator (StandardScaler with with_mean → LogisticRegression with penalty)",
+  "reasoning": "A user could half-remember which estimator they were cloning; LogisticRegression is another common sklearn estimator with class-typed parameters, so the lazy recap of 'clone(LR(penalty=LR))' is plausible until they double-check and recall it was StandardScaler."
+}
+
+---
+
+Example 2 (param_swap):
+
+Goal: Fix IndexError raised by LogisticRegressionCV with refit=False during cross-validation fitting
+Target Condition (trigger): "Reproduction: generate random X and y as in the provided code, then call LogisticRegressionCV(cv=5, solver='saga', tol=1e-2, refit=False).fit(X, y)."
+
+Output:
+{
+  "counterfactual_argument": "Reproduction: generate random X and y as in the provided code, then call LogisticRegressionCV(cv=10, solver='liblinear', tol=1e-3, refit=False).fit(X, y).",
+  "counterfactual_type": "param_swap",
+  "what_changed": "Hyperparameters (cv=5 → cv=10, solver='saga' → 'liblinear', tol=1e-2 → 1e-3); refit=False kept",
+  "reasoning": "A user could misremember the exact hyperparameters they ran with — cv folds, solver name, tolerance — while clearly remembering refit=False (which is the unusual flag). The lazy recap reuses common alternative defaults until the user double-checks the original notebook."
+}
+
+---
+
+Example 3 (command_swap):
+
+Goal: Remove duplicated locations in Message.locations when running make gettext
+Target Condition (trigger): "Reproduction: follow the instructions on the 'Contribute Documentation' page, then run `cd <path to blender_docs>; make clean; make gettext`, load `build/gettext/blender_manual.pot` into an editor, and search for `#: ../../manual/modeling/hair.rst:0` for the message id `msgid \"Type\"`."
+
+Output:
+{
+  "counterfactual_argument": "Reproduction: follow the instructions on the 'Contribute Documentation' page, then run `cd <path to blender_docs>; make clean; make html`, load `build/html/index.html` into a browser, and search for the rendered output of `msgid \"Type\"` from `manual/modeling/hair.rst`.",
+  "counterfactual_type": "command_swap",
+  "what_changed": "Build target (gettext → html), inspected artifact (.pot file in editor → .html in browser); rest of repro recipe identical",
+  "reasoning": "A user could mix up which Sphinx target they ran — `make html` and `make gettext` are both common commands they might have tried. The half-remembered recap walks through the same docs build with the wrong final target until they re-check their shell history."
+}
+
+===== END EXAMPLES =====
+
+Now generate a perturbed version of this trigger condition:
+
+Goal: [[GOAL]]
+Issue context (problem statement):
+[[PROBLEM_STATEMENT]]
+All Conditions (for context):
+[[CONDITIONS]]
+Target Condition to Perturb (category=trigger): [[TARGET_CONDITION]]
+
+Output:

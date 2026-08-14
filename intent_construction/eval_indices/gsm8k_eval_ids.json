@@ -1,0 +1,809 @@
+{
+  "dataset": "gsm8k",
+  "split": "test",
+  "num_samples": 200,
+  "source_file": "final_dataset/gsm8k_n200.json",
+  "id_field": "original_id",
+  "samples": [
+    {
+      "task_id": "extracted-gsm8k-test-12",
+      "original_id": 12
+    },
+    {
+      "task_id": "extracted-gsm8k-test-14",
+      "original_id": 14
+    },
+    {
+      "task_id": "extracted-gsm8k-test-16",
+      "original_id": 16
+    },
+    {
+      "task_id": "extracted-gsm8k-test-36",
+      "original_id": 36
+    },
+    {
+      "task_id": "extracted-gsm8k-test-40",
+      "original_id": 40
+    },
+    {
+      "task_id": "extracted-gsm8k-test-43",
+      "original_id": 43
+    },
+    {
+      "task_id": "extracted-gsm8k-test-49",
+      "original_id": 49
+    },
+    {
+      "task_id": "extracted-gsm8k-test-50",
+      "original_id": 50
+    },
+    {
+      "task_id": "extracted-gsm8k-test-60",
+      "original_id": 60
+    },
+    {
+      "task_id": "extracted-gsm8k-test-62",
+      "original_id": 62
+    },
+    {
+      "task_id": "extracted-gsm8k-test-63",
+      "original_id": 63
+    },
+    {
+      "task_id": "extracted-gsm8k-test-70",
+      "original_id": 70
+    },
+    {
+      "task_id": "extracted-gsm8k-test-80",
+      "original_id": 80
+    },
+    {
+      "task_id": "extracted-gsm8k-test-87",
+      "original_id": 87
+    },
+    {
+      "task_id": "extracted-gsm8k-test-90",
+      "original_id": 90
+    },
+    {
+      "task_id": "extracted-gsm8k-test-95",
+      "original_id": 95
+    },
+    {
+      "task_id": "extracted-gsm8k-test-100",
+      "original_id": 100
+    },
+    {
+      "task_id": "extracted-gsm8k-test-115",
+      "original_id": 115
+    },
+    {
+      "task_id": "extracted-gsm8k-test-118",
+      "original_id": 118
+    },
+    {
+      "task_id": "extracted-gsm8k-test-122",
+      "original_id": 122
+    },
+    {
+      "task_id": "extracted-gsm8k-test-152",
+      "original_id": 152
+    },
+    {
+      "task_id": "extracted-gsm8k-test-154",
+      "original_id": 154
+    },
+    {
+      "task_id": "extracted-gsm8k-test-162",
+      "original_id": 162
+    },
+    {
+      "task_id": "extracted-gsm8k-test-164",
+      "original_id": 164
+    },
+    {
+      "task_id": "extracted-gsm8k-test-171",
+      "original_id": 171
+    },
+    {
+      "task_id": "extracted-gsm8k-test-173",
+      "original_id": 173
+    },
+    {
+      "task_id": "extracted-gsm8k-test-186",
+      "original_id": 186
+    },
+    {
+      "task_id": "extracted-gsm8k-test-188",
+      "original_id": 188
+    },
+    {
+      "task_id": "extracted-gsm8k-test-196",
+      "original_id": 196
+    },
+    {
+      "task_id": "extracted-gsm8k-test-200",
+      "original_id": 200
+    },
+    {
+      "task_id": "extracted-gsm8k-test-203",
+      "original_id": 203
+    },
+    {
+      "task_id": "extracted-gsm8k-test-204",
+      "original_id": 204
+    },
+    {
+      "task_id": "extracted-gsm8k-test-208",
+      "original_id": 208
+    },
+    {
+      "task_id": "extracted-gsm8k-test-210",
+      "original_id": 210
+    },
+    {
+      "task_id": "extracted-gsm8k-test-213",
+      "original_id": 213
+    },
+    {
+      "task_id": "extracted-gsm8k-test-225",
+      "original_id": 225
+    },
+    {
+      "task_id": "extracted-gsm8k-test-254",
+      "original_id": 254
+    },
+    {
+      "task_id": "extracted-gsm8k-test-256",
+      "original_id": 256
+    },
+    {
+      "task_id": "extracted-gsm8k-test-258",
+      "original_id": 258
+    },
+    {
+      "task_id": "extracted-gsm8k-test-259",
+      "original_id": 259
+    },
+    {
+      "task_id": "extracted-gsm8k-test-277",
+      "original_id": 277
+    },
+    {
+      "task_id": "extracted-gsm8k-test-280",
+      "original_id": 280
+    },
+    {
+      "task_id": "extracted-gsm8k-test-284",
+      "original_id": 284
+    },
+    {
+      "task_id": "extracted-gsm8k-test-290",
+      "original_id": 290
+    },
+    {
+      "task_id": "extracted-gsm8k-test-296",
+      "original_id": 296
+    },
+    {
+      "task_id": "extracted-gsm8k-test-299",
+      "original_id": 299
+    },
+    {
+      "task_id": "extracted-gsm8k-test-304",
+      "original_id": 304
+    },
+    {
+      "task_id": "extracted-gsm8k-test-330",
+      "original_id": 330
+    },
+    {
+      "task_id": "extracted-gsm8k-test-332",
+      "original_id": 332
+    },
+    {
+      "task_id": "extracted-gsm8k-test-333",
+      "original_id": 333
+    },
+    {
+      "task_id": "extracted-gsm8k-test-336",
+      "original_id": 336
+    },
+    {
+      "task_id": "extracted-gsm8k-test-338",
+      "original_id": 338
+    },
+    {
+      "task_id": "extracted-gsm8k-test-343",
+      "original_id": 343
+    },
+    {
+      "task_id": "extracted-gsm8k-test-346",
+      "original_id": 346
+    },
+    {
+      "task_id": "extracted-gsm8k-test-347",
+      "original_id": 347
+    },
+    {
+      "task_id": "extracted-gsm8k-test-354",
+      "original_id": 354
+    },
+    {
+      "task_id": "extracted-gsm8k-test-357",
+      "original_id": 357
+    },
+    {
+      "task_id": "extracted-gsm8k-test-364",
+      "original_id": 364
+    },
+    {
+      "task_id": "extracted-gsm8k-test-386",
+      "original_id": 386
+    },
+    {
+      "task_id": "extracted-gsm8k-test-387",
+      "original_id": 387
+    },
+    {
+      "task_id": "extracted-gsm8k-test-399",
+      "original_id": 399
+    },
+    {
+      "task_id": "extracted-gsm8k-test-410",
+      "original_id": 410
+    },
+    {
+      "task_id": "extracted-gsm8k-test-417",
+      "original_id": 417
+    },
+    {
+      "task_id": "extracted-gsm8k-test-424",
+      "original_id": 424
+    },
+    {
+      "task_id": "extracted-gsm8k-test-430",
+      "original_id": 430
+    },
+    {
+      "task_id": "extracted-gsm8k-test-450",
+      "original_id": 450
+    },
+    {
+      "task_id": "extracted-gsm8k-test-452",
+      "original_id": 452
+    },
+    {
+      "task_id": "extracted-gsm8k-test-462",
+      "original_id": 462
+    },
+    {
+      "task_id": "extracted-gsm8k-test-489",
+      "original_id": 489
+    },
+    {
+      "task_id": "extracted-gsm8k-test-490",
+      "original_id": 490
+    },
+    {
+      "task_id": "extracted-gsm8k-test-491",
+      "original_id": 491
+    },
+    {
+      "task_id": "extracted-gsm8k-test-494",
+      "original_id": 494
+    },
+    {
+      "task_id": "extracted-gsm8k-test-503",
+      "original_id": 503
+    },
+    {
+      "task_id": "extracted-gsm8k-test-504",
+      "original_id": 504
+    },
+    {
+      "task_id": "extracted-gsm8k-test-507",
+      "original_id": 507
+    },
+    {
+      "task_id": "extracted-gsm8k-test-515",
+      "original_id": 515
+    },
+    {
+      "task_id": "extracted-gsm8k-test-516",
+      "original_id": 516
+    },
+    {
+      "task_id": "extracted-gsm8k-test-527",
+      "original_id": 527
+    },
+    {
+      "task_id": "extracted-gsm8k-test-534",
+      "original_id": 534
+    },
+    {
+      "task_id": "extracted-gsm8k-test-550",
+      "original_id": 550
+    },
+    {
+      "task_id": "extracted-gsm8k-test-555",
+      "original_id": 555
+    },
+    {
+      "task_id": "extracted-gsm8k-test-559",
+      "original_id": 559
+    },
+    {
+      "task_id": "extracted-gsm8k-test-564",
+      "original_id": 564
+    },
+    {
+      "task_id": "extracted-gsm8k-test-567",
+      "original_id": 567
+    },
+    {
+      "task_id": "extracted-gsm8k-test-576",
+      "original_id": 576
+    },
+    {
+      "task_id": "extracted-gsm8k-test-592",
+      "original_id": 592
+    },
+    {
+      "task_id": "extracted-gsm8k-test-604",
+      "original_id": 604
+    },
+    {
+      "task_id": "extracted-gsm8k-test-608",
+      "original_id": 608
+    },
+    {
+      "task_id": "extracted-gsm8k-test-611",
+      "original_id": 611
+    },
+    {
+      "task_id": "extracted-gsm8k-test-633",
+      "original_id": 633
+    },
+    {
+      "task_id": "extracted-gsm8k-test-644",
+      "original_id": 644
+    },
+    {
+      "task_id": "extracted-gsm8k-test-646",
+      "original_id": 646
+    },
+    {
+      "task_id": "extracted-gsm8k-test-654",
+      "original_id": 654
+    },
+    {
+      "task_id": "extracted-gsm8k-test-668",
+      "original_id": 668
+    },
+    {
+      "task_id": "extracted-gsm8k-test-683",
+      "original_id": 683
+    },
+    {
+      "task_id": "extracted-gsm8k-test-692",
+      "original_id": 692
+    },
+    {
+      "task_id": "extracted-gsm8k-test-719",
+      "original_id": 719
+    },
+    {
+      "task_id": "extracted-gsm8k-test-720",
+      "original_id": 720
+    },
+    {
+      "task_id": "extracted-gsm8k-test-736",
+      "original_id": 736
+    },
+    {
+      "task_id": "extracted-gsm8k-test-739",
+      "original_id": 739
+    },
+    {
+      "task_id": "extracted-gsm8k-test-744",
+      "original_id": 744
+    },
+    {
+      "task_id": "extracted-gsm8k-test-745",
+      "original_id": 745
+    },
+    {
+      "task_id": "extracted-gsm8k-test-757",
+      "original_id": 757
+    },
+    {
+      "task_id": "extracted-gsm8k-test-769",
+      "original_id": 769
+    },
+    {
+      "task_id": "extracted-gsm8k-test-770",
+      "original_id": 770
+    },
+    {
+      "task_id": "extracted-gsm8k-test-772",
+      "original_id": 772
+    },
+    {
+      "task_id": "extracted-gsm8k-test-797",
+      "original_id": 797
+    },
+    {
+      "task_id": "extracted-gsm8k-test-806",
+      "original_id": 806
+    },
+    {
+      "task_id": "extracted-gsm8k-test-807",
+      "original_id": 807
+    },
+    {
+      "task_id": "extracted-gsm8k-test-808",
+      "original_id": 808
+    },
+    {
+      "task_id": "extracted-gsm8k-test-810",
+      "original_id": 810
+    },
+    {
+      "task_id": "extracted-gsm8k-test-814",
+      "original_id": 814
+    },
+    {
+      "task_id": "extracted-gsm8k-test-832",
+      "original_id": 832
+    },
+    {
+      "task_id": "extracted-gsm8k-test-836",
+      "original_id": 836
+    },
+    {
+      "task_id": "extracted-gsm8k-test-845",
+      "original_id": 845
+    },
+    {
+      "task_id": "extracted-gsm8k-test-856",
+      "original_id": 856
+    },
+    {
+      "task_id": "extracted-gsm8k-test-861",
+      "original_id": 861
+    },
+    {
+      "task_id": "extracted-gsm8k-test-875",
+      "original_id": 875
+    },
+    {
+      "task_id": "extracted-gsm8k-test-883",
+      "original_id": 883
+    },
+    {
+      "task_id": "extracted-gsm8k-test-885",
+      "original_id": 885
+    },
+    {
+      "task_id": "extracted-gsm8k-test-893",
+      "original_id": 893
+    },
+    {
+      "task_id": "extracted-gsm8k-test-895",
+      "original_id": 895
+    },
+    {
+      "task_id": "extracted-gsm8k-test-900",
+      "original_id": 900
+    },
+    {
+      "task_id": "extracted-gsm8k-test-905",
+      "original_id": 905
+    },
+    {
+      "task_id": "extracted-gsm8k-test-907",
+      "original_id": 907
+    },
+    {
+      "task_id": "extracted-gsm8k-test-908",
+      "original_id": 908
+    },
+    {
+      "task_id": "extracted-gsm8k-test-916",
+      "original_id": 916
+    },
+    {
+      "task_id": "extracted-gsm8k-test-918",
+      "original_id": 918
+    },
+    {
+      "task_id": "extracted-gsm8k-test-919",
+      "original_id": 919
+    },
+    {
+      "task_id": "extracted-gsm8k-test-920",
+      "original_id": 920
+    },
+    {
+      "task_id": "extracted-gsm8k-test-926",
+      "original_id": 926
+    },
+    {
+      "task_id": "extracted-gsm8k-test-955",
+      "original_id": 955
+    },
+    {
+      "task_id": "extracted-gsm8k-test-957",
+      "original_id": 957
+    },
+    {
+      "task_id": "extracted-gsm8k-test-965",
+      "original_id": 965
+    },
+    {
+      "task_id": "extracted-gsm8k-test-966",
+      "original_id": 966
+    },
+    {
+      "task_id": "extracted-gsm8k-test-967",
+      "original_id": 967
+    },
+    {
+      "task_id": "extracted-gsm8k-test-972",
+      "original_id": 972
+    },
+    {
+      "task_id": "extracted-gsm8k-test-976",
+      "original_id": 976
+    },
+    {
+      "task_id": "extracted-gsm8k-test-979",
+      "original_id": 979
+    },
+    {
+      "task_id": "extracted-gsm8k-test-982",
+      "original_id": 982
+    },
+    {
+      "task_id": "extracted-gsm8k-test-989",
+      "original_id": 989
+    },
+    {
+      "task_id": "extracted-gsm8k-test-991",
+      "original_id": 991
+    },
+    {
+      "task_id": "extracted-gsm8k-test-999",
+      "original_id": 999
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1019",
+      "original_id": 1019
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1021",
+      "original_id": 1021
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1024",
+      "original_id": 1024
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1025",
+      "original_id": 1025
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1026",
+      "original_id": 1026
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1040",
+      "original_id": 1040
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1044",
+      "original_id": 1044
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1045",
+      "original_id": 1045
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1047",
+      "original_id": 1047
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1049",
+      "original_id": 1049
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1058",
+      "original_id": 1058
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1066",
+      "original_id": 1066
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1072",
+      "original_id": 1072
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1079",
+      "original_id": 1079
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1082",
+      "original_id": 1082
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1089",
+      "original_id": 1089
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1094",
+      "original_id": 1094
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1101",
+      "original_id": 1101
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1105",
+      "original_id": 1105
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1120",
+      "original_id": 1120
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1123",
+      "original_id": 1123
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1124",
+      "original_id": 1124
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1125",
+      "original_id": 1125
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1134",
+      "original_id": 1134
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1145",
+      "original_id": 1145
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1147",
+      "original_id": 1147
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1156",
+      "original_id": 1156
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1157",
+      "original_id": 1157
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1174",
+      "original_id": 1174
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1191",
+      "original_id": 1191
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1194",
+      "original_id": 1194
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1196",
+      "original_id": 1196
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1202",
+      "original_id": 1202
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1205",
+      "original_id": 1205
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1211",
+      "original_id": 1211
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1212",
+      "original_id": 1212
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1227",
+      "original_id": 1227
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1237",
+      "original_id": 1237
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1240",
+      "original_id": 1240
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1248",
+      "original_id": 1248
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1249",
+      "original_id": 1249
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1250",
+      "original_id": 1250
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1251",
+      "original_id": 1251
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1263",
+      "original_id": 1263
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1266",
+      "original_id": 1266
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1267",
+      "original_id": 1267
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1269",
+      "original_id": 1269
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1272",
+      "original_id": 1272
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1284",
+      "original_id": 1284
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1289",
+      "original_id": 1289
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1294",
+      "original_id": 1294
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1298",
+      "original_id": 1298
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1300",
+      "original_id": 1300
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1301",
+      "original_id": 1301
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1302",
+      "original_id": 1302
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1307",
+      "original_id": 1307
+    },
+    {
+      "task_id": "extracted-gsm8k-test-1317",
+      "original_id": 1317
+    }
+  ]
+}

@@ -1,0 +1,609 @@
+{
+  "dataset": "bird_sql",
+  "split": "train",
+  "num_samples": 100,
+  "source_file": "final_dataset/bird_sql_n100.json",
+  "id_field": "original_id",
+  "samples": [
+    {
+      "task_id": "bird_sql_train_3957",
+      "original_id": 3957,
+      "original_index": 3957,
+      "db_id": "public_review_platform"
+    },
+    {
+      "task_id": "bird_sql_train_158",
+      "original_id": 158,
+      "original_index": 158,
+      "db_id": "movie_platform"
+    },
+    {
+      "task_id": "bird_sql_train_3756",
+      "original_id": 3756,
+      "original_index": 3756,
+      "db_id": "college_completion"
+    },
+    {
+      "task_id": "bird_sql_train_9015",
+      "original_id": 9015,
+      "original_index": 9015,
+      "db_id": "bike_share_1"
+    },
+    {
+      "task_id": "bird_sql_dev_939",
+      "original_id": 939,
+      "original_index": 939,
+      "db_id": "formula_1"
+    },
+    {
+      "task_id": "bird_sql_train_1374",
+      "original_id": 1374,
+      "original_index": 1374,
+      "db_id": "synthea"
+    },
+    {
+      "task_id": "bird_sql_train_1379",
+      "original_id": 1379,
+      "original_index": 1379,
+      "db_id": "synthea"
+    },
+    {
+      "task_id": "bird_sql_train_2125",
+      "original_id": 2125,
+      "original_index": 2125,
+      "db_id": "world_development_indicators"
+    },
+    {
+      "task_id": "bird_sql_train_2179",
+      "original_id": 2179,
+      "original_index": 2179,
+      "db_id": "world_development_indicators"
+    },
+    {
+      "task_id": "bird_sql_train_2190",
+      "original_id": 2190,
+      "original_index": 2190,
+      "db_id": "world_development_indicators"
+    },
+    {
+      "task_id": "bird_sql_train_3748",
+      "original_id": 3748,
+      "original_index": 3748,
+      "db_id": "college_completion"
+    },
+    {
+      "task_id": "bird_sql_train_3809",
+      "original_id": 3809,
+      "original_index": 3809,
+      "db_id": "public_review_platform"
+    },
+    {
+      "task_id": "bird_sql_train_4116",
+      "original_id": 4116,
+      "original_index": 4116,
+      "db_id": "public_review_platform"
+    },
+    {
+      "task_id": "bird_sql_train_5101",
+      "original_id": 5101,
+      "original_index": 5101,
+      "db_id": "address"
+    },
+    {
+      "task_id": "bird_sql_train_5323",
+      "original_id": 5323,
+      "original_index": 5323,
+      "db_id": "beer_factory"
+    },
+    {
+      "task_id": "bird_sql_train_5842",
+      "original_id": 5842,
+      "original_index": 5842,
+      "db_id": "airline"
+    },
+    {
+      "task_id": "bird_sql_train_6120",
+      "original_id": 6120,
+      "original_index": 6120,
+      "db_id": "food_inspection_2"
+    },
+    {
+      "task_id": "bird_sql_train_6713",
+      "original_id": 6713,
+      "original_index": 6713,
+      "db_id": "retails"
+    },
+    {
+      "task_id": "bird_sql_train_9063",
+      "original_id": 9063,
+      "original_index": 9063,
+      "db_id": "bike_share_1"
+    },
+    {
+      "task_id": "bird_sql_dev_740",
+      "original_id": 740,
+      "original_index": 740,
+      "db_id": "superhero"
+    },
+    {
+      "task_id": "bird_sql_train_1213",
+      "original_id": 1213,
+      "original_index": 1213,
+      "db_id": "talkingdata"
+    },
+    {
+      "task_id": "bird_sql_train_1933",
+      "original_id": 1933,
+      "original_index": 1933,
+      "db_id": "soccer_2016"
+    },
+    {
+      "task_id": "bird_sql_train_3695",
+      "original_id": 3695,
+      "original_index": 3695,
+      "db_id": "college_completion"
+    },
+    {
+      "task_id": "bird_sql_train_3698",
+      "original_id": 3698,
+      "original_index": 3698,
+      "db_id": "college_completion"
+    },
+    {
+      "task_id": "bird_sql_train_3705",
+      "original_id": 3705,
+      "original_index": 3705,
+      "db_id": "college_completion"
+    },
+    {
+      "task_id": "bird_sql_train_3724",
+      "original_id": 3724,
+      "original_index": 3724,
+      "db_id": "college_completion"
+    },
+    {
+      "task_id": "bird_sql_train_3889",
+      "original_id": 3889,
+      "original_index": 3889,
+      "db_id": "public_review_platform"
+    },
+    {
+      "task_id": "bird_sql_train_6901",
+      "original_id": 6901,
+      "original_index": 6901,
+      "db_id": "retails"
+    },
+    {
+      "task_id": "bird_sql_train_844",
+      "original_id": 844,
+      "original_index": 844,
+      "db_id": "social_media"
+    },
+    {
+      "task_id": "bird_sql_train_8655",
+      "original_id": 8655,
+      "original_index": 8655,
+      "db_id": "chicago_crime"
+    },
+    {
+      "task_id": "bird_sql_train_9068",
+      "original_id": 9068,
+      "original_index": 9068,
+      "db_id": "bike_share_1"
+    },
+    {
+      "task_id": "bird_sql_dev_100",
+      "original_id": 100,
+      "original_index": 100,
+      "db_id": "financial"
+    },
+    {
+      "task_id": "bird_sql_dev_21",
+      "original_id": 21,
+      "original_index": 21,
+      "db_id": "california_schools"
+    },
+    {
+      "task_id": "bird_sql_train_1094",
+      "original_id": 1094,
+      "original_index": 1094,
+      "db_id": "talkingdata"
+    },
+    {
+      "task_id": "bird_sql_train_2278",
+      "original_id": 2278,
+      "original_index": 2278,
+      "db_id": "movielens"
+    },
+    {
+      "task_id": "bird_sql_train_2742",
+      "original_id": 2742,
+      "original_index": 2742,
+      "db_id": "european_football_1"
+    },
+    {
+      "task_id": "bird_sql_train_368",
+      "original_id": 368,
+      "original_index": 368,
+      "db_id": "retail_complains"
+    },
+    {
+      "task_id": "bird_sql_train_3838",
+      "original_id": 3838,
+      "original_index": 3838,
+      "db_id": "public_review_platform"
+    },
+    {
+      "task_id": "bird_sql_train_3893",
+      "original_id": 3893,
+      "original_index": 3893,
+      "db_id": "public_review_platform"
+    },
+    {
+      "task_id": "bird_sql_train_3926",
+      "original_id": 3926,
+      "original_index": 3926,
+      "db_id": "public_review_platform"
+    },
+    {
+      "task_id": "bird_sql_train_4130",
+      "original_id": 4130,
+      "original_index": 4130,
+      "db_id": "public_review_platform"
+    },
+    {
+      "task_id": "bird_sql_train_5339",
+      "original_id": 5339,
+      "original_index": 5339,
+      "db_id": "beer_factory"
+    },
+    {
+      "task_id": "bird_sql_train_5656",
+      "original_id": 5656,
+      "original_index": 5656,
+      "db_id": "shipping"
+    },
+    {
+      "task_id": "bird_sql_train_5877",
+      "original_id": 5877,
+      "original_index": 5877,
+      "db_id": "airline"
+    },
+    {
+      "task_id": "bird_sql_train_6951",
+      "original_id": 6951,
+      "original_index": 6951,
+      "db_id": "ice_hockey_draft"
+    },
+    {
+      "task_id": "bird_sql_train_8086",
+      "original_id": 8086,
+      "original_index": 8086,
+      "db_id": "university"
+    },
+    {
+      "task_id": "bird_sql_dev_1195",
+      "original_id": 1195,
+      "original_index": 1195,
+      "db_id": "thrombosis_prediction"
+    },
+    {
+      "task_id": "bird_sql_dev_1516",
+      "original_id": 1516,
+      "original_index": 1516,
+      "db_id": "debit_card_specializing"
+    },
+    {
+      "task_id": "bird_sql_dev_182",
+      "original_id": 182,
+      "original_index": 182,
+      "db_id": "financial"
+    },
+    {
+      "task_id": "bird_sql_train_1397",
+      "original_id": 1397,
+      "original_index": 1397,
+      "db_id": "synthea"
+    },
+    {
+      "task_id": "bird_sql_train_1450",
+      "original_id": 1450,
+      "original_index": 1450,
+      "db_id": "synthea"
+    },
+    {
+      "task_id": "bird_sql_train_1669",
+      "original_id": 1669,
+      "original_index": 1669,
+      "db_id": "car_retails"
+    },
+    {
+      "task_id": "bird_sql_train_2273",
+      "original_id": 2273,
+      "original_index": 2273,
+      "db_id": "movielens"
+    },
+    {
+      "task_id": "bird_sql_train_2277",
+      "original_id": 2277,
+      "original_index": 2277,
+      "db_id": "movielens"
+    },
+    {
+      "task_id": "bird_sql_train_3723",
+      "original_id": 3723,
+      "original_index": 3723,
+      "db_id": "college_completion"
+    },
+    {
+      "task_id": "bird_sql_train_3727",
+      "original_id": 3727,
+      "original_index": 3727,
+      "db_id": "college_completion"
+    },
+    {
+      "task_id": "bird_sql_train_3866",
+      "original_id": 3866,
+      "original_index": 3866,
+      "db_id": "public_review_platform"
+    },
+    {
+      "task_id": "bird_sql_train_3932",
+      "original_id": 3932,
+      "original_index": 3932,
+      "db_id": "public_review_platform"
+    },
+    {
+      "task_id": "bird_sql_train_3987",
+      "original_id": 3987,
+      "original_index": 3987,
+      "db_id": "public_review_platform"
+    },
+    {
+      "task_id": "bird_sql_train_399",
+      "original_id": 399,
+      "original_index": 399,
+      "db_id": "retail_complains"
+    },
+    {
+      "task_id": "bird_sql_train_5399",
+      "original_id": 5399,
+      "original_index": 5399,
+      "db_id": "sales"
+    },
+    {
+      "task_id": "bird_sql_train_5841",
+      "original_id": 5841,
+      "original_index": 5841,
+      "db_id": "airline"
+    },
+    {
+      "task_id": "bird_sql_train_6212",
+      "original_id": 6212,
+      "original_index": 6212,
+      "db_id": "food_inspection_2"
+    },
+    {
+      "task_id": "bird_sql_train_6233",
+      "original_id": 6233,
+      "original_index": 6233,
+      "db_id": "food_inspection_2"
+    },
+    {
+      "task_id": "bird_sql_train_6707",
+      "original_id": 6707,
+      "original_index": 6707,
+      "db_id": "retails"
+    },
+    {
+      "task_id": "bird_sql_train_9065",
+      "original_id": 9065,
+      "original_index": 9065,
+      "db_id": "bike_share_1"
+    },
+    {
+      "task_id": "bird_sql_dev_1162",
+      "original_id": 1162,
+      "original_index": 1162,
+      "db_id": "thrombosis_prediction"
+    },
+    {
+      "task_id": "bird_sql_dev_47",
+      "original_id": 47,
+      "original_index": 47,
+      "db_id": "california_schools"
+    },
+    {
+      "task_id": "bird_sql_train_1589",
+      "original_id": 1589,
+      "original_index": 1589,
+      "db_id": "car_retails"
+    },
+    {
+      "task_id": "bird_sql_train_2096",
+      "original_id": 2096,
+      "original_index": 2096,
+      "db_id": "world_development_indicators"
+    },
+    {
+      "task_id": "bird_sql_train_2286",
+      "original_id": 2286,
+      "original_index": 2286,
+      "db_id": "movielens"
+    },
+    {
+      "task_id": "bird_sql_train_2739",
+      "original_id": 2739,
+      "original_index": 2739,
+      "db_id": "european_football_1"
+    },
+    {
+      "task_id": "bird_sql_train_3720",
+      "original_id": 3720,
+      "original_index": 3720,
+      "db_id": "college_completion"
+    },
+    {
+      "task_id": "bird_sql_train_3880",
+      "original_id": 3880,
+      "original_index": 3880,
+      "db_id": "public_review_platform"
+    },
+    {
+      "task_id": "bird_sql_train_4359",
+      "original_id": 4359,
+      "original_index": 4359,
+      "db_id": "simpson_episodes"
+    },
+    {
+      "task_id": "bird_sql_train_5281",
+      "original_id": 5281,
+      "original_index": 5281,
+      "db_id": "beer_factory"
+    },
+    {
+      "task_id": "bird_sql_train_8523",
+      "original_id": 8523,
+      "original_index": 8523,
+      "db_id": "software_company"
+    },
+    {
+      "task_id": "bird_sql_dev_1291",
+      "original_id": 1291,
+      "original_index": 1291,
+      "db_id": "thrombosis_prediction"
+    },
+    {
+      "task_id": "bird_sql_dev_20",
+      "original_id": 20,
+      "original_index": 20,
+      "db_id": "california_schools"
+    },
+    {
+      "task_id": "bird_sql_dev_70",
+      "original_id": 70,
+      "original_index": 70,
+      "db_id": "california_schools"
+    },
+    {
+      "task_id": "bird_sql_train_1362",
+      "original_id": 1362,
+      "original_index": 1362,
+      "db_id": "synthea"
+    },
+    {
+      "task_id": "bird_sql_train_1779",
+      "original_id": 1779,
+      "original_index": 1779,
+      "db_id": "restaurant"
+    },
+    {
+      "task_id": "bird_sql_train_2108",
+      "original_id": 2108,
+      "original_index": 2108,
+      "db_id": "world_development_indicators"
+    },
+    {
+      "task_id": "bird_sql_train_3917",
+      "original_id": 3917,
+      "original_index": 3917,
+      "db_id": "public_review_platform"
+    },
+    {
+      "task_id": "bird_sql_train_4050",
+      "original_id": 4050,
+      "original_index": 4050,
+      "db_id": "public_review_platform"
+    },
+    {
+      "task_id": "bird_sql_train_4067",
+      "original_id": 4067,
+      "original_index": 4067,
+      "db_id": "public_review_platform"
+    },
+    {
+      "task_id": "bird_sql_train_4171",
+      "original_id": 4171,
+      "original_index": 4171,
+      "db_id": "simpson_episodes"
+    },
+    {
+      "task_id": "bird_sql_train_5616",
+      "original_id": 5616,
+      "original_index": 5616,
+      "db_id": "shipping"
+    },
+    {
+      "task_id": "bird_sql_train_7247",
+      "original_id": 7247,
+      "original_index": 7247,
+      "db_id": "works_cycles"
+    },
+    {
+      "task_id": "bird_sql_dev_1289",
+      "original_id": 1289,
+      "original_index": 1289,
+      "db_id": "thrombosis_prediction"
+    },
+    {
+      "task_id": "bird_sql_dev_395",
+      "original_id": 395,
+      "original_index": 395,
+      "db_id": "card_games"
+    },
+    {
+      "task_id": "bird_sql_dev_420",
+      "original_id": 420,
+      "original_index": 420,
+      "db_id": "card_games"
+    },
+    {
+      "task_id": "bird_sql_train_1772",
+      "original_id": 1772,
+      "original_index": 1772,
+      "db_id": "restaurant"
+    },
+    {
+      "task_id": "bird_sql_train_2229",
+      "original_id": 2229,
+      "original_index": 2229,
+      "db_id": "world_development_indicators"
+    },
+    {
+      "task_id": "bird_sql_train_4121",
+      "original_id": 4121,
+      "original_index": 4121,
+      "db_id": "public_review_platform"
+    },
+    {
+      "task_id": "bird_sql_train_4123",
+      "original_id": 4123,
+      "original_index": 4123,
+      "db_id": "public_review_platform"
+    },
+    {
+      "task_id": "bird_sql_train_4584",
+      "original_id": 4584,
+      "original_index": 4584,
+      "db_id": "mental_health_survey"
+    },
+    {
+      "task_id": "bird_sql_train_4591",
+      "original_id": 4591,
+      "original_index": 4591,
+      "db_id": "mental_health_survey"
+    },
+    {
+      "task_id": "bird_sql_train_5240",
+      "original_id": 5240,
+      "original_index": 5240,
+      "db_id": "beer_factory"
+    },
+    {
+      "task_id": "bird_sql_train_5296",
+      "original_id": 5296,
+      "original_index": 5296,
+      "db_id": "beer_factory"
+    }
+  ]
+}

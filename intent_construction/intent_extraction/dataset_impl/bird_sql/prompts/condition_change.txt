@@ -1,0 +1,10 @@
+The [[COLUMN_NAME]] is [[VALUE]].
+
+# Operator-specific variants (for reference):
+# equality:       The [[COLUMN_NAME]] is [[VALUE]].
+# greater than:   The [[COLUMN_NAME]] is greater than [[VALUE]].
+# less than:      The [[COLUMN_NAME]] is less than [[VALUE]].
+# not equal:      The [[COLUMN_NAME]] is not [[VALUE]].
+# between:        The [[COLUMN_NAME]] is between [[VALUE]] and [[VALUE2]].
+# like:           The [[COLUMN_NAME]] contains [[VALUE]].
+# in:             The [[COLUMN_NAME]] is one of [[VALUE]].

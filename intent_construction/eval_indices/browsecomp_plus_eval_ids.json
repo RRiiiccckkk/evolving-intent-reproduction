@@ -1,0 +1,509 @@
+{
+  "dataset": "browsecomp_plus",
+  "split": "test",
+  "num_samples": 100,
+  "source_file": "final_dataset/browsecomp_plus_n100.json",
+  "id_field": "original_id",
+  "samples": [
+    {
+      "task_id": "extracted-browsecomp_plus-test-1019",
+      "original_id": "1019",
+      "query_id": "1019"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1025",
+      "original_id": "1025",
+      "query_id": "1025"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1039",
+      "original_id": "1039",
+      "query_id": "1039"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1043",
+      "original_id": "1043",
+      "query_id": "1043"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1045",
+      "original_id": "1045",
+      "query_id": "1045"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1053",
+      "original_id": "1053",
+      "query_id": "1053"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1060",
+      "original_id": "1060",
+      "query_id": "1060"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1103",
+      "original_id": "1103",
+      "query_id": "1103"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1122",
+      "original_id": "1122",
+      "query_id": "1122"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1124",
+      "original_id": "1124",
+      "query_id": "1124"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1128",
+      "original_id": "1128",
+      "query_id": "1128"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1131",
+      "original_id": "1131",
+      "query_id": "1131"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1139",
+      "original_id": "1139",
+      "query_id": "1139"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1141",
+      "original_id": "1141",
+      "query_id": "1141"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1147",
+      "original_id": "1147",
+      "query_id": "1147"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1155",
+      "original_id": "1155",
+      "query_id": "1155"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1158",
+      "original_id": "1158",
+      "query_id": "1158"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1177",
+      "original_id": "1177",
+      "query_id": "1177"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1187",
+      "original_id": "1187",
+      "query_id": "1187"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1195",
+      "original_id": "1195",
+      "query_id": "1195"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1216",
+      "original_id": "1216",
+      "query_id": "1216"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1217",
+      "original_id": "1217",
+      "query_id": "1217"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-122",
+      "original_id": "122",
+      "query_id": "122"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-1247",
+      "original_id": "1247",
+      "query_id": "1247"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-125",
+      "original_id": "125",
+      "query_id": "125"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-126",
+      "original_id": "126",
+      "query_id": "126"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-128",
+      "original_id": "128",
+      "query_id": "128"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-153",
+      "original_id": "153",
+      "query_id": "153"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-156",
+      "original_id": "156",
+      "query_id": "156"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-160",
+      "original_id": "160",
+      "query_id": "160"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-165",
+      "original_id": "165",
+      "query_id": "165"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-175",
+      "original_id": "175",
+      "query_id": "175"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-20",
+      "original_id": "20",
+      "query_id": "20"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-223",
+      "original_id": "223",
+      "query_id": "223"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-226",
+      "original_id": "226",
+      "query_id": "226"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-23",
+      "original_id": "23",
+      "query_id": "23"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-234",
+      "original_id": "234",
+      "query_id": "234"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-244",
+      "original_id": "244",
+      "query_id": "244"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-245",
+      "original_id": "245",
+      "query_id": "245"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-256",
+      "original_id": "256",
+      "query_id": "256"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-286",
+      "original_id": "286",
+      "query_id": "286"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-288",
+      "original_id": "288",
+      "query_id": "288"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-305",
+      "original_id": "305",
+      "query_id": "305"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-322",
+      "original_id": "322",
+      "query_id": "322"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-324",
+      "original_id": "324",
+      "query_id": "324"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-327",
+      "original_id": "327",
+      "query_id": "327"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-356",
+      "original_id": "356",
+      "query_id": "356"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-357",
+      "original_id": "357",
+      "query_id": "357"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-362",
+      "original_id": "362",
+      "query_id": "362"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-364",
+      "original_id": "364",
+      "query_id": "364"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-366",
+      "original_id": "366",
+      "query_id": "366"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-389",
+      "original_id": "389",
+      "query_id": "389"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-397",
+      "original_id": "397",
+      "query_id": "397"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-402",
+      "original_id": "402",
+      "query_id": "402"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-410",
+      "original_id": "410",
+      "query_id": "410"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-483",
+      "original_id": "483",
+      "query_id": "483"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-487",
+      "original_id": "487",
+      "query_id": "487"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-519",
+      "original_id": "519",
+      "query_id": "519"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-525",
+      "original_id": "525",
+      "query_id": "525"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-528",
+      "original_id": "528",
+      "query_id": "528"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-533",
+      "original_id": "533",
+      "query_id": "533"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-534",
+      "original_id": "534",
+      "query_id": "534"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-542",
+      "original_id": "542",
+      "query_id": "542"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-569",
+      "original_id": "569",
+      "query_id": "569"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-571",
+      "original_id": "571",
+      "query_id": "571"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-58",
+      "original_id": "58",
+      "query_id": "58"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-581",
+      "original_id": "581",
+      "query_id": "581"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-590",
+      "original_id": "590",
+      "query_id": "590"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-595",
+      "original_id": "595",
+      "query_id": "595"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-599",
+      "original_id": "599",
+      "query_id": "599"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-61",
+      "original_id": "61",
+      "query_id": "61"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-628",
+      "original_id": "628",
+      "query_id": "628"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-651",
+      "original_id": "651",
+      "query_id": "651"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-673",
+      "original_id": "673",
+      "query_id": "673"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-679",
+      "original_id": "679",
+      "query_id": "679"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-681",
+      "original_id": "681",
+      "query_id": "681"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-686",
+      "original_id": "686",
+      "query_id": "686"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-692",
+      "original_id": "692",
+      "query_id": "692"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-70",
+      "original_id": "70",
+      "query_id": "70"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-71",
+      "original_id": "71",
+      "query_id": "71"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-739",
+      "original_id": "739",
+      "query_id": "739"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-741",
+      "original_id": "741",
+      "query_id": "741"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-747",
+      "original_id": "747",
+      "query_id": "747"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-756",
+      "original_id": "756",
+      "query_id": "756"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-763",
+      "original_id": "763",
+      "query_id": "763"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-787",
+      "original_id": "787",
+      "query_id": "787"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-788",
+      "original_id": "788",
+      "query_id": "788"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-821",
+      "original_id": "821",
+      "query_id": "821"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-834",
+      "original_id": "834",
+      "query_id": "834"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-840",
+      "original_id": "840",
+      "query_id": "840"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-86",
+      "original_id": "86",
+      "query_id": "86"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-865",
+      "original_id": "865",
+      "query_id": "865"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-869",
+      "original_id": "869",
+      "query_id": "869"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-894",
+      "original_id": "894",
+      "query_id": "894"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-906",
+      "original_id": "906",
+      "query_id": "906"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-907",
+      "original_id": "907",
+      "query_id": "907"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-92",
+      "original_id": "92",
+      "query_id": "92"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-960",
+      "original_id": "960",
+      "query_id": "960"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-987",
+      "original_id": "987",
+      "query_id": "987"
+    },
+    {
+      "task_id": "extracted-browsecomp_plus-test-998",
+      "original_id": "998",
+      "query_id": "998"
+    }
+  ]
+}

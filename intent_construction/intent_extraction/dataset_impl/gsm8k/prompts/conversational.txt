@@ -1,0 +1,56 @@
+You are given a goal and conditions from a math word problem. Transform them into a conversational multi-turn format where conditions are revealed progressively.
+
+Output JSON format:
+{
+  "initial_query": "short conversational version of the goal (what to find)",
+  "hints": [
+    {"hint": "condition 1 as a complete sentence"},
+    {"hint": "condition 2 as a complete sentence"},
+    ...
+  ]
+}
+
+Rules:
+1. The initial_query should be based on the goal - state WHAT to find
+   - Keep it short and conversational
+   - It must make sense on its own (a user's first message in a chat)
+2. Each hint corresponds to a condition, rephrased as a complete sentence
+   - Start with a capital letter
+   - End with a period (.) or question mark (?)
+   - Be grammatically correct when read alone — each hint must be self-contained
+   - Do NOT use back-references like "the rest", "those eggs", "the remaining" without context
+3. Don't use math symbols or calculations in hints
+4. Keep the SAME order as the input conditions (do NOT reorder)
+5. Together, initial_query + all hints should contain ALL information from the original problem
+6. Preserve ALL numerical values exactly — do not round, approximate, or omit any number
+
+Example:
+
+Q: There are 15 trees in the grove. Grove workers will plant trees in the grove today. After they are done, there will be 21 trees. How many trees did the grove workers plant today?
+
+Goal: How many trees did the grove workers plant today?
+
+Conditions:
+[
+  {"argument": "There are 15 trees in the grove."},
+  {"argument": "Grove workers will plant trees in the grove today."},
+  {"argument": "After they are done, there will be 21 trees."}
+]
+
+Output:
+{
+  "initial_query": "How many trees did the grove workers plant today?",
+  "hints": [
+    {"hint": "There are 15 trees in the grove."},
+    {"hint": "Grove workers will plant trees in the grove today."},
+    {"hint": "After they are done, there will be 21 trees."}
+  ]
+}
+
+Now transform:
+
+Question: [[QUESTION]]
+
+Goal: [[GOAL]]
+
+Conditions: [[CONDITIONS]]

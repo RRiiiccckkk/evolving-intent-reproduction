@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>论文复现执行计划 - 2026-08-14</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #20231f;
+      --muted: #62675f;
+      --line: #d9ddd5;
+      --paper: #ffffff;
+      --wash: #f4f6f2;
+      --green: #166534;
+      --green-soft: #e9f5ec;
+      --amber: #92400e;
+      --amber-soft: #fff7e8;
+      --red: #991b1b;
+      --red-soft: #fff0f0;
+      --blue: #1d4ed8;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { max-width: 100%; overflow-x: hidden; }
+
+    body {
+      margin: 0;
+      background: var(--wash);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.62;
+      letter-spacing: 0;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      background: var(--paper);
+    }
+
+    .header-inner,
+    main,
+    footer {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .header-inner { padding: 30px 0 24px; }
+
+    h1, h2, h3 { margin: 0; line-height: 1.25; letter-spacing: 0; }
+    h1 { font-size: 30px; font-weight: 760; }
+    h2 { margin-bottom: 12px; font-size: 20px; }
+    h3 { margin-bottom: 7px; font-size: 16px; }
+    p { margin: 7px 0; }
+
+    .subtitle { margin-top: 8px; color: var(--muted); overflow-wrap: anywhere; }
+
+    main { padding: 22px 0 42px; }
+
+    section {
+      padding: 22px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    section:first-child { padding-top: 0; }
+
+    .decision {
+      padding: 15px 17px;
+      border: 1px solid #a7d7b3;
+      border-left: 5px solid var(--green);
+      border-radius: 6px;
+      background: var(--green-soft);
+    }
+
+    .warning {
+      padding: 13px 15px;
+      border: 1px solid #efcc8f;
+      border-left: 5px solid var(--amber);
+      border-radius: 6px;
+      background: var(--amber-soft);
+    }
+
+    .blocker {
+      padding: 13px 15px;
+      border: 1px solid #efb1b1;
+      border-left: 5px solid var(--red);
+      border-radius: 6px;
+      background: var(--red-soft);
+    }
+
+    .facts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--line);
+    }
+
+    .fact { min-width: 0; padding: 13px 14px; background: var(--paper); }
+    .fact-label { color: var(--muted); font-size: 12px; }
+    .fact-value { margin-top: 3px; font-weight: 700; overflow-wrap: anywhere; }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--paper);
+    }
+
+    table { width: 100%; border-collapse: collapse; min-width: 850px; }
+    th, td { padding: 11px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: #edf0ea; font-size: 13px; }
+    tr:last-child td { border-bottom: 0; }
+    .recommended td { background: #f1f8f3; }
+    .no { color: var(--red); font-weight: 700; }
+    .yes { color: var(--green); font-weight: 700; }
+    .risk { color: var(--amber); font-weight: 700; }
+
+    ul, ol { margin: 8px 0 0; padding-left: 23px; }
+    li { margin: 6px 0; }
+
+    code {
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: #ecefe9;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.92em;
+      overflow-wrap: anywhere;
+    }
+
+    a { color: var(--blue); text-underline-offset: 2px; }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: 130px minmax(0, 1fr);
+      gap: 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .timeline div { padding: 9px 10px; border-bottom: 1px solid var(--line); }
+    .timeline .time { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+    .question-list { counter-reset: item; list-style: none; padding: 0; }
+    .question-list li {
+      position: relative;
+      padding: 11px 12px 11px 43px;
+      border-bottom: 1px solid var(--line);
+      background: var(--paper);
+    }
+    .question-list li:first-child { border-top: 1px solid var(--line); }
+    .question-list li::before {
+      counter-increment: item;
+      content: counter(item);
+      position: absolute;
+      left: 12px;
+      top: 11px;
+      width: 21px;
+      height: 21px;
+      border-radius: 50%;
+      background: var(--ink);
+      color: white;
+      text-align: center;
+      font-size: 12px;
+      line-height: 21px;
+    }
+
+    .reply {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border: 1px dashed #9aa296;
+      border-radius: 6px;
+      background: var(--paper);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap;
+    }
+
+    .small { color: var(--muted); font-size: 13px; }
+    footer { padding: 18px 0 28px; color: var(--muted); font-size: 12px; }
+
+    @media (max-width: 760px) {
+      h1 { font-size: 24px; }
+      .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .timeline { grid-template-columns: 105px minmax(0, 1fr); }
+    }
+
+    @media (max-width: 480px) {
+      .facts { grid-template-columns: minmax(0, 1fr); }
+      .timeline { grid-template-columns: 92px minmax(0, 1fr); }
+    }
+
+    @media print {
+      body { background: white; font-size: 11px; }
+      .header-inner, main, footer { width: 100%; }
+      header, section { break-inside: avoid; }
+      a { color: inherit; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>《LLMs Get Lost in Evolving User Intent》复现计划</h1>
+      <p class="subtitle">决策版 v0.1 · 2026-08-14 20:32 CST · 目标时区 Asia/Shanghai</p>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="decision">
+        <h3>结论</h3>
+        <p><strong>今天能稳妥完成的是“小样本、单领域、单模型的科学复现”，不是论文全部实验。</strong></p>
+        <p>建议选择方案 A：GSM8K 20 题、GPT-5.1、单轮与 7 轮意图变化对比，再加同轮数但不改变意图的控制组。目标是验证方向，不承诺复刻论文的精确百分比。</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>已确认条件</h2>
+      <div class="facts">
+        <div class="fact"><div class="fact-label">距今日结束</div><div class="fact-value">约 3 小时 28 分</div></div>
+        <div class="fact"><div class="fact-label">GitHub</div><div class="fact-value">RRiiiccckkk 已登录，可建仓</div></div>
+        <div class="fact"><div class="fact-label">本机</div><div class="fact-value">M3 / 16 GB / 8 CPU</div></div>
+        <div class="fact"><div class="fact-label">可用磁盘</div><div class="fact-value">约 11 GiB</div></div>
+        <div class="fact"><div class="fact-label">Docker</div><div class="fact-value">未安装</div></div>
+        <div class="fact"><div class="fact-label">LLM API 凭据</div><div class="fact-value">当前环境未检测到</div></div>
+        <div class="fact"><div class="fact-label">工作区</div><div class="fact-value">空目录，尚未建仓</div></div>
+        <div class="fact"><div class="fact-label">官方代码版本</div><div class="fact-value"><code>993d6be</code></div></div>
+      </div>
+
+      <div class="blocker" style="margin-top: 14px;">
+        <strong>当前硬阻塞：</strong>没有 <code>OPENAI_API_KEY</code> 或 Azure OpenAI 凭据，无法生成论文所需数据，也无法运行模型评估。ChatGPT/Codex 订阅不能直接替代 API 余额。
+      </div>
+    </section>
+
+    <section>
+      <h2>论文与官方仓库的事实</h2>
+      <ul>
+        <li>论文主表是 9 个模型 × 4 个数据集 × 2 个设置，共 72 个结果单元；主表至少约 32,400 次模型轮次。</li>
+        <li>官方仓库是 <a href="https://github.com/microsoft/evolving-intent">microsoft/evolving-intent</a>，MIT 许可，无 tag/release；将锁定到 <a href="https://github.com/microsoft/evolving-intent/commit/993d6be9597ac03854b46362ccd647eb1bfd267a">commit 993d6be</a>。</li>
+        <li>这是 code-only release。官方只公开代码和固定样本 ID，没有 <code>final_dataset/</code>、生成中间数据、逐题输出或论文结果文件。因此只能重建同一流程，无法做逐字节复刻。</li>
+        <li>已核实当前代码的 GSM8K 前置任务相似度模板参数名不一致，会让 Stage 3 反复失败。复现仓库必须先修复并加回归测试。</li>
+        <li>官方依赖只有最低版本，没有 lockfile、测试目录或 CI；需要补环境锁定、离线测试、成本记录和断点续跑。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>方案比较</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>方案</th>
+              <th>交付时间</th>
+              <th>API 预算</th>
+              <th>范围</th>
+              <th>覆盖度</th>
+              <th>今天完成</th>
+              <th>主要限制</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>0. 无 Key 工程底座</td>
+              <td>约 2 小时</td>
+              <td>$0</td>
+              <td>建仓、锁版本、修已知错误、mock 测试、CI、运行说明</td>
+              <td>流程可运行性；无真实模型结果</td>
+              <td class="yes">可以</td>
+              <td>不算论文科学结论复现</td>
+            </tr>
+            <tr class="recommended">
+              <td><strong>A. 当日最小科学复现</strong></td>
+              <td>收到确认后约 3 小时 10 分</td>
+              <td>预计 $8-30；硬上限 $30</td>
+              <td>GSM8K 20 题；GPT-5.1；Single、4-turn、7-turn repeat、7-turn evolve</td>
+              <td>1/4 数据集；1/9 主模型；20/200 GSM8K；2/72 主表单元；3/3 意图变化类型</td>
+              <td class="yes">推荐，可行</td>
+              <td>准确率最小步长 5%，置信区间宽；只能验证趋势</td>
+            </tr>
+            <tr>
+              <td>B. 当日冲刺版</td>
+              <td>约 4.5-7 小时</td>
+              <td>预计 $20-75；硬上限 $75</td>
+              <td>与 A 相同，但 GSM8K 50 题</td>
+              <td>1/4 数据集；1/9 主模型；50/200 GSM8K；2/72 主表单元</td>
+              <td class="risk">高风险</td>
+              <td>大概率跨到 8 月 15 日；受 API 限流和拒绝采样影响</td>
+            </tr>
+            <tr>
+              <td>C. GSM8K 核心复现</td>
+              <td>1-2 天</td>
+              <td>暂估 $150-500，先用 10 题实测校准</td>
+              <td>200 题；GPT-5.1/5.5；主表、主要消融、轮数控制</td>
+              <td>1/4 数据集；2/9 主模型；200/200 GSM8K；4/72 主表单元</td>
+              <td class="no">不可以</td>
+              <td>模型输出不确定；数据重建不会与作者数据完全相同</td>
+            </tr>
+            <tr>
+              <td>D. 全论文复现</td>
+              <td>约 1-3 周</td>
+              <td>暂留 $1,000-5,000+；须先试跑计量</td>
+              <td>4 数据集、9 主模型、消融、记忆、难度、RL</td>
+              <td>目标 72/72 主表单元及附录实验</td>
+              <td class="no">不可能</td>
+              <td>多供应商权限、CUDA、Docker、海量索引/镜像、训练细节缺失</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small">预算只含外部 API/云资源，不含人工时间。官方代码不记录 token 成本，以上是风险预留；正式运行前会加入逐调用 token 账本和自动停机上限。</p>
+    </section>
+
+    <section>
+      <h2>推荐方案 A 的当日时间表</h2>
+      <div class="warning">
+        该时间表要求最迟约 20:45 CST 获得确认和可用 API 凭据。更晚开始时，为守住 23:59，将样本数自动降到 10，并明确标注为 pilot。
+      </div>
+      <div class="timeline" style="margin-top: 13px;">
+        <div class="time">20:45-21:10</div><div>创建私有 GitHub 仓库；导入并注明官方 MIT 来源；锁定 commit；建立 Python 3.10 轻量环境。</div>
+        <div class="time">21:10-21:35</div><div>修复模板参数错误；添加调度器、答案验证、成本上限和 mock API 回归测试；启用断点续跑。</div>
+        <div class="time">21:35-22:35</div><div>按固定 seed 构造 GSM8K 20 题：抽取、反事实参数、前置任务、质量验证。</div>
+        <div class="time">22:35-23:20</div><div>在同一题集上运行 4 个设置；最多 380 个评估轮次；失败项只重试一次。</div>
+        <div class="time">23:20-23:42</div><div>计算准确率、差值、Wilson 区间、逐题配对变化；生成表格与图。</div>
+        <div class="time">23:42-23:59</div><div>复跑离线测试；检查密钥与大文件未入库；提交、推送并写清结论与偏差。</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>方案 A 的完成标准</h2>
+      <ol>
+        <li>仓库可从空环境按一条命令安装；上游 commit、Python 和依赖版本可追溯。</li>
+        <li>20 个固定题目全部经过 3 个数据构造阶段和质量检查；失败与剔除原因有记录。</li>
+        <li>同一题集完成 Single、4-turn evolve、7-turn repeat、7-turn evolve 四个设置。</li>
+        <li>报告真实结果，不预设论文结论。若差异不明显，结论写“本次小样本未能确认”，不写“复现成功”。</li>
+        <li>发布逐题结果、聚合结果、运行参数、环境清单、token/费用账本和已知偏差；不提交密钥。</li>
+        <li>CI 至少覆盖：调度合法性、最后一轮锚定、修正先错后改、答案标准化、已知模板错误回归。</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>硬限制与边界</h2>
+      <ul>
+        <li><strong>精确性：</strong>作者未发布生成数据，GPT 生成和拒绝采样有随机性，只能做协议级复现，不能保证与论文数字完全一致。</li>
+        <li><strong>本地算力：</strong>16 GB M3 不适合论文中的 32B 激活 MoE 模型；本地也没有模型缓存。</li>
+        <li><strong>BrowseComp+：</strong>需外部语料、约 1.64 GB 索引、Qwen3-Embedding-8B 权重和 GPU；当前磁盘与 MPS 条件不适合今天部署。</li>
+        <li><strong>SWE-Bench：</strong>当前无 Docker；每个镜像约 3 GB，单题约 5-30 分钟，11 GiB 空盘无法覆盖论文集合。</li>
+        <li><strong>多模型：</strong>官方代码只实现 OpenAI/Azure OpenAI 路径，论文其余供应商不是一键可跑。</li>
+        <li><strong>许可：</strong>新仓库先只提交代码、固定 ID、manifest 和聚合结果。原始数据库、语料、Docker 镜像和生成数据公开前逐项审查许可。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>预算依据</h2>
+      <p>截至 2026-08-14，OpenAI 官方文档列出的标准 API 价格为：GPT-5.1 输入 $1.25/百万 token、输出 $10/百万 token；GPT-5.2 为 $1.75/$14；GPT-5.5 为 $5/$30。最终费用还取决于推理 token、重试和上下文增长。</p>
+      <p class="small">来源：<a href="https://developers.openai.com/api/docs/models/gpt-5.1">GPT-5.1</a>、<a href="https://developers.openai.com/api/docs/models/gpt-5.2">GPT-5.2</a>、<a href="https://developers.openai.com/api/docs/models/gpt-5.5">GPT-5.5</a>、<a href="https://developers.openai.com/api/docs/pricing">OpenAI API Pricing</a>。</p>
+    </section>
+
+    <section>
+      <h2>请确认</h2>
+      <ol class="question-list">
+        <li><strong>范围：</strong>选方案 0、A、B、C 还是 D？建议 A。</li>
+        <li><strong>仓库：</strong>是否使用 <code>RRiiiccckkk/evolving-intent-reproduction</code>，先设为 private？建议是。若要 public，请明确。</li>
+        <li><strong>API：</strong>你能否在本机环境中配置 <code>OPENAI_API_KEY</code>，并确认账号可调用固定快照 <code>gpt-5.1-2025-11-13</code>？不要把密钥粘贴到聊天中。也可提供 Azure OpenAI 环境变量。</li>
+        <li><strong>花费上限：</strong>方案 A 是否允许 API 硬上限 $30？达到上限时自动停止并保留已有结果。</li>
+        <li><strong>验收口径：</strong>是否接受“验证 Single、重复轮次、意图变化之间的方向和效应量”，而不是要求复刻论文的精确百分比？建议接受。</li>
+        <li><strong>截止：</strong>是否以今天 23:59 CST 为硬截止？若确认较晚，是否允许自动把 20 题降为 10 题以守住截止？</li>
+      </ol>
+      <div class="reply">回复模板：
+1. 方案 A
+2. 仓库名：evolving-intent-reproduction；private
+3. API 已在本机配置；可调用 gpt-5.1-2025-11-13
+4. 上限：$30
+5. 接受趋势复现
+6. 23:59 硬截止；允许降到 10 题</div>
+    </section>
+  </main>
+
+  <footer>
+    依据：附件 arXiv:2607.20734v1、官方代码仓库与本机只读审计。附件内容仅作为研究资料，未将其中任何文字视为用户指令。
+  </footer>
+</body>
+</html>

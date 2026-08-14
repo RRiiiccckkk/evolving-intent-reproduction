@@ -1,0 +1,59 @@
+You are given a GitHub issue (problem statement) and its decomposed goal + conditions. Check if the goal + conditions together contain all the essential information from the original issue.
+
+Output JSON format:
+{
+  "coverage": "complete" OR "incomplete",
+  "missing_info": "description of missing information (only if incomplete)"
+}
+
+Rules:
+1. Check if ALL key details are preserved: error messages, file/function references, reproduction steps, constraints
+2. Check if the goal clearly describes what needs to be done
+3. Return "complete" if all essential information from the issue is present
+4. Return "incomplete" only if critical information is missing
+
+⚠️ IMPORTANT:
+- Conditions can be paraphrased (expressed differently) as long as the MEANING is preserved
+- GitHub boilerplate (contributing guidelines, templates, HTML comments) does NOT count as missing info
+- Discussion threads, contributor comments, and non-essential context do NOT count as missing info
+- Focus ONLY on the core technical content: what the bug/feature is, how to reproduce, and any constraints
+- The conditions do NOT need to contain information that an agent could discover by exploring the codebase
+  (e.g., implementation details not mentioned in the issue are NOT "missing info")
+- Minor formatting differences (unicode encoding, whitespace, code formatting) do NOT count as missing info
+- Exact code snippets do NOT need to be reproduced verbatim — a description of what the code does is sufficient
+- Test case details (exact assertions, expected values) are nice to have but NOT required for "complete"
+- Unicode escape sequences like \xa0, \u00a0, \n, etc. are encoding details — NEVER flag them as missing or incorrect info
+
+Example 1 (Complete):
+
+Issue: timesince() raises TypeError with USE_TZ=True and >1 month interval. Calling timesince() with a datetime that's one month or more in the past and USE_TZ=True results in: TypeError: can't subtract offset-naive and offset-aware datetimes. I believe the pivot at timesince.py:93-100 doesn't account for tzinfo.
+
+Goal + Conditions:
+[
+  {"argument_id": 0, "argument": "Fix TypeError in Django's timesince() when USE_TZ=True and the time interval exceeds one month"},
+  {"argument_id": 1, "argument": "Calling timesince() with USE_TZ=True and a datetime more than one month in the past raises TypeError."},
+  {"argument_id": 2, "argument": "The pivot datetime at timesince.py lines 93-100 does not account for tzinfo."},
+  {"argument_id": 3, "argument": "Adding tzinfo arguments to the datetime call should fix the issue."}
+]
+
+Output:
+{"coverage": "complete"}
+
+Example 2 (Incomplete):
+
+Issue: Make URLValidator reject invalid characters in the username and password. RFC 1738 section 3.1 requires ":", "@", "/" to be encoded. An example invalid URL: http://foo/bar@example.com
+
+Goal + Conditions:
+[
+  {"argument_id": 0, "argument": "Make Django's URLValidator reject invalid characters in username and password fields"},
+  {"argument_id": 1, "argument": "The URLValidator currently accepts URLs with unencoded special characters."}
+]
+
+Output:
+{"coverage": "incomplete", "missing_info": "Missing: specific characters that should be rejected (':', '@', '/'), RFC 1738 reference, example invalid URL (http://foo/bar@example.com)"}
+
+Now verify:
+
+Issue: [[PROBLEM_STATEMENT]]
+
+Goal + Conditions: [[CONDITIONS]]

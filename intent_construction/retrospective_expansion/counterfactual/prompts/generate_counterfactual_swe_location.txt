@@ -1,0 +1,89 @@
+You are given a GitHub issue (problem statement) decomposed into a goal and conditions. Your task is to generate a PERTURBED version of a target LOCATION condition.
+
+A "location" condition pinpoints WHERE in the codebase the bug occurs — a file, module, function, class, or specific lines (e.g., "django/utils/timesince.py lines 93-100", "the function django.utils.html.escape()", "compiler.py#L428-L433").
+
+"Perturbed" means generating an ALTERNATE location the user *could plausibly have pointed to first* (later they correct themselves: "Wait, after digging deeper, it's actually in [original location]"). The perturbed version must be:
+
+1. PLAUSIBLE: a real-sounding location in the same repo / same general area
+2. CONFIDENTLY-WRONG: stated as if the user is sure, even though it's the wrong file/function
+3. SELF-CONTAINED: understandable without other conditions
+4. SIMILAR GRANULARITY: if the original is "file:line", the perturbed is also "file:line" (don't shift to function name only)
+5. SAME REPO/AREA: must be a place the bug *could conceivably* live before debugging
+
+Common perturbation moves for location:
+- Sibling file: "compiler.py#L428-L433" → "expressions.py#L210-L218"
+- Sibling function: "django.utils.html.escape()" → "django.utils.safestring.mark_safe()"
+- Sibling module: "django/utils/timesince.py lines 93-100" → "django/utils/dateformat.py lines 110-118"
+- Wrong layer: "model field validator" → "form field clean()"
+- Wrong call site: "where the helper is called" → "inside the helper itself"
+
+AVOID:
+- A location that isn't plausible at all (e.g., wrong repo, wrong language)
+- A location that's so vague it can't be acted on
+- A location that contains the same file/function as the original
+
+Output JSON format:
+{
+  "counterfactual_argument": "The full perturbed location sentence",
+  "counterfactual_type": "sibling_file | sibling_function | sibling_module | wrong_layer | wrong_call_site",
+  "what_changed": "Brief description of what specifically differs",
+  "reasoning": "Why a developer could initially have pointed here and what makes it plausibly wrong but not absurd"
+}
+
+===== EXAMPLES =====
+
+Example 1 (sibling_file):
+
+Goal: Fix composed queries so they can change the list of columns when values()/values_list() is evaluated multiple times
+Target Condition (location): "The issue is related to code around compiler.py#L428-L433."
+
+Output:
+{
+  "counterfactual_argument": "The issue is related to code around query.py#L350-L362.",
+  "counterfactual_type": "sibling_file",
+  "what_changed": "File and line range (compiler.py#L428-L433 → query.py#L350-L362)",
+  "reasoning": "query.py is a sibling file in the same Django ORM module that also handles composed queries; a developer could initially suspect that values()/values_list() resolution lives there before tracing down to compiler.py."
+}
+
+---
+
+Example 2 (sibling_function):
+
+Goal: Use Python stdlib html.escape() in django.utils.html.escape()
+Target Condition (location): "The function django.utils.html.escape() is called numerous times when rendering templates."
+
+Output:
+{
+  "counterfactual_argument": "The function django.utils.safestring.mark_safe() is called numerous times when rendering templates.",
+  "counterfactual_type": "sibling_function",
+  "what_changed": "Target function (django.utils.html.escape → django.utils.safestring.mark_safe)",
+  "reasoning": "mark_safe() is the related sibling utility used during template rendering; a user could conflate the two before realizing escape() is the actual bottleneck."
+}
+
+---
+
+Example 3 (sibling_module):
+
+Goal: Fix wrong legend values of large ranges created using ScalarFormatter with an offset
+Target Condition (location): "The issue stems from not using the offset value of the ScalarFormatter used to generate the tick labels in seaborn/_core/scales.py lines 377-382."
+
+Output:
+{
+  "counterfactual_argument": "The issue stems from not using the offset value of the ScalarFormatter used to generate the tick labels in seaborn/_core/properties.py lines 215-222.",
+  "counterfactual_type": "sibling_module",
+  "what_changed": "File within same package (seaborn/_core/scales.py → seaborn/_core/properties.py)",
+  "reasoning": "Both files live in seaborn/_core and deal with scale/property handling. A developer might initially trace the legend label generation to properties.py before finding the actual offending code in scales.py."
+}
+
+===== END EXAMPLES =====
+
+Now generate a perturbed version of this location condition:
+
+Goal: [[GOAL]]
+Issue context (problem statement):
+[[PROBLEM_STATEMENT]]
+All Conditions (for context):
+[[CONDITIONS]]
+Target Condition to Perturb (category=location): [[TARGET_CONDITION]]
+
+Output:

@@ -1,0 +1,55 @@
+You are given a grade-school math word problem. Decompose it into a GOAL and CONDITIONS.
+
+Output a JSON object with this format:
+{
+  "function": "The main question - what to find/calculate",
+  "arguments": [
+    {"argument": "first piece of given information"},
+    {"argument": "second piece of given information"},
+    ...
+  ]
+}
+
+Rules:
+1. GOAL: The main question - WHAT to find/calculate
+   - Should describe what the problem asks WITHOUT including the specific numbers/values
+   - e.g., "How many trees did the grove workers plant today?" (not "How many trees from 15 to 21?")
+   - The goal MUST be self-contained: do NOT use "the described scenario", "the above situation", or similar references to conditions
+   - Do NOT use pronouns (she, he, it, they) without a named subject in the goal itself
+   - Reason: the goal is presented FIRST in conversation, before any conditions are revealed, so it must make sense alone
+2. CONDITIONS: The given information needed to solve (1-5 items)
+   - Each condition is a factual statement extracted from the problem
+   - Conditions contain the numerical values and context
+3. Each condition should be a direct quote or close paraphrase from the question text
+4. Conditions should not overlap
+5. Do NOT add hints or solving strategies - only extract information from the problem
+6. Do NOT add INFERRED or DERIVED conditions — only extract facts explicitly stated in the problem
+   - WRONG: "The net eggs after breakfast and baking is 9." (this is calculated, not stated)
+   - RIGHT: "She eats three for breakfast every morning." (directly from the text)
+7. Do NOT create META-CONDITIONS that describe the problem itself rather than providing information
+   - WRONG: "The problem involves calculating daily earnings."
+   - RIGHT: "She sells the remaining eggs for $2 per fresh duck egg."
+8. Each condition MUST be self-contained and understandable on its own, without reading the other conditions
+   - Do NOT use back-references like "the remaining", "the rest", "those", "the result" without context
+   - If a condition refers to something described elsewhere, repeat the necessary context
+   - Example: Instead of "She sells the rest for $2 each", write "She sells the remaining duck eggs at the farmers' market daily for $2 per egg."
+   - Think of conditions as an UNORDERED SET of independent facts — each one must make sense if read in isolation
+9. Do NOT over-split: closely related facts about the same event should stay in one condition
+
+Example:
+
+Q: There are 15 trees in the grove. Grove workers will plant trees in the grove today. After they are done, there will be 21 trees. How many trees did the grove workers plant today?
+
+Output:
+{
+  "function": "How many trees did the grove workers plant today?",
+  "arguments": [
+    {"argument": "There are 15 trees in the grove."},
+    {"argument": "Grove workers will plant trees in the grove today."},
+    {"argument": "After they are done, there will be 21 trees."}
+  ]
+}
+
+Now decompose this problem:
+
+Q: [[QUESTION]]

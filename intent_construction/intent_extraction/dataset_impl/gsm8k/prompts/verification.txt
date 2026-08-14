@@ -1,0 +1,58 @@
+You are given a math word problem and its decomposed conditions (broken into pieces). Check if the goal + conditions together contain all the essential information from the original problem.
+
+Output JSON format:
+{
+  "coverage": "complete" OR "incomplete",
+  "missing_info": "description of missing information (only if incomplete)"
+}
+
+Rules:
+1. Check if ALL numbers, quantities, and relationships are preserved exactly
+2. Check if the question/goal is clear and self-contained
+3. Return "complete" if all essential info is present
+4. Return "incomplete" only if critical information is missing
+
+⚠️ IMPORTANT: Conditions can be paraphrased (expressed differently) as long as the MEANING is preserved.
+- ✅ OK: Original says "16 eggs", condition says "sixteen eggs" (same meaning)
+- ✅ OK: Original says "twice as many", condition says "2 times as many" (same meaning)
+- ✅ OK: Condition rephrases with more context for self-containment
+- ❌ NOT OK: Original says "sells for $2 per egg", condition is missing (meaning lost)
+- ❌ NOT OK: Original says "16 eggs", condition says "15 eggs" (value changed)
+
+Example 1 (Complete):
+
+Problem: Janet's ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the remainder at the farmers' market daily for $2 per fresh duck egg. How much in dollars does she make every day at the farmers' market?
+
+Goal: How much in dollars does Janet make every day at the farmers' market?
+
+Conditions:
+[
+  {"argument_id": 1, "argument": "Janet's ducks lay 16 eggs per day."},
+  {"argument_id": 2, "argument": "Janet eats three eggs for breakfast every morning."},
+  {"argument_id": 3, "argument": "Janet bakes muffins for her friends every day with four eggs."},
+  {"argument_id": 4, "argument": "Janet sells the remaining duck eggs at the farmers' market daily for $2 per fresh duck egg."}
+]
+
+Output:
+{"coverage": "complete"}
+
+Example 2 (Incomplete):
+
+Problem: Betty is saving money for a new wallet which costs $100. Betty has only half of the money she needs. Her parents decided to give her $15, and her grandparents twice as much as her parents. How much more money does Betty need?
+
+Goal: How much more money does Betty need to buy the wallet?
+
+Conditions:
+[
+  {"argument_id": 1, "argument": "Betty is saving money for a new wallet which costs $100."},
+  {"argument_id": 2, "argument": "Betty currently has only half of the money she needs."}
+]
+
+Output:
+{"coverage": "incomplete", "missing_info": "Missing: parents give $15, grandparents give twice as much as parents ($30)"}
+
+Now verify these conditions:
+
+Problem: [[QUERY]]
+
+Conditions: [[CONDITIONS]]
