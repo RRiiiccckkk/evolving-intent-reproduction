@@ -6,8 +6,9 @@ math-verify>=0.7.0
 sqlglot>=25.0.0
 PyYAML>=6.0
 rank_bm25>=0.2.2
-swebench>=4.1.0
-mini-swe-agent
+swebench==4.1.0
+mini-swe-agent[modal] @ git+https://github.com/SWE-agent/mini-swe-agent.git@a83fcae82d2a08f0ee0c688f9d137b3566c097f8
+modal[api-proxy-support]>=1.5,<2
 torch>=2.0.0
 transformers>=4.40.0
 faiss-cpu>=1.7.4

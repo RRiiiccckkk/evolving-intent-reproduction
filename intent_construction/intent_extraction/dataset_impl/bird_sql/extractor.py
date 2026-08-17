@@ -14,6 +14,13 @@ from typing import Any
 from intent_construction.intent_extraction.core.base_extractor import BaseExtractor
 from .sql_parser import parse_sql, SQLCondition, SQLGoal, ParsedSQL
 from .db_utils import execute_sql, get_schema_text, SQLResult
+from .reproduction import (
+    REQUIRED_MODEL,
+    REPO_ROOT,
+    BirdReproductionError,
+    assert_required_model,
+    task_id_for,
+)
 
 
 # Common English words that may coincide with SQL argument values
@@ -47,18 +54,43 @@ def _normalize_for_matching(text: str) -> str:
     return re.sub(r'[\s\-_.,;:\'\"()/%]', '', text.lower())
 
 
+def _contains_normalized_value(text: str, value: str) -> bool:
+    """Match a normalized value across whole adjacent tokens.
+
+    Concatenating adjacent tokens still catches spacing and punctuation changes
+    such as ``200 MG`` versus ``200mg``. Requiring token boundaries prevents
+    short values such as ``Ms.`` from matching the suffix of ``claims``.
+    """
+    value_norm = _normalize_for_matching(value)
+    if not value_norm:
+        return False
+    tokens = [
+        normalized
+        for token in re.findall(r'\w+', text.lower())
+        if (normalized := _normalize_for_matching(token))
+    ]
+    for start in range(len(tokens)):
+        merged = ""
+        for token in tokens[start:]:
+            merged += token
+            if merged == value_norm:
+                return True
+            if len(merged) >= len(value_norm):
+                break
+    return False
+
+
 def _check_value_leak(function: str, check_values: list[str]) -> list[str]:
     """Check if any argument sql_value still appears in the function text.
 
     Uses normalized matching to catch spacing/casing variants like
     ``"200 MG"`` vs ``"200mg"``. Exempts common English words.
     """
-    function_norm = _normalize_for_matching(function)
     leaked = []
     for val in check_values:
         if val.lower().strip() in _COMMON_WORD_VALUES:
             continue
-        if _normalize_for_matching(val) in function_norm:
+        if _contains_normalized_value(function, val):
             leaked.append(val)
     return leaked
 
@@ -125,10 +157,10 @@ class BirdSqlExtractor(BaseExtractor):
 
     # Paths relative to this file's directory (dataset_impl/bird_sql/)
     _DEV_DB_TEMPLATE = (
-        "data/dev_extracted/dev_20240627/dev_databases/{db_id}/{db_id}.sqlite"
+        "dev_extracted/dev_20240627/dev_databases/{db_id}/{db_id}.sqlite"
     )
     _TRAIN_DB_TEMPLATE = (
-        "data/train_extracted/train/train_databases/{db_id}/{db_id}.sqlite"
+        "train_extracted/train/train_databases/{db_id}/{db_id}.sqlite"
     )
 
     # Operator → NL template mapping for simple binary comparisons
@@ -144,12 +176,13 @@ class BirdSqlExtractor(BaseExtractor):
 
     def __init__(
         self,
-        model: str = "gpt-5.1",
+        model: str = REQUIRED_MODEL,
         num_arguments: int = 4,
         max_verification_attempts: int = 1,
-        verif_model: str = "gpt-5.1",
+        verif_model: str = REQUIRED_MODEL,
         enable_model_verification: bool = False,
-        strip_model: str = "gpt-5.1",
+        strip_model: str = REQUIRED_MODEL,
+        data_root: str | Path | None = None,
     ):
         """
         Initialize the BIRD-SQL extractor.
@@ -161,6 +194,9 @@ class BirdSqlExtractor(BaseExtractor):
             strip_model: LLM model used to strip argument values from
                 the function text. Defaults to a cheap nano model.
         """
+        assert_required_model(model, context="BIRD extractor model")
+        assert_required_model(verif_model, context="BIRD extractor verifier model")
+        assert_required_model(strip_model, context="BIRD extractor strip model")
         super().__init__(
             model=model,
             num_arguments=num_arguments,
@@ -169,6 +205,11 @@ class BirdSqlExtractor(BaseExtractor):
             enable_model_verification=enable_model_verification,
         )
         self._strip_model = strip_model
+        self._data_root = (
+            Path(data_root).resolve()
+            if data_root is not None
+            else (Path(__file__).parent / "data").resolve()
+        )
 
     # ── BaseExtractor abstract method implementations ──────────
 
@@ -273,18 +314,31 @@ class BirdSqlExtractor(BaseExtractor):
         source = sample.get("source", "train")
         original_index = sample.get("index", sample.get("id", 0))
 
+        if not Path(db_path).exists():
+            raise BirdReproductionError(f"database not found: {db_path}")
+
         # Schema text for prompt inclusion
-        schema = get_schema_text(db_path) if Path(db_path).exists() else ""
+        schema = get_schema_text(db_path)
+        if not schema.strip() or schema.startswith("-- Database not found"):
+            raise BirdReproductionError(f"could not load schema: {db_path}")
 
         # Execute gold SQL to obtain the reference answer
-        answer = ""
-        if Path(db_path).exists():
-            result = execute_sql(db_path, sample["gold_sql"])
-            if result.success and result.rows:
-                answer = self._format_answer(result)
+        result = execute_sql(db_path, sample["gold_sql"])
+        if not result.success or not result.rows:
+            raise BirdReproductionError(
+                f"gold SQL failed or returned no rows for {task_id_for(source, original_index)}: "
+                f"{result.error or 'empty result'}"
+            )
+        answer = self._format_answer(result)
+        if not answer.strip():
+            raise BirdReproductionError(
+                f"gold SQL produced an incomplete answer for {task_id_for(source, original_index)}"
+            )
+
+        assert_required_model(self.model, context="BIRD extractor output model")
 
         return {
-            "task_id": f"bird-sql-{source}-{original_index}",
+            "task_id": task_id_for(source, original_index),
             "original_id": original_index,
             "original_index": original_index,
             "task": "sql",
@@ -294,7 +348,7 @@ class BirdSqlExtractor(BaseExtractor):
             "answer": answer,
             "gold_sql": sample["gold_sql"],
             "db_id": sample["db_id"],
-            "db_path": db_path,
+            "db_path": self._portable_db_path(sample),
             "schema": schema,
             "evidence": sample.get("evidence", ""),
             "fully_specified_question": sample["question"],
@@ -354,9 +408,15 @@ class BirdSqlExtractor(BaseExtractor):
             result = generate_text(
                 messages=[{"role": "user", "content": prompt}],
                 model=self._strip_model,
-                temperature=0.0,
-                max_tokens=256,
+                temperature=None,
             )
+            assert_required_model(
+                self._strip_model, context="BIRD extractor completed strip call"
+            )
+            if not isinstance(result, str) or not result.strip():
+                raise BirdReproductionError(
+                    "BIRD extractor received an empty strip response"
+                )
             stripped = result.strip().strip('"').strip("'")
             # Clean up punctuation
             while stripped.endswith(".?") or stripped.endswith("??"):
@@ -394,8 +454,9 @@ class BirdSqlExtractor(BaseExtractor):
                 f"Please rewrite again:"
             )
 
-        # Final fallback: return last attempt even if imperfect
-        return stripped
+        raise BirdReproductionError(
+            "BIRD extractor exhausted strip retries without a complete valid result"
+        )
 
     def extract(self, sample: dict[str, Any]) -> dict[str, Any] | None:
         """
@@ -442,11 +503,10 @@ class BirdSqlExtractor(BaseExtractor):
                 "arguments": arguments,
             }
 
-            # 4. Solvability check (non-fatal — we still emit output)
+            # 4. Solvability is mandatory for the fixed published subset.
             if not self.verify_solvability(sample, extracted):
-                print(
-                    f"Warning: gold SQL returned empty/failed result "
-                    f"for sample {sample_id}"
+                raise BirdReproductionError(
+                    f"gold SQL returned an empty or failed result for sample {sample_id}"
                 )
 
             # 5. Build final output
@@ -456,7 +516,7 @@ class BirdSqlExtractor(BaseExtractor):
 
         except Exception as e:
             print(f"Error extracting sample {sample_id}: {e}")
-            return None
+            raise
 
     # ── NL conversion helpers ──────────────────────────────────
 
@@ -651,8 +711,17 @@ class BirdSqlExtractor(BaseExtractor):
             self._DEV_DB_TEMPLATE if source == "dev" else self._TRAIN_DB_TEMPLATE
         )
         # Return absolute path so downstream scripts work from any directory
-        base = Path(__file__).parent
-        return str((base / template.format(db_id=db_id)).resolve())
+        return str((self._data_root / template.format(db_id=db_id)).resolve())
+
+    def _portable_db_path(self, sample: dict[str, Any]) -> str:
+        """Return a repository-relative DB path for relocatable artifacts."""
+        absolute = Path(self._resolve_db_path(sample))
+        try:
+            return absolute.relative_to(REPO_ROOT).as_posix()
+        except ValueError:
+            # An explicit external data_root is supported, but the default run
+            # cache stays repository-relative and therefore relocatable.
+            return str(absolute)
 
     @staticmethod
     def _format_answer(result: SQLResult) -> str:

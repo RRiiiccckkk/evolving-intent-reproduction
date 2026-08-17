@@ -434,6 +434,47 @@ def _redistribute_within_phase(
 
 
 # ---------------------------------------------------------------------------
+# Step 1c: align moved argument text with its actual reveal turn
+# ---------------------------------------------------------------------------
+
+def _sync_counterfactual_argument_values(
+    slots,
+    counterfactual_map: dict[int, list[dict]],
+    cond_by_id: dict[int, dict],
+) -> None:
+    """Render moved counterfactual arguments at their value on that turn."""
+    correction_turns: dict[int, list[int]] = {}
+    for slot in slots:
+        for event in slot.events:
+            if event.type == "correction" and event.cond_id is not None:
+                correction_turns.setdefault(event.cond_id, []).append(slot.turn_idx)
+
+    for slot in slots:
+        for item in slot.arguments:
+            variants = counterfactual_map.get(item.cond_id)
+            source = cond_by_id.get(item.cond_id)
+            if not variants or source is None:
+                continue
+
+            preceding = sum(
+                turn_idx < slot.turn_idx
+                for turn_idx in correction_turns.get(item.cond_id, [])
+            )
+            if preceding == 0:
+                value = variants[0].get("counterfactual_argument", "")
+            else:
+                chain = [
+                    variant.get("counterfactual_argument", "")
+                    for variant in variants[1:]
+                ]
+                chain.append(source.get("argument", ""))
+                value = chain[min(preceding - 1, len(chain) - 1)]
+
+            item.text = value
+            item.is_counterfactual = value != source.get("argument", "")
+
+
+# ---------------------------------------------------------------------------
 # Step 2: phase mapping at slot level
 # ---------------------------------------------------------------------------
 
@@ -585,6 +626,23 @@ def _make_inject_hook(
                         target_slot.arguments.insert(
                             0, ArgumentItem(cid, text, False)
                         )
+
+        # Symptom injection can make a previously single-argument donor
+        # splittable. Run the phase-aware pass again so a reserved reveal
+        # slot receives real, not duplicated, information before rendering.
+        # This matters for the paper's 7-turn Evolve setting: each of its two
+        # reveal boundaries must carry a newly disclosed argument.
+        _redistribute_within_phase(
+            slots, selected_functions, source_function_text,
+            source_cid_set=source_cid_set,
+        )
+
+        # The generic stale-text pass ran before this SWE hook. Repairs above
+        # can move an argument across its correction boundary, so recompute
+        # the value visible at the argument's final reveal turn.
+        _sync_counterfactual_argument_values(
+            slots, counterfactual_map, cond_by_id,
+        )
 
         # Final pass: deterministically order within-slot arguments for
         # SWE. The scheduler's planting + leak-repair leaves slot.arguments

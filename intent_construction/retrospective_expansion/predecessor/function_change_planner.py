@@ -99,7 +99,11 @@ def _is_feasible(change_set: frozenset[str], present: set[str], parsed) -> bool:
     return True
 
 
-def _score(change_set: frozenset[str]) -> tuple[int, str | None]:
+def _score(
+    change_set: frozenset[str],
+    *,
+    has_limit: bool = False,
+) -> tuple[int, str | None]:
     """Heuristic meaningfulness score; higher = more interesting rewrite."""
     score = 0
     score += 3 if "SELECT" in change_set else 0
@@ -110,8 +114,13 @@ def _score(change_set: frozenset[str]) -> tuple[int, str | None]:
         score += 2
     risk: str | None = None
     if change_set == frozenset({"ORDER_BY"}):
-        score -= 3
-        risk = "trivial"
+        if has_limit:
+            # With LIMIT, ORDER BY selects which rows survive and is therefore
+            # a substantive function change rather than a presentation-only one.
+            score += 2
+        else:
+            score -= 3
+            risk = "trivial"
     return score, risk
 
 
@@ -136,7 +145,10 @@ def enumerate_plans(parsed) -> list[FunctionChangePlan]:
             cs = frozenset(combo)
             if not _is_feasible(cs, present, parsed):
                 continue
-            score, risk = _score(cs)
+            score, risk = _score(
+                cs,
+                has_limit=getattr(parsed, "limit", None) is not None,
+            )
             preserve = tuple(sorted(present - cs, key=GOAL_CLAUSES.index))
             change = tuple(sorted(cs, key=GOAL_CLAUSES.index))
             candidates.append(FunctionChangePlan(
@@ -146,7 +158,13 @@ def enumerate_plans(parsed) -> list[FunctionChangePlan]:
                 score=score,
                 risk=risk,
             ))
-    candidates.sort(key=lambda p: (-p.score, -len(p.change_set), p.change_set))
+    candidates.sort(
+        key=lambda p: (
+            -p.score,
+            -len(p.change_set),
+            tuple(GOAL_CLAUSES.index(clause) for clause in p.change_set),
+        )
+    )
     return candidates
 
 
@@ -193,7 +211,13 @@ def select_diverse_plans(
                 selected[0] = multi_pool[0]
 
     # Restore canonical order: score desc, |cs| desc
-    selected.sort(key=lambda p: (-p.score, -len(p.change_set), p.change_set))
+    selected.sort(
+        key=lambda p: (
+            -p.score,
+            -len(p.change_set),
+            tuple(GOAL_CLAUSES.index(clause) for clause in p.change_set),
+        )
+    )
     return selected[:n_plans]
 
 

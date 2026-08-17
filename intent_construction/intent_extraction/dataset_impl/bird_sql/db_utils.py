@@ -6,6 +6,7 @@ Zero LLM dependency — all operations are deterministic.
 """
 
 import sqlite3
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -51,7 +52,7 @@ def _is_numeric_type(dtype: str) -> bool:
 # Core functions
 # =============================================================================
 
-def execute_sql(db_path: str | Path, sql: str, timeout: int = 30) -> SQLResult:
+def execute_sql(db_path: str | Path, sql: str, timeout: float = 30) -> SQLResult:
     """
     Execute SQL against a SQLite database.
 
@@ -61,7 +62,7 @@ def execute_sql(db_path: str | Path, sql: str, timeout: int = 30) -> SQLResult:
     Args:
         db_path: Path to the SQLite database file.
         sql: SQL query to execute.
-        timeout: Connection timeout in seconds.
+        timeout: Connection and query execution timeout in seconds.
 
     Returns:
         SQLResult with rows, columns, and counts on success; error on failure.
@@ -78,6 +79,12 @@ def execute_sql(db_path: str | Path, sql: str, timeout: int = 30) -> SQLResult:
         conn = sqlite3.connect(str(db_path), timeout=timeout)
 
     try:
+        conn.execute("PRAGMA query_only = ON")
+        deadline = time.monotonic() + timeout
+        conn.set_progress_handler(
+            lambda: 1 if time.monotonic() >= deadline else 0,
+            1_000,
+        )
         cursor = conn.cursor()
         cursor.execute(sql)
         columns = [desc[0] for desc in cursor.description] if cursor.description else []

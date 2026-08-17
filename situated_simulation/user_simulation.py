@@ -1316,17 +1316,12 @@ class EvolvingIntent:
             from situated_simulation.naturalizer import create_naturalizer
             nat = create_naturalizer(self.domain, self._naturalizer_model)
 
-        # Dispatch: SWE samples carry per-argument ``category`` fields. We
-        # detect on the first raw sample; falling back to the generic path
-        # for any sample whose arguments don't carry the field is safe
-        # (the SWE wrapper is a no-op when no symptoms are present).
+        # Dispatch all SWE samples through the SWE wrapper. Some valid tasks
+        # have no symptom argument, but still need its instance metadata
+        # pass-through for repository execution and official verification.
         use_swe_scheduler = (
             _ts_create_swe is not None
-            and self._raw_data
-            and any(
-                c.get("category") == "symptom"
-                for c in (self._raw_data[0].get("arguments") or [])
-            )
+            and self.domain == "swe_bench_verified"
         )
         scheduler_fn = _ts_create_swe if use_swe_scheduler else _ts_create
 

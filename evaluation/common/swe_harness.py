@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import importlib.util
 import json
 import logging
 import os
@@ -49,6 +50,136 @@ _DEFAULT_WORKSPACE = Path(__file__).resolve().parent.parent / "swe_workspace"
 # Default HuggingFace dataset name for SWE-bench Verified.
 _DEFAULT_DATASET = "princeton-nlp/SWE-bench_Verified"
 _DEFAULT_SPLIT = "test"
+
+_SWEBENCH_MODAL_MODULE = "swebench.harness.modal_eval.run_evaluation_modal"
+_LEGACY_MODAL_WRITE = 'self.sandbox.open(file_path, "w").write(content)'
+_CURRENT_MODAL_WRITE = "self.sandbox.filesystem.write_text(content, file_path)"
+_LEGACY_MODAL_CGROUP_WRITE = (
+    'self.write_file("/sys/fs/cgroup/cpu/cpu.shares", "2048")'
+)
+_CURRENT_MODAL_CGROUP_WRITE = (
+    "pass  # cpu=4 is already requested when the Sandbox is created"
+)
+_LEGACY_MODAL_REPO_SCRIPT = "        repo_script = test_spec.install_repo_script"
+_PREVIOUS_MODAL_REPO_SCRIPT = """        repo_script = test_spec.install_repo_script
+        if "python -m pip install -e ." in repo_script:
+            repo_script = repo_script.replace(
+                "python -m pip install -e .",
+                "python -m pip install 'pip<25.1' && python -m pip install -e .",
+            )"""
+_CURRENT_MODAL_REPO_SCRIPT = """        repo_script = test_spec.install_repo_script
+        if "python -m pip install -e ." in repo_script:
+            compatibility = "python -m pip install 'pip<25.1'"
+            if test_spec.repo == "matplotlib/matplotlib":
+                compatibility += " && python -m pip uninstall -y vcs-versioning"
+            repo_script = repo_script.replace(
+                "python -m pip install -e .",
+                compatibility + " && python -m pip install -e .",
+            )"""
+_SWEBENCH_MODAL_PATCH_LOCK = threading.Lock()
+
+
+def _patch_swebench_modal_source(source: str) -> tuple[str, bool]:
+    """Update SWE-bench 4.1.0 for current Modal Sandbox APIs."""
+    changed = False
+    if (
+        _CURRENT_MODAL_REPO_SCRIPT not in source
+        and _PREVIOUS_MODAL_REPO_SCRIPT in source
+    ):
+        source = source.replace(
+            _PREVIOUS_MODAL_REPO_SCRIPT,
+            _CURRENT_MODAL_REPO_SCRIPT,
+        )
+        changed = True
+    replacements = (
+        (_LEGACY_MODAL_WRITE, _CURRENT_MODAL_WRITE, "write_file"),
+        (
+            _LEGACY_MODAL_CGROUP_WRITE,
+            _CURRENT_MODAL_CGROUP_WRITE,
+            "cgroup CPU write",
+        ),
+        (
+            _LEGACY_MODAL_REPO_SCRIPT,
+            _CURRENT_MODAL_REPO_SCRIPT,
+            "legacy editable-install compatibility",
+        ),
+    )
+    for legacy, current, label in replacements:
+        if current in source:
+            continue
+        occurrences = source.count(legacy)
+        if occurrences != 1:
+            raise RuntimeError(
+                f"unexpected SWE-bench Modal {label} implementation: "
+                f"found {occurrences} legacy calls"
+            )
+        source = source.replace(legacy, current)
+        changed = True
+    return source, changed
+
+
+def _ensure_swebench_modal_filesystem_compat() -> None:
+    """Patch the official harness before its nested Modal app loads.
+
+    The official function mounts its local ``swebench`` package into the
+    verifier image, so this compatibility update propagates without changing
+    test execution or grading behavior.
+    """
+    with _SWEBENCH_MODAL_PATCH_LOCK:
+        package_spec = importlib.util.find_spec("swebench")
+        locations = (
+            list(package_spec.submodule_search_locations or [])
+            if package_spec is not None
+            else []
+        )
+        if len(locations) != 1:
+            raise RuntimeError(
+                f"cannot locate {_SWEBENCH_MODAL_MODULE} for Modal compatibility"
+            )
+        module_path = (
+            Path(locations[0])
+            / "harness"
+            / "modal_eval"
+            / "run_evaluation_modal.py"
+        )
+        if not module_path.is_file():
+            raise RuntimeError(
+                f"cannot locate {_SWEBENCH_MODAL_MODULE} for Modal compatibility"
+            )
+        source = module_path.read_text(encoding="utf-8")
+        patched, changed = _patch_swebench_modal_source(source)
+        if changed:
+            module_path.write_text(patched, encoding="utf-8")
+
+
+@contextlib.contextmanager
+def _modal_credential_marker(enabled: bool):
+    """Bridge SWE-bench's file-only check to Modal's supported env auth."""
+    marker = Path.home() / ".modal.toml"
+    created = False
+    if enabled and not marker.exists():
+        missing = [
+            name
+            for name in ("MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET")
+            if not os.environ.get(name, "").strip()
+        ]
+        if missing:
+            raise RuntimeError(
+                "Modal verifier credentials are missing: " + ", ".join(missing)
+            )
+        descriptor = os.open(
+            marker,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+            0o600,
+        )
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write("# Modal credentials are supplied through environment variables.\n")
+        created = True
+    try:
+        yield
+    finally:
+        if created:
+            marker.unlink(missing_ok=True)
 
 
 # =============================================================================
@@ -129,6 +260,7 @@ class SWEHarness:
         cache_level: str = "env",  # "none" | "base" | "env" | "instance"
         use_cache: bool = True,
         namespace: str | None = "swebench",  # canonical leaderboard default
+        modal: bool = False,
     ) -> None:
         self.workspace = Path(workspace) if workspace else _DEFAULT_WORKSPACE
         self.workspace.mkdir(parents=True, exist_ok=True)
@@ -140,6 +272,7 @@ class SWEHarness:
         self.timeout_s = timeout_s
         self.cache_level = cache_level
         self.use_cache = use_cache
+        self.modal = modal
         # Process-wide lock around the chdir + swebench_main call. swebench's
         # run_evaluation uses relative paths and per-image build directories
         # that are not safe to invoke concurrently from multiple threads in
@@ -230,6 +363,17 @@ class SWEHarness:
         ("logs/run_evaluation/...", final report file) land there.
         """
         # Lazy import: avoid swebench import cost on non-SWE eval paths.
+        if self.modal:
+            try:
+                _ensure_swebench_modal_filesystem_compat()
+            except Exception as e:
+                return HarnessResult(
+                    instance_id=instance_id,
+                    resolved=False,
+                    patch_extracted=True,
+                    patch_apply_ok=None,
+                    harness_error=f"swebench_modal_compat_failed: {e}",
+                )
         try:
             from swebench.harness.run_evaluation import main as swebench_main
             from swebench.harness.constants import (
@@ -270,22 +414,23 @@ class SWEHarness:
 
         with self._harness_lock, _pushd(self.workspace):
             try:
-                swebench_main(
-                    dataset_name=self.dataset_name,
-                    split=self.split,
-                    instance_ids=[instance_id],
-                    predictions_path=str(preds_path),
-                    max_workers=1,
-                    force_rebuild=False,
-                    cache_level=self.cache_level,
-                    clean=False,
-                    open_file_limit=4096,
-                    run_id=run_id,
-                    timeout=self.timeout_s,
-                    namespace=self.namespace,
-                    rewrite_reports=False,
-                    modal=False,
-                )
+                with _modal_credential_marker(self.modal):
+                    swebench_main(
+                        dataset_name=self.dataset_name,
+                        split=self.split,
+                        instance_ids=[instance_id],
+                        predictions_path=str(preds_path),
+                        max_workers=1,
+                        force_rebuild=False,
+                        cache_level=self.cache_level,
+                        clean=False,
+                        open_file_limit=4096,
+                        run_id=run_id,
+                        timeout=self.timeout_s,
+                        namespace=self.namespace,
+                        rewrite_reports=False,
+                        modal=self.modal,
+                    )
             except SystemExit as e:
                 # swebench occasionally calls sys.exit on bad config; trap it.
                 return HarnessResult(

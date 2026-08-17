@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>剩余实验复现报告</title>
+  <style>
+    :root { color-scheme: light; --ink:#182026; --muted:#5d6972; --line:#d9dee2;
+      --paper:#ffffff; --wash:#f4f6f7; --ok:#176b45; --warn:#9a5b00; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--wash); color:var(--ink); font-family:-apple-system,
+      BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; line-height:1.5; }
+    main { width:min(1180px, calc(100% - 32px)); margin:28px auto 48px; background:var(--paper);
+      border:1px solid var(--line); padding:28px; }
+    h1 { margin:0 0 6px; font-size:28px; letter-spacing:0; }
+    h2 { margin:28px 0 10px; font-size:18px; letter-spacing:0; }
+    p { margin:6px 0; } .muted { color:var(--muted); }
+    .status { display:inline-block; margin-top:14px; padding:5px 10px; border:1px solid currentColor;
+      font-weight:650; } .status.ok { color:var(--ok); } .status.pending { color:var(--warn); }
+    .table-wrap { overflow-x:auto; border:1px solid var(--line); }
+    table { width:100%; border-collapse:collapse; min-width:940px; }
+    th,td { padding:10px 12px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap; }
+    th { background:#eef1f2; font-size:13px; } tr:last-child td { border-bottom:0; }
+    dl { display:grid; grid-template-columns:220px 1fr; margin:0; border-top:1px solid var(--line); }
+    dt,dd { margin:0; padding:9px 0; border-bottom:1px solid var(--line); } dt { color:var(--muted); }
+    ul { margin:8px 0 0; padding-left:22px; } code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+    @media (max-width:700px) { main { width:100%; margin:0; border:0; padding:20px 16px; }
+      dl { grid-template-columns:1fr; } dt { border-bottom:0; padding-bottom:0; } dd { padding-top:2px; } }
+  </style>
+</head>
+<body><main>
+  <h1>剩余实验复现报告</h1>
+  <p class="muted">生成时间：2026-08-17T05:28:03.182623Z</p>
+  <div class="status pending">进度预览：尚未完成</div>
+
+  <h2>实验结果</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>数据集</th><th>配对覆盖</th><th>Single 准确率</th><th>Evolve 准确率</th>
+      <th>相对变化</th><th>确认费用</th><th>输入 / 输出 tokens</th><th>观测运行时间</th><th>状态</th></tr></thead>
+    <tbody><tr><td>BIRD-SQL</td><td>100/100</td><td>69.0% (69/100)</td><td>45.0% (45/100)</td><td>-34.8%</td><td>US$30.7230</td><td>4,105,222 / 7,202,549</td><td>45h 11m 26s</td><td>完成</td></tr><tr><td>BrowseComp+</td><td>0/100</td><td>- (0/0)</td><td>- (0/0)</td><td>-</td><td>US$0.0000</td><td>0 / 0</td><td>-</td><td>未完成</td></tr><tr><td>SWE-bench Verified</td><td>50/50</td><td>78.0% (39/50)</td><td>76.0% (38/50)</td><td>-2.6%</td><td>US$262.4224</td><td>1,299,602,880 / 7,593,324</td><td>44h 5m 16s</td><td>完成</td></tr></tbody>
+  </table></div>
+
+  <h2>执行约束</h2>
+  <dl>
+    <dt>唯一模型</dt><dd><code>kimi-k2.6</code></dd>
+    <dt>Reasoning</dt><dd><code>medium</code></dd>
+    <dt>费用硬上限</dt><dd>无</dd>
+    <dt>输出 token 上限</dt><dd>无</dd>
+    <dt>确认总费用</dt><dd>US$293.145379</dd>
+    <dt>调用数</dt><dd>21,059</dd>
+    <dt>总输入 tokens</dt><dd>1,303,708,102</dd>
+    <dt>总输出 tokens</dt><dd>14,795,873</dd>
+    <dt>总 reasoning tokens</dt><dd>13,030,131</dd>
+    <dt>整体时间窗</dt><dd>45h 11m 26s</dd>
+  </dl>
+
+  <h2>待处理项</h2>
+  <ul><li>BrowseComp+ single: artifact is missing</li><li>BrowseComp+ evolve: artifact is missing</li><li>BrowseComp+ single: bound checkpoint directory is missing</li><li>BrowseComp+ evolve: bound checkpoint directory is missing</li><li>BrowseComp+ construction audit: artifact is missing</li><li>BrowseComp+ construction usage: no confirmed usage ledger was found</li><li>BrowseComp+ evaluation usage: no confirmed usage ledger was found</li><li>BrowseComp+ usage: no usage ledger was found</li><li>BrowseComp+ usage: no confirmed usage events were found</li><li>BrowseComp+ usage: usage model audit is not uniquely kimi-k2.6</li><li>BrowseComp+: paired coverage failed (0/100)</li></ul>
+
+  <h2>脱敏状态</h2>
+  <p>报告只含聚合指标。BrowseComp+ 明文问题、gold docs 和凭据均未导出。</p>
+</main></body></html>

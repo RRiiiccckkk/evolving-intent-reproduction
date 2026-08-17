@@ -63,6 +63,7 @@ def generate_one_counterfactual(
     model: str,
     num_counterfactuals: int,
     max_attempts: int = 3,
+    reasoning_effort: str | None = None,
 ) -> list[dict]:
     """Generate `num_counterfactuals` distinct counterfactuals for one argument."""
     out: list[dict] = []
@@ -82,6 +83,7 @@ def generate_one_counterfactual(
                     [{"role": "user", "content": prompt}],
                     model=model,
                     step=f"swe-counterfactual-{cond.get('category')}",
+                    reasoning_effort=reasoning_effort,
                 )
             except Exception as exc:
                 print(f"      ! attempt {attempt+1} error: {exc}")
@@ -107,7 +109,13 @@ def generate_one_counterfactual(
     return out
 
 
-def generate_counterfactuals(sample: dict, templates: dict[str, str], model: str, num_counterfactuals: int) -> dict:
+def generate_counterfactuals(
+    sample: dict,
+    templates: dict[str, str],
+    model: str,
+    num_counterfactuals: int,
+    reasoning_effort: str | None = None,
+) -> dict:
     """Add a `counterfactual_arguments` list to each argument (empty for non-counterfactual_eligible)."""
     new_arguments: list[dict] = []
     for cond in sample.get("arguments", []):
@@ -115,7 +123,12 @@ def generate_counterfactuals(sample: dict, templates: dict[str, str], model: str
         cond_out = dict(cond)
         if cat in COUNTERFACTUAL_ELIGIBLE_CATEGORIES:
             cond_out["counterfactual_arguments"] = generate_one_counterfactual(
-                sample, cond, templates[cat], model, num_counterfactuals
+                sample,
+                cond,
+                templates[cat],
+                model,
+                num_counterfactuals,
+                reasoning_effort=reasoning_effort,
             )
         else:
             cond_out["counterfactual_arguments"] = []
@@ -124,6 +137,7 @@ def generate_counterfactuals(sample: dict, templates: dict[str, str], model: str
     out["arguments"] = new_arguments
     out["counterfactual_info"] = {
         "model": model,
+        "reasoning_effort": reasoning_effort,
         "num_counterfactuals_requested": num_counterfactuals,
         "counterfactual_eligible_categories": list(COUNTERFACTUAL_ELIGIBLE_CATEGORIES),
     }
@@ -140,6 +154,7 @@ def main() -> None:
     parser.add_argument("--num_samples", type=int, default=None, help="Limit number of samples (for testing)")
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoint if present")
     parser.add_argument("--checkpoint_interval", type=int, default=20)
+    parser.add_argument("--reasoning_effort", default=None)
     args = parser.parse_args()
 
     output_path = Path(args.output)
@@ -171,7 +186,13 @@ def main() -> None:
 
     def task(sample):
         try:
-            return generate_counterfactuals(sample, templates, args.model, args.num_counterfactuals)
+            return generate_counterfactuals(
+                sample,
+                templates,
+                args.model,
+                args.num_counterfactuals,
+                reasoning_effort=args.reasoning_effort,
+            )
         except Exception as exc:
             return {"task_id": sample.get("task_id"), "_error": str(exc)}
 

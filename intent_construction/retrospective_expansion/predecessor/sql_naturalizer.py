@@ -27,7 +27,18 @@ from sqlglot import expressions as exp
 
 _THIS = Path(__file__).resolve().parent
 
-from intent_construction.intent_extraction.core.llm_utils import generate_json, load_prompt, populate_prompt  # noqa: E402
+from intent_construction.intent_extraction.core.llm_utils import (  # noqa: E402
+    LLMAccountingError,
+    LLMIncompleteResponse,
+    generate_json,
+    load_prompt,
+    populate_prompt,
+)
+from intent_construction.intent_extraction.dataset_impl.bird_sql.reproduction import (  # noqa: E402
+    REQUIRED_MODEL,
+    BirdReproductionError,
+    assert_required_model,
+)
 
 PROMPT_PATH = _THIS / "prompts" / "naturalize_sql_followup.txt"
 
@@ -77,6 +88,10 @@ def _extract_literal_values(sql: str) -> list[str]:
         return []
     vals: list[str] = []
     for lit in node.find_all(exp.Literal):
+        # SQLGlot represents STRFTIME/TO_CHAR format strings as literals. They
+        # control SQL rendering and are not user-provided filter values.
+        if lit.arg_key == "format":
+            continue
         v = lit.this
         if v is None:
             continue
@@ -86,8 +101,27 @@ def _extract_literal_values(sql: str) -> list[str]:
     return vals
 
 
+def _contains_normalized_value(text: str, value: str) -> bool:
+    value_norm = _normalize(value)
+    if not value_norm:
+        return False
+    tokens = [
+        normalized
+        for token in re.findall(r"\w+", text.lower())
+        if (normalized := _normalize(token))
+    ]
+    for start in range(len(tokens)):
+        merged = ""
+        for token in tokens[start:]:
+            merged += token
+            if merged == value_norm:
+                return True
+            if len(merged) >= len(value_norm):
+                break
+    return False
+
+
 def _check_value_leak(text: str, values: Iterable[str]) -> list[str]:
-    text_norm = _normalize(text)
     leaked: list[str] = []
     for v in values:
         v_norm = _normalize(v)
@@ -99,9 +133,8 @@ def _check_value_leak(text: str, values: Iterable[str]) -> list[str]:
         if v.lstrip('-').replace('.', '', 1).isdigit():
             if re.search(rf"(?<!\d){re.escape(v)}(?!\d)", text):
                 leaked.append(v)
-        else:
-            if v_norm in text_norm:
-                leaked.append(v)
+        elif _contains_normalized_value(text, v):
+            leaked.append(v)
     return leaked
 
 
@@ -136,10 +169,7 @@ def _changed_clauses_sql(new_sql: str, gold_sql: str, changed: list[str]) -> str
     return " ".join(parts)
 
 
-def _has_function_mention(text: str, changed_sql_text: str) -> bool:
-    """Check whether at least one substantive token from changed clauses
-    appears in the naturalized text. Excludes SQL keywords and trivial words.
-    """
+def _function_mention_terms(changed_sql_text: str) -> set[str]:
     sql_keywords = {
         "select", "from", "where", "group", "by", "having", "order", "limit",
         "join", "on", "as", "and", "or", "not", "in", "like", "between",
@@ -148,15 +178,31 @@ def _has_function_mention(text: str, changed_sql_text: str) -> bool:
     }
     tokens = {t.lower() for t in re.findall(r"[a-zA-Z_]{3,}", changed_sql_text)}
     candidates = {t for t in tokens if t not in sql_keywords}
-    if not candidates:
+    terms: set[str] = set()
+    for candidate in candidates:
+        terms.update(
+            token
+            for token in (
+                candidate,
+                candidate.replace("_", " "),
+                *candidate.split("_"),
+            )
+            if len(token) >= 3
+        )
+    return terms
+
+
+def _has_function_mention(text: str, changed_sql_text: str) -> bool:
+    """Check whether changed-clause terminology appears in the prose."""
+    terms = _function_mention_terms(changed_sql_text)
+    if not terms:
         return True  # nothing meaningful to check; don't reject
     text_norm = _normalize(text)
-    for c in candidates:
-        # Strip table-prefix stems like "t1_firstname" → "firstname"
-        c_clean = c.split("_")[-1] if "_" in c else c
-        for token in (c, c_clean):
-            if len(token) >= 3 and token in text_norm:
-                return True
+    for token in terms:
+        if token in text_norm:
+            return True
+        if len(token) >= 4 and token.endswith("s") and token[:-1] in text_norm:
+            return True
     return False
 
 
@@ -171,9 +217,9 @@ def naturalize_followup(
     original_question: str,
     changed_clauses: list[str],
     preserved_clauses: list[str],
-    model: str = "gpt-5.1",
+    model: str = REQUIRED_MODEL,
     max_attempts: int = 3,
-    temperature: float = 0.7,
+    temperature: float | None = None,
     reasoning_effort: str | None = None,
     step: str = "naturalize_followup",
 ) -> tuple[str | None, str]:
@@ -186,6 +232,11 @@ def naturalize_followup(
         ``"banned_prefix"``, ``"no_function_mention"``, ``"llm_fail"``,
         ``"format_fail"``.
     """
+    assert_required_model(model, context="BIRD SQL naturalizer model")
+    if reasoning_effort is not None:
+        raise BirdReproductionError(
+            "Kimi K2.6 does not accept reasoning_effort in this reproduction"
+        )
     leak_values = _extract_literal_values(gold_sql)
     changed_sql_text = _changed_clauses_sql(new_sql, gold_sql, changed_clauses)
     template = _load_prompt()
@@ -196,6 +247,12 @@ def naturalize_followup(
         "CHANGED_CLAUSES": ", ".join(changed_clauses) or "(none)",
         "PRESERVED_CLAUSES": ", ".join(preserved_clauses) or "(none)",
     })
+    function_terms = sorted(_function_mention_terms(changed_sql_text))
+    if function_terms:
+        body += (
+            "\n\nFUNCTION TERM REQUIREMENT: The text must explicitly include at least "
+            f"one of these terms: {', '.join(function_terms)}."
+        )
     messages = [{"role": "user", "content": body}]
 
     last_status = "llm_fail"
@@ -209,17 +266,19 @@ def naturalize_followup(
                 temperature=temperature,
                 reasoning_effort=reasoning_effort,
             )
+        except (LLMAccountingError, LLMIncompleteResponse):
+            raise
         except Exception as e:
             print(f"  ⚠ naturalizer LLM call failed: {e}")
             last_status = "llm_fail"
             continue
         if not resp or "text" not in resp:
-            last_status = "format_fail"
-            continue
+            raise BirdReproductionError(
+                "BIRD naturalizer returned an empty or incomplete JSON object"
+            )
         text = (resp.get("text") or "").strip()
         if not text:
-            last_status = "format_fail"
-            continue
+            raise BirdReproductionError("BIRD naturalizer returned empty text")
         if _word_count(text) > 25:
             last_status = "too_long"
             continue
@@ -236,6 +295,7 @@ def naturalize_followup(
         if not _has_function_mention(text, changed_sql_text):
             last_status = "no_function_mention"
             continue
+        assert_required_model(model, context="completed BIRD SQL naturalizer model")
         return text, "ok"
 
     return None, last_status

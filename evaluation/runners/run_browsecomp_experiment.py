@@ -19,26 +19,40 @@ Usage:
 
 import argparse
 import glob
+import hashlib
 import json
 import os
 import pickle
 import re
+import tempfile
 import time
 import logging
 import unicodedata
 from collections import Counter
+from dataclasses import asdict, is_dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import CancelledError, ThreadPoolExecutor, as_completed
+from urllib import request as urllib_request
+from urllib import error as urllib_error
 from tqdm import tqdm
 
 import threading
 import numpy as np
-import torch
-import faiss
 
-from intent_construction.intent_extraction.core.llm_utils import get_client, resolve_model_name, _is_responses_api_model, _supports_responses_api, clean_model_name
+from intent_construction.intent_extraction.core.llm_utils import (
+    LLMAccountingError,
+    LLMIncompleteResponse,
+    _accounted_api_call,
+    _chat_final_content,
+    _is_responses_api_model,
+    _responses_final_content,
+    _supports_responses_api,
+    clean_model_name,
+    get_client,
+    resolve_model_name,
+)
 from situated_simulation.user_simulation import EvolvingIntent
 
 logger = logging.getLogger(__name__)
@@ -54,6 +68,26 @@ BROWSECOMP_PLUS_DIR = Path(__file__).parent.parent.parent / "BrowseComp-Plus"
 DEFAULT_INDEX_PATTERN = str(BROWSECOMP_PLUS_DIR / "indexes" / "qwen3-embedding-8b" / "corpus.shard*.pkl")
 DEFAULT_MODEL_NAME = "Qwen/Qwen3-Embedding-8B"
 DEFAULT_CORPUS_DATASET = "Tevatron/browsecomp-plus-corpus"
+DEFAULT_MODEL_REVISION = "1d8ad4ca9b3dd8059ad90a75d4983776a23d44af"
+DEFAULT_SNIPPET_TOKENIZER_REVISION = "c1899de289a04d12100db370d81485cdf75e47ca"
+DEFAULT_CORPUS_REVISION = "b27b02bc3e45511b8b82a13e6f90ce761df726f6"
+DEFAULT_INDEX_REVISION = "b3f37f70c33829eb09d04784a54277a31871fd63"
+PLAN_A_RETRIEVER_REVISION = (
+    "browsecomp-retriever-"
+    "e10361ce3ec95089dd79d3058cb33b73cb3b1da043b239c3525a6c7a7abd5ece"
+)
+PLAN_A_MODEL = "kimi-k2.6"
+PLAN_A_REASONING_EFFORT = "medium"
+PLAN_A_SEARCH_CAP = 50
+PLAN_A_SAMPLE_COUNT = 100
+PLAN_A_CHECKPOINT_SCHEMA_VERSION = 2
+PLAN_A_SCENARIOS = {(1, 0, 0), (7, 2, 2)}
+PLAN_A_TASK_IDS_FILE = (
+    Path(__file__).resolve().parents[2]
+    / "intent_construction"
+    / "eval_indices"
+    / "browsecomp_plus_task_ids.json"
+)
 
 # BrowseComp+ search agent instruction (from BrowseComp-Plus repo)
 SEARCH_AGENT_INSTRUCTION = """You are a deep research agent. You need to answer the given question by interacting with a search engine, using the search tool provided. Please perform reasoning and use the tool step by step, in an interleaved manner. You may use the search tool multiple times.
@@ -85,6 +119,302 @@ SEARCH_TOOL_DEF = {
 }
 
 
+def atomic_write_json(path: Path, payload: Any) -> None:
+    """Durably replace a JSON artifact without exposing partial content."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temp_path = Path(handle.name)
+            json.dump(payload, handle, indent=2, ensure_ascii=False)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, path)
+        temp_path = None
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+
+
+def _task_checkpoint_path(checkpoint_dir: Path, task_id: str) -> Path:
+    readable = re.sub(r"[^A-Za-z0-9_.-]+", "_", task_id).strip("._") or "task"
+    digest = hashlib.sha256(task_id.encode("utf-8")).hexdigest()[:12]
+    return checkpoint_dir / f"{readable[:96]}-{digest}.json"
+
+
+def _canonical_sha256(payload: Any) -> str:
+    try:
+        encoded = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("checkpoint input is not canonical JSON") from exc
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _checkpoint_json_value(value: Any) -> Any:
+    if is_dataclass(value):
+        return _checkpoint_json_value(asdict(value))
+    if isinstance(value, dict):
+        return {str(key): _checkpoint_json_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_checkpoint_json_value(item) for item in value]
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    raise ValueError(
+        f"checkpoint input contains unsupported value {type(value).__qualname__}"
+    )
+
+
+def _file_sha256_or_marker(path: str | Path | None) -> str:
+    if path is None:
+        return "none"
+    target = Path(path)
+    if not target.is_file():
+        return f"missing:{target}"
+    digest = hashlib.sha256()
+    with target.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _sample_input_sha256(sample: Any) -> str:
+    return _canonical_sha256(
+        _checkpoint_json_value({
+            "task_id": getattr(sample, "task_id", None),
+            "label": getattr(sample, "label", None),
+            "metadata": getattr(sample, "metadata", None),
+            "turns": getattr(sample, "turns", None),
+            "structured_contents": getattr(sample, "structured_contents", None),
+            "recap_texts": getattr(sample, "recap_texts", None),
+        })
+    )
+
+
+def _source_bundle_sha256(paths: list[Path]) -> str:
+    digest = hashlib.sha256()
+    for path in paths:
+        digest.update(str(path).encode("utf-8"))
+        digest.update(b"\0")
+        if not path.is_file():
+            raise ValueError(f"checkpoint source file is missing: {path}")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def _retriever_checkpoint_policy(retriever: Any) -> dict[str, Any]:
+    policy: dict[str, Any] = {
+        "class": f"{type(retriever).__module__}.{type(retriever).__qualname__}",
+    }
+    for attribute in (
+        "k",
+        "snippet_max_tokens",
+        "device",
+        "revision",
+        "model_name",
+        "model_revision",
+        "corpus_dataset",
+        "corpus_revision",
+        "snippet_tokenizer_revision",
+    ):
+        value = getattr(retriever, attribute, None)
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            policy[attribute] = value
+    url = getattr(retriever, "url", None)
+    if isinstance(url, str):
+        policy["url_sha256"] = hashlib.sha256(url.encode("utf-8")).hexdigest()
+    return policy
+
+
+def _evaluation_checkpoint_envelope(
+    *,
+    task_id: str,
+    input_sha256: str,
+    policy: dict[str, Any],
+    result: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "schema_version": PLAN_A_CHECKPOINT_SCHEMA_VERSION,
+        "task_id": task_id,
+        "input_sha256": input_sha256,
+        "policy": policy,
+        "result": result,
+    }
+
+
+def _load_result_mapping(path: Path) -> dict[str, dict[str, Any]]:
+    if not path.exists():
+        return {}
+    with path.open(encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict):
+        raise ValueError(f"result artifact must be a JSON object: {path}")
+    results: dict[str, dict[str, Any]] = {}
+    for task_id, result in payload.items():
+        if not isinstance(task_id, str) or not isinstance(result, dict):
+            raise ValueError(f"invalid task result in {path}")
+        if result.get("task_id") not in (None, task_id):
+            raise ValueError(f"task id mismatch in {path}: {task_id}")
+        results[task_id] = result
+    return results
+
+
+def _result_is_complete(result: Any, expected_responses: int | None = None) -> bool:
+    if not isinstance(result, dict) or result.get("success") is not True:
+        return False
+    prediction = result.get("prediction")
+    if not isinstance(prediction, str) or not prediction.strip():
+        return False
+    responses = result.get("responses")
+    if not isinstance(responses, list) or not responses:
+        return False
+    if expected_responses is not None and len(responses) != expected_responses:
+        return False
+    return all(
+        isinstance(item, dict)
+        and isinstance(item.get("response"), str)
+        and bool(item["response"].strip())
+        for item in responses
+    )
+
+
+def _load_task_checkpoints(checkpoint_dir: Path) -> dict[str, dict[str, Any]]:
+    results: dict[str, dict[str, Any]] = {}
+    if not checkpoint_dir.exists():
+        return results
+    for path in sorted(checkpoint_dir.glob("*.json")):
+        with path.open(encoding="utf-8") as handle:
+            result = json.load(handle)
+        if not isinstance(result, dict) or not isinstance(result.get("task_id"), str):
+            raise ValueError(f"invalid task checkpoint: {path}")
+        results[result["task_id"]] = result
+    return results
+
+
+def _load_bound_task_checkpoints(
+    checkpoint_dir: Path,
+    *,
+    input_hashes: dict[str, str],
+    policy: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    results: dict[str, dict[str, Any]] = {}
+    if not checkpoint_dir.exists():
+        return results
+    for path in sorted(checkpoint_dir.glob("*.json")):
+        with path.open(encoding="utf-8") as handle:
+            envelope = json.load(handle)
+        if not isinstance(envelope, dict):
+            raise ValueError(f"invalid bound task checkpoint: {path}")
+        task_id = envelope.get("task_id")
+        if not isinstance(task_id, str) or task_id not in input_hashes:
+            raise ValueError(f"checkpoint has an unexpected task ID: {path}")
+        expected = _evaluation_checkpoint_envelope(
+            task_id=task_id,
+            input_sha256=input_hashes[task_id],
+            policy=policy,
+            result={},
+        )
+        for key in ("schema_version", "task_id", "input_sha256", "policy"):
+            if envelope.get(key) != expected[key]:
+                raise ValueError(
+                    f"checkpoint {key} does not match current input/policy: {path}"
+                )
+        result = envelope.get("result")
+        if not isinstance(result, dict) or result.get("task_id") != task_id:
+            raise ValueError(f"checkpoint has an invalid task result: {path}")
+        results[task_id] = result
+    return results
+
+
+def _usage_ledger_marker(required: bool = False) -> tuple[Path, int] | None:
+    raw = os.environ.get("LLM_USAGE_LEDGER_PATH", "").strip()
+    if not raw:
+        if required:
+            raise RuntimeError("Plan A requires LLM_USAGE_LEDGER_PATH")
+        return None
+    path = Path(os.path.expandvars(os.path.expanduser(raw))).resolve()
+    return path, path.stat().st_size if path.exists() else 0
+
+
+def _assert_usage_models_since(
+    marker: tuple[Path, int] | None,
+    expected_model: str,
+) -> None:
+    if marker is None:
+        return
+    path, offset = marker
+    if not path.exists():
+        return
+    unexpected: set[str] = set()
+    with path.open(encoding="utf-8") as handle:
+        handle.seek(offset)
+        for line_number, line in enumerate(handle, start=1):
+            if not line.strip():
+                continue
+            entry = json.loads(line)
+            if entry.get("event") != "usage":
+                continue
+            requested_model = entry.get("requested_model")
+            resolved_model = entry.get("resolved_model")
+            if requested_model != expected_model:
+                unexpected.add(f"requested={requested_model!r}")
+            if resolved_model != expected_model:
+                unexpected.add(f"resolved={resolved_model!r}")
+    if unexpected:
+        raise RuntimeError(
+            f"model lock violated after execution; expected {expected_model!r}, "
+            f"observed {sorted(unexpected)!r}"
+        )
+
+
+def _assert_model_lock(
+    models: list[str],
+    naturalizer_model: str | None,
+    judge_model: str,
+    locked_model: str,
+) -> None:
+    if models != [locked_model]:
+        raise ValueError(f"Plan A requires exactly one model: {locked_model}")
+    if naturalizer_model != locked_model:
+        raise ValueError(f"naturalizer model must be {locked_model}")
+    if judge_model != locked_model:
+        raise ValueError(f"judge model must be {locked_model}")
+
+
+def _read_task_ids(path: Path) -> list[str]:
+    with path.open(encoding="utf-8") as handle:
+        payload = json.load(handle)
+    task_ids = payload.get("task_ids", payload) if isinstance(payload, dict) else payload
+    if not isinstance(task_ids, list) or not all(
+        isinstance(task_id, str) and task_id for task_id in task_ids
+    ):
+        raise ValueError(f"task ID file must contain non-empty strings: {path}")
+    if len(task_ids) != len(set(task_ids)):
+        raise ValueError(f"task ID file contains duplicates: {path}")
+    return task_ids
+
+
+def _lock_model_environment(locked_model: str) -> None:
+    existing = os.environ.get("LLM_LOCKED_MODEL", "").strip()
+    if existing and existing != locked_model:
+        raise ValueError(
+            f"LLM_LOCKED_MODEL is {existing!r}, expected {locked_model!r}"
+        )
+    os.environ["LLM_LOCKED_MODEL"] = locked_model
+
+
 # =============================================================================
 # FAISS Retriever (adapted from BrowseComp-Plus)
 # =============================================================================
@@ -97,6 +427,9 @@ class FaissRetriever:
         index_pattern: str = DEFAULT_INDEX_PATTERN,
         model_name: str = DEFAULT_MODEL_NAME,
         corpus_dataset: str = DEFAULT_CORPUS_DATASET,
+        model_revision: str = DEFAULT_MODEL_REVISION,
+        corpus_revision: str = DEFAULT_CORPUS_REVISION,
+        snippet_tokenizer_revision: str = DEFAULT_SNIPPET_TOKENIZER_REVISION,
         snippet_max_tokens: int = 512,
         k: int = 5,
         device: str = "cuda:0",
@@ -104,21 +437,32 @@ class FaissRetriever:
         self.k = k
         self.snippet_max_tokens = snippet_max_tokens
         self.device = device
+        self.model_name = model_name
+        self.model_revision = model_revision
+        self.corpus_dataset = corpus_dataset
+        self.corpus_revision = corpus_revision
+        self.snippet_tokenizer_revision = snippet_tokenizer_revision
+        self.revision = PLAN_A_RETRIEVER_REVISION
 
         # Load FAISS index
         self._load_index(index_pattern)
         # Load embedding model
-        self._load_model(model_name)
+        self._load_model(model_name, model_revision)
         # Load corpus
-        self._load_corpus(corpus_dataset)
+        self._load_corpus(corpus_dataset, corpus_revision)
         # Load snippet tokenizer
         from transformers import AutoTokenizer
-        self.snippet_tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B")
+        self.snippet_tokenizer = AutoTokenizer.from_pretrained(
+            "Qwen/Qwen3-0.6B",
+            revision=snippet_tokenizer_revision,
+        )
         # Thread lock for GPU FAISS + embedding model
         self._lock = threading.Lock()
 
     def _load_index(self, pattern: str):
         """Load FAISS index from sharded pickle files."""
+        import faiss
+
         files = sorted(glob.glob(pattern))
         if not files:
             raise FileNotFoundError(f"No index files found: {pattern}")
@@ -152,33 +496,41 @@ class FaissRetriever:
 
         print(f"  FAISS index loaded: {len(self.lookup)} vectors, dim={dim}")
 
-    def _load_model(self, model_name: str):
+    def _load_model(self, model_name: str, model_revision: str):
         """Load Qwen3-Embedding model directly (no tevatron dependency)."""
+        import torch
         from transformers import AutoTokenizer, AutoModel
 
         print(f"  Loading embedding model: {model_name}")
 
         self.embed_model = AutoModel.from_pretrained(
             model_name,
+            revision=model_revision,
             torch_dtype=torch.float16,
             trust_remote_code=True,
         )
         self.embed_model = self.embed_model.to(self.device)
         self.embed_model.eval()
+        self._torch = torch
 
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side="left")
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_name,
+            revision=model_revision,
+            padding_side="left",
+        )
         print("  Embedding model loaded")
 
-    def _load_corpus(self, dataset_name: str):
+    def _load_corpus(self, dataset_name: str, corpus_revision: str):
         """Load corpus from HuggingFace dataset."""
         from datasets import load_dataset
         print(f"  Loading corpus: {dataset_name}")
-        ds = load_dataset(dataset_name, split="train")
+        ds = load_dataset(dataset_name, split="train", revision=corpus_revision)
         self.docid_to_text = {row["docid"]: row["text"] for row in ds}
         print(f"  Corpus loaded: {len(self.docid_to_text)} documents")
 
     def search(self, query: str) -> str:
         """Search and return JSON string of results (matches BrowseComp-Plus format)."""
+        torch = self._torch
         task_prefix = "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
 
         input_text = task_prefix + query
@@ -225,6 +577,67 @@ class FaissRetriever:
             })
 
         return json.dumps(results, indent=2)
+
+
+class RemoteRetriever:
+    """HTTP adapter for the Modal-hosted Qwen3-Embedding-8B retriever."""
+
+    def __init__(
+        self,
+        url: str,
+        k: int = 5,
+        timeout_seconds: float = 1800.0,
+        max_attempts: int = 3,
+        bearer_token: str | None = None,
+        revision: str | None = None,
+    ):
+        if not url or not url.startswith(("https://", "http://")):
+            raise ValueError("retriever URL must be an absolute HTTP(S) URL")
+        self.url = url
+        self.k = k
+        self.timeout_seconds = timeout_seconds
+        self.max_attempts = max_attempts
+        self.bearer_token = bearer_token
+        self.revision = revision
+
+    def search(self, query: str) -> str:
+        if not isinstance(query, str) or not query.strip():
+            raise ValueError("search query must be a non-empty string")
+        body = json.dumps({"query": query, "k": self.k}).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        if self.bearer_token:
+            headers["Authorization"] = f"Bearer {self.bearer_token}"
+        req = urllib_request.Request(self.url, data=body, headers=headers, method="POST")
+        if self.max_attempts < 1:
+            raise ValueError("retriever max_attempts must be positive")
+        for attempt in range(self.max_attempts):
+            try:
+                with urllib_request.urlopen(req, timeout=self.timeout_seconds) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                break
+            except urllib_error.HTTPError as exc:
+                if exc.code not in {408, 429} and exc.code < 500:
+                    raise
+                if attempt + 1 >= self.max_attempts:
+                    raise
+            except (urllib_error.URLError, TimeoutError):
+                if attempt + 1 >= self.max_attempts:
+                    raise
+            time.sleep(min(2 ** attempt, 30))
+        if isinstance(payload, dict):
+            observed_revision = payload.get("retriever_revision")
+            if self.revision is not None and observed_revision != self.revision:
+                raise RuntimeError(
+                    "remote retriever revision mismatch: "
+                    f"expected {self.revision!r}, got {observed_revision!r}"
+                )
+            payload = payload.get("results")
+        if not isinstance(payload, list):
+            raise RuntimeError("remote retriever returned an invalid response")
+        for item in payload:
+            if not isinstance(item, dict) or not isinstance(item.get("docid"), str):
+                raise RuntimeError("remote retriever returned an invalid result item")
+        return json.dumps(payload, indent=2, ensure_ascii=False)
 
 
 # =============================================================================
@@ -279,12 +692,54 @@ FORCE_FINAL_ANSWER_NUDGE = (
 )
 
 
+def _is_kimi_k2_model(model: str) -> bool:
+    return clean_model_name(model).lower().rsplit("/", 1)[-1].startswith("kimi-k2.")
+
+
+def _chat_choice(response: Any):
+    choices = getattr(response, "choices", None)
+    if not choices:
+        raise LLMIncompleteResponse("API returned no chat completion choice")
+    choice = choices[0]
+    if getattr(choice, "finish_reason", None) in {"length", "max_tokens"}:
+        raise LLMIncompleteResponse("chat completion was truncated")
+    return choice
+
+
+def _force_final_chat_answer(
+    client,
+    deployment_name: str,
+    requested_model: str,
+    conversation: list[Any],
+    reasoning_effort: str | None,
+) -> str:
+    payload: dict[str, Any] = {
+        "model": deployment_name,
+        "messages": [
+            *conversation,
+            {"role": "user", "content": FORCE_FINAL_ANSWER_NUDGE},
+        ],
+    }
+    if not _is_kimi_k2_model(deployment_name):
+        payload["tool_choice"] = "none"
+    if reasoning_effort:
+        payload["reasoning_effort"] = reasoning_effort
+    response = _accounted_api_call(
+        client.chat.completions.create,
+        payload,
+        requested_model=requested_model,
+        resolved_model=deployment_name,
+        api="chat.completions",
+    )
+    return _chat_final_content(response)
+
+
 def run_agentic_search(
     messages: list[dict],
     model: str,
     retriever: FaissRetriever,
-    max_iterations: int = 30,
-    max_tokens: int = 10000,
+    max_iterations: int = 51,
+    max_tokens: int | None = None,
     temperature: float = 0.0,
     max_retries: int = 100,
     reasoning_effort: str | None = None,
@@ -315,7 +770,7 @@ def run_agentic_search(
 
     if use_responses:
         return _run_agentic_search_responses(
-            client, deployment_name, messages, retriever,
+            client, deployment_name, model, messages, retriever,
             max_iterations, max_tokens, max_retries,
             all_tool_calls, retrieved_docids,
             max_tool_calls=max_tool_calls,
@@ -335,8 +790,11 @@ def run_agentic_search(
                     "model": deployment_name,
                     "messages": conversation,
                     "tools": [SEARCH_TOOL_DEF],
-                    "tool_choice": "auto",
                 }
+                if _is_kimi_k2_model(deployment_name):
+                    kwargs["parallel_tool_calls"] = False
+                else:
+                    kwargs["tool_choice"] = "auto"
 
                 if temperature is not None and reasoning_effort is None:
                     kwargs["temperature"] = temperature
@@ -344,13 +802,16 @@ def run_agentic_search(
                 if reasoning_effort is not None:
                     kwargs["reasoning_effort"] = reasoning_effort
 
-                if "gpt-5" in model:
-                    kwargs["max_completion_tokens"] = max_tokens
-                else:
-                    kwargs["max_tokens"] = max_tokens
-
-                response = client.chat.completions.create(**kwargs)
+                response = _accounted_api_call(
+                    client.chat.completions.create,
+                    kwargs,
+                    requested_model=model,
+                    resolved_model=deployment_name,
+                    api="chat.completions",
+                )
                 break
+            except (LLMAccountingError, LLMIncompleteResponse):
+                raise
             except Exception as e:
                 error_str = str(e)
                 if attempt < max_retries - 1:
@@ -360,19 +821,7 @@ def run_agentic_search(
                 else:
                     raise
 
-        choice = response.choices[0] if response.choices else None
-        if choice is None:
-            # API returned empty choices — treat as final with empty content
-            conversation.append({"role": "assistant", "content": ""})
-            return {
-                "response": "",
-                "new_messages": conversation[initial_len:],
-                "tool_call_count": tool_call_count,
-                "tool_calls": all_tool_calls,
-                "retrieved_docids": list(retrieved_docids),
-                "iterations": iteration + 1,
-                "finish_reason": "empty_choices",
-            }
+        choice = _chat_choice(response)
         message = choice.message
 
         # Check if the model wants to call tools
@@ -382,6 +831,13 @@ def run_agentic_search(
 
             for tool_call in message.tool_calls:
                 if tool_call.function.name == "search":
+                    if max_tool_calls is not None and tool_call_count >= max_tool_calls:
+                        conversation.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": json.dumps({"error": "per-turn search budget exhausted"}),
+                        })
+                        continue
                     try:
                         args = json.loads(tool_call.function.arguments)
                     except (json.JSONDecodeError, TypeError):
@@ -420,6 +876,8 @@ def run_agentic_search(
         else:
             # No tool calls - agent has produced final answer
             final_content = message.content or ""
+            if not final_content.strip():
+                raise LLMIncompleteResponse("agent returned no final answer content")
             conversation.append({"role": "assistant", "content": final_content})
             return {
                 "response": final_content,
@@ -431,11 +889,21 @@ def run_agentic_search(
                 "finish_reason": choice.finish_reason,
             }
 
-        # Check tool call cap (enforced after completing the current batch)
+        # The cap is checked for every requested tool call above, so parallel
+        # calls cannot overshoot it. Once exhausted, force a text-only answer.
         if max_tool_calls is not None and tool_call_count >= max_tool_calls:
-            final_content = message.content or ""
-            if conversation[-1].get("role") != "assistant" or "tool_calls" in conversation[-1]:
-                conversation.append({"role": "assistant", "content": final_content})
+            if not force_final_answer:
+                raise LLMIncompleteResponse(
+                    "per-turn search budget exhausted before a final answer"
+                )
+            final_content = _force_final_chat_answer(
+                client,
+                deployment_name,
+                model,
+                conversation,
+                reasoning_effort,
+            )
+            conversation.append({"role": "assistant", "content": final_content})
             return {
                 "response": final_content,
                 "new_messages": conversation[initial_len:],
@@ -443,55 +911,23 @@ def run_agentic_search(
                 "tool_calls": all_tool_calls,
                 "retrieved_docids": list(retrieved_docids),
                 "iterations": iteration + 1,
-                "finish_reason": "max_tool_calls",
-            }
-
-        # Check finish reason
-        if choice.finish_reason == "stop":
-            final_content = message.content or ""
-            # Ensure conversation ends with clean assistant message
-            if conversation[-1].get("role") != "assistant" or "tool_calls" in conversation[-1]:
-                conversation.append({"role": "assistant", "content": final_content})
-            return {
-                "response": final_content,
-                "new_messages": conversation[initial_len:],
-                "tool_call_count": tool_call_count,
-                "tool_calls": all_tool_calls,
-                "retrieved_docids": list(retrieved_docids),
-                "iterations": iteration + 1,
-                "finish_reason": "stop",
+                "finish_reason": "max_tool_calls_forced_final",
             }
 
     # Max iterations reached
-    final_content = (message.content or "") if message else ""
-
     if force_final_answer:
-        # Force one extra LLM round-trip with tool_choice="none" to coax a
-        # final textual answer. This recovers samples where the model spent
-        # the entire search budget calling tools and never wrote a response.
-        # Close any dangling tool_calls assistant message first so the
-        # conversation remains valid.
-        if conversation[-1].get("role") != "assistant" or "tool_calls" in conversation[-1]:
-            if final_content:
-                conversation.append({"role": "assistant", "content": final_content})
-        conversation.append({"role": "user", "content": FORCE_FINAL_ANSWER_NUDGE})
         for attempt in range(max_retries):
             try:
-                kwargs = {
-                    "model": deployment_name,
-                    "messages": conversation,
-                    "tool_choice": "none",
-                }
-                if temperature is not None and reasoning_effort is None:
-                    kwargs["temperature"] = temperature
-                if reasoning_effort is not None:
-                    kwargs["reasoning_effort"] = reasoning_effort
-                if "gpt-5" in model:
-                    kwargs["max_completion_tokens"] = max_tokens
-                else:
-                    kwargs["max_tokens"] = max_tokens
-                forced_resp = client.chat.completions.create(**kwargs)
+                forced_content = _force_final_chat_answer(
+                    client,
+                    deployment_name,
+                    model,
+                    conversation,
+                    reasoning_effort,
+                )
                 break
+            except (LLMAccountingError, LLMIncompleteResponse):
+                raise
             except Exception as e:
                 error_str = str(e)
                 if attempt < max_retries - 1:
@@ -500,8 +936,6 @@ def run_agentic_search(
                     time.sleep(delay)
                 else:
                     raise
-        forced_choice = forced_resp.choices[0] if forced_resp.choices else None
-        forced_content = (forced_choice.message.content or "") if forced_choice else ""
         conversation.append({"role": "assistant", "content": forced_content})
         return {
             "response": forced_content,
@@ -513,18 +947,7 @@ def run_agentic_search(
             "finish_reason": "max_iterations_forced_final",
         }
 
-    # Ensure conversation ends with clean assistant message
-    if conversation[-1].get("role") != "assistant" or "tool_calls" in conversation[-1]:
-        conversation.append({"role": "assistant", "content": final_content})
-    return {
-        "response": final_content,
-        "new_messages": conversation[initial_len:],
-        "tool_call_count": tool_call_count,
-        "tool_calls": all_tool_calls,
-        "retrieved_docids": list(retrieved_docids),
-        "iterations": max_iterations,
-        "finish_reason": "max_iterations",
-    }
+    raise LLMIncompleteResponse("agent exhausted round trips without a final answer")
 
 
 # Responses API tool definition (flat format, no nested "function" key)
@@ -536,13 +959,41 @@ SEARCH_TOOL_DEF_RESPONSES = {
 }
 
 
+def _force_final_responses_answer(
+    client,
+    deployment_name: str,
+    requested_model: str,
+    conversation: list[dict],
+    reasoning_effort: str | None,
+) -> str:
+    payload: dict[str, Any] = {
+        "model": deployment_name,
+        "input": [
+            *conversation,
+            {"role": "user", "content": FORCE_FINAL_ANSWER_NUDGE},
+        ],
+        "tool_choice": "none",
+    }
+    if reasoning_effort:
+        payload["reasoning"] = {"effort": reasoning_effort}
+    response = _accounted_api_call(
+        client.responses.create,
+        payload,
+        requested_model=requested_model,
+        resolved_model=deployment_name,
+        api="responses",
+    )
+    return _responses_final_content(response)
+
+
 def _run_agentic_search_responses(
     client,
     deployment_name: str,
+    requested_model: str,
     messages: list[dict],
     retriever: FaissRetriever,
     max_iterations: int,
-    max_tokens: int,
+    max_tokens: int | None,
     max_retries: int,
     all_tool_calls: list,
     retrieved_docids: set,
@@ -570,12 +1021,19 @@ def _run_agentic_search_responses(
                     "input": conversation,
                     "tools": [SEARCH_TOOL_DEF_RESPONSES],
                     "tool_choice": "auto",
-                    "max_output_tokens": max_tokens,
                 }
                 if reasoning_effort:
                     api_params["reasoning"] = {"effort": reasoning_effort}
-                resp = client.responses.create(**api_params)
+                resp = _accounted_api_call(
+                    client.responses.create,
+                    api_params,
+                    requested_model=requested_model,
+                    resolved_model=deployment_name,
+                    api="responses",
+                )
                 break
+            except (LLMAccountingError, LLMIncompleteResponse):
+                raise
             except Exception as e:
                 error_str = str(e)
                 if attempt < max_retries - 1:
@@ -592,6 +1050,19 @@ def _run_agentic_search_responses(
             if item.type == "function_call":
                 has_tool_call = True
                 if item.name == "search":
+                    if max_tool_calls is not None and tool_call_count >= max_tool_calls:
+                        conversation.append({
+                            "type": "function_call",
+                            "call_id": item.call_id,
+                            "name": item.name,
+                            "arguments": item.arguments,
+                        })
+                        conversation.append({
+                            "type": "function_call_output",
+                            "call_id": item.call_id,
+                            "output": json.dumps({"error": "per-turn search budget exhausted"}),
+                        })
+                        continue
                     try:
                         args = json.loads(item.arguments)
                     except (json.JSONDecodeError, TypeError):
@@ -642,6 +1113,8 @@ def _run_agentic_search_responses(
                         final_text += content.text
 
         if not has_tool_call:
+            if not final_text.strip():
+                raise LLMIncompleteResponse("agent returned no final answer content")
             conversation.append({"role": "assistant", "content": final_text})
             return {
                 "response": final_text,
@@ -653,8 +1126,19 @@ def _run_agentic_search_responses(
                 "finish_reason": "stop",
             }
 
-        # Check tool call cap (enforced after completing the current batch)
+        # Per-call enforcement above prevents a parallel batch from overshooting.
         if max_tool_calls is not None and tool_call_count >= max_tool_calls:
+            if not force_final_answer:
+                raise LLMIncompleteResponse(
+                    "per-turn search budget exhausted before a final answer"
+                )
+            final_text = _force_final_responses_answer(
+                client,
+                deployment_name,
+                requested_model,
+                conversation,
+                reasoning_effort,
+            )
             conversation.append({"role": "assistant", "content": final_text})
             return {
                 "response": final_text,
@@ -663,26 +1147,23 @@ def _run_agentic_search_responses(
                 "tool_calls": all_tool_calls,
                 "retrieved_docids": list(retrieved_docids),
                 "iterations": iteration + 1,
-                "finish_reason": "max_tool_calls",
+                "finish_reason": "max_tool_calls_forced_final",
             }
 
     # Max iterations — ensure conversation ends with clean assistant message
     if force_final_answer:
-        # One additional Responses-API call with tool_choice="none" to force a
-        # final textual answer. Append a synthetic user nudge into the input.
-        conversation.append({"role": "user", "content": FORCE_FINAL_ANSWER_NUDGE})
         for attempt in range(max_retries):
             try:
-                api_params: dict[str, Any] = {
-                    "model": deployment_name,
-                    "input": conversation,
-                    "tool_choice": "none",
-                    "max_output_tokens": max_tokens,
-                }
-                if reasoning_effort:
-                    api_params["reasoning"] = {"effort": reasoning_effort}
-                forced_resp = client.responses.create(**api_params)
+                forced_text = _force_final_responses_answer(
+                    client,
+                    deployment_name,
+                    requested_model,
+                    conversation,
+                    reasoning_effort,
+                )
                 break
+            except (LLMAccountingError, LLMIncompleteResponse):
+                raise
             except Exception as e:
                 error_str = str(e)
                 if attempt < max_retries - 1:
@@ -691,12 +1172,6 @@ def _run_agentic_search_responses(
                     time.sleep(delay)
                 else:
                     raise
-        forced_text = ""
-        for item in forced_resp.output:
-            if getattr(item, "type", None) == "message":
-                for content in item.content:
-                    if hasattr(content, "text"):
-                        forced_text += content.text
         conversation.append({"role": "assistant", "content": forced_text})
         return {
             "response": forced_text,
@@ -708,16 +1183,7 @@ def _run_agentic_search_responses(
             "finish_reason": "max_iterations_forced_final",
         }
 
-    conversation.append({"role": "assistant", "content": final_text})
-    return {
-        "response": final_text,
-        "new_messages": conversation[initial_len:],
-        "tool_call_count": tool_call_count,
-        "tool_calls": all_tool_calls,
-        "retrieved_docids": list(retrieved_docids),
-        "iterations": max_iterations,
-        "finish_reason": "max_iterations",
-    }
+    raise LLMIncompleteResponse("agent exhausted round trips without a final answer")
 
 
 # =============================================================================
@@ -729,8 +1195,8 @@ def run_multi_turn_browsecomp(
     model: str,
     retriever: FaissRetriever,
     temperature: float = 0.0,
-    max_tokens: int = 10000,
-    max_search_iterations: int = 15,
+    max_tokens: int | None = None,
+    max_search_iterations: int = 51,
     reasoning_effort: str | None = None,
     max_tool_calls: int | None = None,
     no_retrieval_history: bool = False,
@@ -783,6 +1249,8 @@ def run_multi_turn_browsecomp(
             else:
                 messages.extend(result["new_messages"])
 
+        except (LLMAccountingError, LLMIncompleteResponse):
+            raise
         except Exception as e:
             user_messages = [m["content"] for m in messages if m.get("role") == "user"]
             return {
@@ -980,20 +1448,27 @@ def llm_judge(
     for attempt in range(max_retries):
         try:
             if use_responses:
-                resp = client.responses.create(
-                    model=deployment_name,
-                    input=messages,
-                    max_output_tokens=1024,
+                resp = _accounted_api_call(
+                    client.responses.create,
+                    {"model": deployment_name, "input": messages},
+                    requested_model=judge_model,
+                    resolved_model=deployment_name,
+                    api="responses",
                 )
-                judge_text = resp.output_text or ""
+                judge_text = _responses_final_content(resp)
             else:
-                response = client.chat.completions.create(
-                    model=deployment_name,
-                    messages=messages,
-                    temperature=0.0,
-                    max_completion_tokens=1024,
+                response = _accounted_api_call(
+                    client.chat.completions.create,
+                    {
+                        "model": deployment_name,
+                        "messages": messages,
+                        "temperature": 0.0,
+                    },
+                    requested_model=judge_model,
+                    resolved_model=deployment_name,
+                    api="chat.completions",
                 )
-                judge_text = (response.choices[0].message.content or "") if response.choices else ""
+                judge_text = _chat_final_content(response)
             parsed = parse_judge_response(judge_text)
 
             if not parsed["parse_error"]:
@@ -1003,6 +1478,8 @@ def llm_judge(
                     "extracted_answer": parsed["extracted_answer"],
                     "judge_raw": judge_text,
                 }
+        except (LLMAccountingError, LLMIncompleteResponse):
+            raise
         except Exception as e:
             error_str = str(e)
             if attempt < max_retries - 1:
@@ -1058,10 +1535,10 @@ def check_answer_browsecomp(
 def evaluate_sample(
     sample,  # IntentSample
     model: str,
-    retriever: FaissRetriever,
+    retriever: Any,
     temperature: float = 0.0,
-    max_tokens: int = 10000,
-    max_search_iterations: int = 15,
+    max_tokens: int | None = None,
+    max_search_iterations: int = 51,
     judge_model: str = "gpt-5.1",
     reasoning_effort: str | None = None,
     max_tool_calls: int | None = None,
@@ -1133,23 +1610,26 @@ def run_experiment(
     data_path: str,
     dataset_name: str,
     model: str,
-    retriever: FaissRetriever,
+    retriever: Any,
     num_turns: int = 1,
     num_revisions: int = 0,
     num_switches: int = 0,
     ordering: str = "interleaved",
     temperature: float = 0.0,
-    max_tokens: int = 10000,
+    max_tokens: int | None = None,
     num_samples: Optional[int] = None,
     num_workers: int = 1,
     task_ids_file: Optional[str] = None,
-    max_search_iterations: int = 15,
+    max_search_iterations: int = 51,
     naturalizer_model: str | None = None,
+    judge_model: str = "gpt-5.1",
     reasoning_effort: str | None = None,
-    max_tool_calls: int | None = None,
+    max_tool_calls: int | None = 50,
     recap_method: str | None = None,
     no_retrieval_history: bool = False,
     force_final_answer: bool = False,
+    expected_samples: int | None = None,
+    fail_fast: bool = False,
 ) -> dict[str, Any]:
     """Run a single BrowseComp+ experiment configuration."""
 
@@ -1199,17 +1679,16 @@ def run_experiment(
     exp_dir.mkdir(parents=True, exist_ok=True)
     output_path = exp_dir / output_filename
 
-    # Skip if results already exist
-    if output_path.exists():
-        print(f"⏭️  Skipping (already exists): {output_path}")
-        return {"model": model, "status": "skipped", "path": str(output_path)}
-
     # Load task_ids filter
     task_ids = None
     if task_ids_file:
         with open(task_ids_file, 'r') as f:
             task_ids_data = json.load(f)
             task_ids = task_ids_data.get('task_ids', task_ids_data) if isinstance(task_ids_data, dict) else task_ids_data
+        if not isinstance(task_ids, list) or not all(isinstance(item, str) for item in task_ids):
+            raise ValueError("task_ids_file must contain a list of string task IDs")
+        if len(task_ids) != len(set(task_ids)):
+            raise ValueError("task_ids_file contains duplicate task IDs")
 
     # Load simulator with search-agent instruction
     sim = EvolvingIntent(
@@ -1229,6 +1708,10 @@ def run_experiment(
     samples = list(sim)
     if num_samples:
         samples = samples[:num_samples]
+    if expected_samples is not None and len(samples) != expected_samples:
+        raise ValueError(
+            f"expected exactly {expected_samples} selected samples, found {len(samples)}"
+        )
 
     print(f"\n{'='*60}")
     print(f"BrowseComp+ Evaluation")
@@ -1253,64 +1736,198 @@ def run_experiment(
     print(f"Output: {output_path}")
     print(f"{'='*60}")
 
-    # Run evaluation
-    results = {}
-
-    # Incremental save: dump results atomically (tmp + rename) so a kill /
-    # OOM / host reboot mid-run cannot leave a half-written JSON, and so
-    # any partial progress is recoverable without a fresh run.
     output_path = Path(output_path)
+    checkpoint_dir = Path(f"{output_path}.checkpoints")
     write_lock = threading.Lock()
+    strict_bound_resume = (
+        model == PLAN_A_MODEL
+        and os.environ.get("LLM_LOCKED_MODEL", "").strip() == PLAN_A_MODEL
+    )
+    if strict_bound_resume and reasoning_effort != PLAN_A_REASONING_EFFORT:
+        raise ValueError(
+            f"Plan A checkpoints require reasoning_effort={PLAN_A_REASONING_EFFORT}"
+        )
+    resolved_model = resolve_model_name(model)
+    if strict_bound_resume and resolved_model != PLAN_A_MODEL:
+        raise ValueError(
+            f"Plan A requires resolved model {PLAN_A_MODEL!r}, got {resolved_model!r}"
+        )
+    if strict_bound_resume:
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    repository_root = Path(__file__).resolve().parents[2]
+    checkpoint_input_hashes = {
+        sample.task_id: _sample_input_sha256(sample) for sample in samples
+    }
+    checkpoint_policy = {
+        "workflow": "browsecomp-plan-a-evaluation",
+        "schema_version": PLAN_A_CHECKPOINT_SCHEMA_VERSION,
+        "requested_model": model,
+        "resolved_model": resolved_model,
+        "reasoning_effort": reasoning_effort,
+        "scenario": {
+            "name": scenario,
+            "num_turns": num_turns,
+            "num_revisions": num_revisions,
+            "num_switches": num_switches,
+            "ordering": ordering,
+        },
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "max_search_iterations": max_search_iterations,
+        "max_tool_calls": max_tool_calls,
+        "naturalizer_model": naturalizer_model,
+        "judge_model": judge_model,
+        "recap_method": recap_method,
+        "no_retrieval_history": no_retrieval_history,
+        "force_final_answer": force_final_answer,
+        "dataset_sha256": _file_sha256_or_marker(data_path),
+        "task_ids_sha256": _file_sha256_or_marker(task_ids_file),
+        "source_bundle_sha256": _source_bundle_sha256(
+            [
+                Path(__file__).resolve(),
+                repository_root / "situated_simulation" / "user_simulation.py",
+                repository_root / "situated_simulation" / "naturalizer.py",
+                repository_root
+                / "intent_construction"
+                / "intent_extraction"
+                / "core"
+                / "llm_utils.py",
+            ]
+        ),
+        "instruction_sha256": hashlib.sha256(
+            SEARCH_AGENT_INSTRUCTION.encode("utf-8")
+        ).hexdigest(),
+        "retriever": _retriever_checkpoint_policy(retriever),
+        "selected_task_ids": [sample.task_id for sample in samples],
+    }
+
+    # Recover both the aggregate and per-task checkpoints. A failed or empty
+    # task result remains visible but is treated as pending on the next run.
+    if strict_bound_resume:
+        if output_path.exists() and not checkpoint_dir.exists():
+            raise ValueError(
+                "Plan A found an unbound legacy aggregate without checkpoints; "
+                "use a new output directory"
+            )
+        results = _load_bound_task_checkpoints(
+            checkpoint_dir,
+            input_hashes=checkpoint_input_hashes,
+            policy=checkpoint_policy,
+        )
+    else:
+        results = _load_result_mapping(output_path)
+        results.update(_load_task_checkpoints(checkpoint_dir))
+    selected_ids = {sample.task_id for sample in samples}
+    unexpected_ids = set(results) - selected_ids
+    if unexpected_ids:
+        raise ValueError(
+            f"existing result artifact contains {len(unexpected_ids)} unexpected task IDs"
+        )
+    completed_ids = {
+        task_id
+        for task_id, result in results.items()
+        if _result_is_complete(result, expected_responses=num_turns)
+    }
+    pending_samples = [sample for sample in samples if sample.task_id not in completed_ids]
+    if completed_ids:
+        print(f"Resuming: {len(completed_ids)} complete, {len(pending_samples)} pending")
 
     def _save_incremental() -> None:
         with write_lock:
-            tmp = output_path.with_suffix(output_path.suffix + ".tmp")
-            with open(tmp, "w") as f:
-                json.dump(results, f, indent=2, ensure_ascii=False)
-            tmp.replace(output_path)
+            atomic_write_json(output_path, results)
 
-    # Create the file up-front (empty dict) so external tooling can poll
-    # it from the moment the run starts.
+    def _save_task_result(result: dict[str, Any]) -> None:
+        task_id = result["task_id"]
+        with write_lock:
+            checkpoint_payload: dict[str, Any] = result
+            if strict_bound_resume:
+                checkpoint_payload = _evaluation_checkpoint_envelope(
+                    task_id=task_id,
+                    input_sha256=checkpoint_input_hashes[task_id],
+                    policy=checkpoint_policy,
+                    result=result,
+                )
+            atomic_write_json(
+                _task_checkpoint_path(checkpoint_dir, task_id),
+                checkpoint_payload,
+            )
+            results[task_id] = result
+            atomic_write_json(output_path, results)
+
+    def _failure_result(sample, error: BaseException) -> dict[str, Any]:
+        return {
+            "task_id": sample.task_id,
+            "prediction": None,
+            "correct": False,
+            "success": False,
+            "error": f"{type(error).__name__}: {error}",
+            "responses": [],
+            "total_tool_calls": 0,
+            "retrieved_docids": [],
+            "user_messages": [],
+            "metadata": getattr(sample, "metadata", {}),
+        }
+
     _save_incremental()
+
+    stop_event = threading.Event()
+
+    def _evaluate_and_checkpoint(sample) -> dict[str, Any]:
+        if stop_event.is_set():
+            raise CancelledError("evaluation cancelled after another task failed")
+        try:
+            result = evaluate_sample(
+                sample, model, retriever, temperature, max_tokens,
+                max_search_iterations, judge_model,
+                reasoning_effort, max_tool_calls, no_retrieval_history,
+                force_final_answer,
+            )
+        except Exception as error:
+            _save_task_result(_failure_result(sample, error))
+            if fail_fast:
+                stop_event.set()
+            raise
+        _save_task_result(result)
+        if fail_fast and not _result_is_complete(
+            result, expected_responses=num_turns
+        ):
+            stop_event.set()
+            raise LLMIncompleteResponse(
+                f"task {result['task_id']} did not produce a complete response"
+            )
+        return result
 
     if num_workers > 1:
         with ThreadPoolExecutor(max_workers=num_workers) as executor:
             futures = {
-                executor.submit(
-                    evaluate_sample, sample, model, retriever, temperature, max_tokens,
-                    max_search_iterations, "gpt-5.1",
-                    reasoning_effort, max_tool_calls, no_retrieval_history,
-                    force_final_answer,
-                ): sample
-                for sample in samples
+                executor.submit(_evaluate_and_checkpoint, sample): sample
+                for sample in pending_samples
             }
 
-            for future in tqdm(as_completed(futures), total=len(samples), desc=f"{model}"):
+            for future in tqdm(as_completed(futures), total=len(pending_samples), desc=f"{model}"):
                 try:
-                    result = future.result()
-                    results[result["task_id"]] = result
-                    _save_incremental()
+                    future.result()
+                except CancelledError:
+                    continue
                 except Exception as e:
                     sample = futures[future]
+                    if fail_fast:
+                        stop_event.set()
+                        for pending in futures:
+                            pending.cancel()
+                        raise
                     import traceback; traceback.print_exc()
                     print(f"\n❌ Error: {sample.task_id}: {e}")
     else:
-        for sample in tqdm(samples, desc=f"{model}"):
+        for sample in tqdm(pending_samples, desc=f"{model}"):
             try:
-                result = evaluate_sample(
-                    sample, model, retriever, temperature, max_tokens,
-                    max_search_iterations, "gpt-5.1",
-                    reasoning_effort, max_tool_calls, no_retrieval_history,
-                    force_final_answer,
-                )
-                results[result["task_id"]] = result
-                _save_incremental()
+                _evaluate_and_checkpoint(sample)
             except Exception as e:
+                if fail_fast:
+                    raise
                 import traceback; traceback.print_exc()
                 print(f"\n❌ Error: {sample.task_id}: {e}")
 
-    # Final save (no-op if every task already saved incrementally, but
-    # also handles the case where every task raised before saving).
     _save_incremental()
 
     # Summary
@@ -1377,7 +1994,10 @@ def main():
 
     # Execution parameters
     parser.add_argument("--temperature", type=float, default=0.0)
-    parser.add_argument("--max_tokens", type=int, default=10000)
+    parser.add_argument(
+        "--max_tokens", type=int, default=None,
+        help="Deprecated compatibility option; Plan A sends no output-token limit",
+    )
     parser.add_argument("--num_samples", type=int, default=None)
     parser.add_argument("--num_workers", type=int, default=1)
     parser.add_argument("--task_ids_file", type=str, default=None)
@@ -1387,12 +2007,25 @@ def main():
     parser.add_argument("--embedding_model", default=DEFAULT_MODEL_NAME)
     parser.add_argument("--corpus_dataset", default=DEFAULT_CORPUS_DATASET)
     parser.add_argument("--retriever_device", default="cuda:0")
+    parser.add_argument(
+        "--retriever_url", default=None,
+        help="Modal retriever HTTP endpoint; skips local model/index loading",
+    )
+    parser.add_argument(
+        "--retriever_revision",
+        default=None,
+        help="Expected immutable retriever deployment revision",
+    )
+    parser.add_argument(
+        "--retriever_bearer_token", default=os.environ.get("BROWSECOMP_RETRIEVER_TOKEN"),
+        help=argparse.SUPPRESS,
+    )
     parser.add_argument("--snippet_max_tokens", type=int, default=512)
     parser.add_argument("--search_k", type=int, default=5)
-    parser.add_argument("--max_search_iterations", type=int, default=15,
+    parser.add_argument("--max_search_iterations", type=int, default=51,
                         help="Max LLM round-trips per turn for agentic search")
-    parser.add_argument("--max_tool_calls", type=int, default=None,
-                        help="Hard cap on tool calls per turn (default: None = unlimited)")
+    parser.add_argument("--max_tool_calls", type=int, default=PLAN_A_SEARCH_CAP,
+                        help="Hard cap on tool calls per turn (Plan A: 50)")
     parser.add_argument("--run_grid", action="store_true",
                         help="Run all 16 grid configs (g=0..3 × p=0..3) with shared retriever")
     parser.add_argument("--run_plan", action="store_true",
@@ -1402,6 +2035,18 @@ def main():
                              "1 function-switch + 1 cond-change + 2 combined) with shared retriever")
     parser.add_argument("--naturalizer_model", type=str, default=None,
                         help="Model for online naturalizer (default: None = use pre-built turns)")
+    parser.add_argument("--judge_model", type=str, default=PLAN_A_MODEL,
+                        help="Model for answer judging after deterministic matching")
+    parser.add_argument("--locked_model", type=str, default=None,
+                        help="Require agent, naturalizer, and judge to use this one model")
+    parser.add_argument("--expected_samples", type=int, default=None,
+                        help="Fail unless the selected evaluation set has this exact size")
+    parser.add_argument("--fail_fast", action="store_true",
+                        help="Abort after an empty, incomplete, or failed task response")
+    parser.add_argument("--require_usage_ledger", action="store_true",
+                        help="Require LLM_USAGE_LEDGER_PATH and audit appended model IDs")
+    parser.add_argument("--usage_only_accounting", action="store_true",
+                        help="Reject LLM_COST_HARD_CAP_USD; record usage without a spend gate")
     parser.add_argument("--reasoning_effort", type=str, default=None,
                         choices=["none", "low", "medium", "high"],
                         help="Reasoning effort for GPT-5 models (default: None = model default)")
@@ -1412,8 +2057,9 @@ def main():
                         help="Do not carry over retrieved documents across turns (only keep final assistant response)")
     parser.add_argument("--force_final_answer", action="store_true",
                         help="When max_search_iterations is exhausted without a final textual "
-                             "answer, append a nudge user message and make one extra LLM call "
-                             "with tool_choice='none' to coax the model into producing the "
+                             "answer, make one extra text-only LLM call with a final-answer "
+                             "instruction and tool_choice='none' to coax the model "
+                             "into producing the "
                              "required 'Exact Answer: ...' format. Saves results with a "
                              "_force-final suffix to avoid clobbering baseline runs.")
 
@@ -1426,17 +2072,87 @@ def main():
             print("   Set a model id served by your OpenAI / Azure OpenAI account "
                   "(e.g. gpt-5.1).")
             return
+    if args.max_tokens is not None:
+        raise ValueError("Plan A does not allow client-supplied output-token limits")
+    if args.locked_model:
+        _assert_model_lock(
+            args.models,
+            args.naturalizer_model,
+            args.judge_model,
+            args.locked_model,
+        )
+        _lock_model_environment(args.locked_model)
+    if args.locked_model == PLAN_A_MODEL:
+        if args.reasoning_effort != "medium":
+            raise ValueError("Plan A requires --reasoning_effort medium")
+        configured_effort = os.environ.get("LLM_REASONING_EFFORT", "").strip()
+        if configured_effort and configured_effort != "medium":
+            raise ValueError("Plan A requires LLM_REASONING_EFFORT=medium")
+        os.environ["LLM_REASONING_EFFORT"] = "medium"
+        if args.max_tool_calls != PLAN_A_SEARCH_CAP:
+            raise ValueError("Plan A requires exactly 50 search calls per turn")
+        if args.max_search_iterations != PLAN_A_SEARCH_CAP + 1:
+            raise ValueError("Plan A requires exactly 51 model round trips per turn")
+        if args.expected_samples != PLAN_A_SAMPLE_COUNT:
+            raise ValueError("Plan A requires the fixed 100-task evaluation set")
+        if args.num_samples != PLAN_A_SAMPLE_COUNT:
+            raise ValueError("Plan A requires --num_samples 100")
+        if not args.force_final_answer or not args.fail_fast:
+            raise ValueError("Plan A requires --force_final_answer and --fail_fast")
+        if not args.require_usage_ledger or not args.usage_only_accounting:
+            raise ValueError("Plan A requires usage-only ledger accounting")
+        if not args.retriever_url:
+            raise ValueError("Plan A requires the Modal retriever endpoint")
+        if args.retriever_revision != PLAN_A_RETRIEVER_REVISION:
+            raise ValueError(
+                "Plan A requires the pinned Modal retriever revision "
+                f"{PLAN_A_RETRIEVER_REVISION}"
+            )
+        if args.search_k != 5:
+            raise ValueError("Plan A fixes retriever search_k at 5")
+        if args.run_grid or args.run_plan or args.run_plan_lite:
+            raise ValueError("Plan A runs only the paper single and evolve scenarios")
+        scenario_key = (args.num_turns, args.num_revisions, args.num_switches)
+        if scenario_key not in PLAN_A_SCENARIOS:
+            raise ValueError(
+                "Plan A scenarios are single (t=1,p=0,g=0) and "
+                "evolve (t=7,p=2,g=2)"
+            )
+        if not args.task_ids_file:
+            raise ValueError("Plan A requires the fixed published task ID file")
+        supplied_ids = _read_task_ids(Path(args.task_ids_file))
+        fixed_ids = _read_task_ids(PLAN_A_TASK_IDS_FILE)
+        if supplied_ids != fixed_ids or len(supplied_ids) != PLAN_A_SAMPLE_COUNT:
+            raise ValueError("Plan A task IDs do not match the published fixed 100 IDs")
+    if args.usage_only_accounting and os.environ.get("LLM_COST_HARD_CAP_USD", "").strip():
+        raise ValueError("usage-only accounting forbids LLM_COST_HARD_CAP_USD")
+    if args.locked_model and os.environ.get("LLM_DISABLE_OUTPUT_LIMITS", "").lower() not in {
+        "1", "true", "yes", "on",
+    }:
+        raise ValueError("Plan A requires LLM_DISABLE_OUTPUT_LIMITS=1")
+    ledger_marker = _usage_ledger_marker(required=args.require_usage_ledger)
+    if args.require_usage_ledger:
+        os.environ["LLM_REQUIRE_USAGE_ACCOUNTING"] = "1"
 
     # Initialize retriever (shared across all experiments)
-    print("Initializing FAISS retriever...")
-    retriever = FaissRetriever(
-        index_pattern=args.index_pattern,
-        model_name=args.embedding_model,
-        corpus_dataset=args.corpus_dataset,
-        snippet_max_tokens=args.snippet_max_tokens,
-        k=args.search_k,
-        device=args.retriever_device,
-    )
+    if args.retriever_url:
+        print("Initializing Modal retriever client...")
+        retriever = RemoteRetriever(
+            args.retriever_url,
+            k=args.search_k,
+            bearer_token=args.retriever_bearer_token,
+            revision=args.retriever_revision,
+        )
+    else:
+        print("Initializing local FAISS retriever...")
+        retriever = FaissRetriever(
+            index_pattern=args.index_pattern,
+            model_name=args.embedding_model,
+            corpus_dataset=args.corpus_dataset,
+            snippet_max_tokens=args.snippet_max_tokens,
+            k=args.search_k,
+            device=args.retriever_device,
+        )
     print("✓ Retriever ready")
 
     # Run experiments
@@ -1474,15 +2190,22 @@ def main():
                         task_ids_file=args.task_ids_file,
                         max_search_iterations=args.max_search_iterations,
                         naturalizer_model=args.naturalizer_model,
+                        judge_model=args.judge_model,
                         reasoning_effort=args.reasoning_effort,
                         max_tool_calls=args.max_tool_calls,
                         recap_method=args.recap_method,
                         no_retrieval_history=args.no_retrieval_history,
                         force_final_answer=args.force_final_answer,
+                        expected_samples=args.expected_samples,
+                        fail_fast=args.fail_fast,
                     )
                     all_summaries.append(summary)
                 except Exception as e:
                     print(f"\n❌ FAILED: {config_name}: {e}")
+                    if args.locked_model:
+                        _assert_usage_models_since(ledger_marker, args.locked_model)
+                    if args.fail_fast:
+                        raise
                     import traceback
                     traceback.print_exc()
     elif args.run_plan:
@@ -1533,15 +2256,22 @@ def main():
                         task_ids_file=args.task_ids_file,
                         max_search_iterations=args.max_search_iterations,
                         naturalizer_model=args.naturalizer_model,
+                        judge_model=args.judge_model,
                         reasoning_effort=args.reasoning_effort,
                         max_tool_calls=args.max_tool_calls,
                         recap_method=args.recap_method,
                         no_retrieval_history=args.no_retrieval_history,
                         force_final_answer=args.force_final_answer,
+                        expected_samples=args.expected_samples,
+                        fail_fast=args.fail_fast,
                     )
                     all_summaries.append(summary)
                 except Exception as e:
                     print(f"\n❌ FAILED: {config_name}: {e}")
+                    if args.locked_model:
+                        _assert_usage_models_since(ledger_marker, args.locked_model)
+                    if args.fail_fast:
+                        raise
                     import traceback
                     traceback.print_exc()
     elif args.run_plan_lite:
@@ -1581,15 +2311,22 @@ def main():
                         task_ids_file=args.task_ids_file,
                         max_search_iterations=args.max_search_iterations,
                         naturalizer_model=args.naturalizer_model,
+                        judge_model=args.judge_model,
                         reasoning_effort=args.reasoning_effort,
                         max_tool_calls=args.max_tool_calls,
                         recap_method=args.recap_method,
                         no_retrieval_history=args.no_retrieval_history,
                         force_final_answer=args.force_final_answer,
+                        expected_samples=args.expected_samples,
+                        fail_fast=args.fail_fast,
                     )
                     all_summaries.append(summary)
                 except Exception as e:
                     print(f"\n❌ FAILED: {config_name}: {e}")
+                    if args.locked_model:
+                        _assert_usage_models_since(ledger_marker, args.locked_model)
+                    if args.fail_fast:
+                        raise
                     import traceback
                     traceback.print_exc()
     else:
@@ -1611,17 +2348,27 @@ def main():
                     task_ids_file=args.task_ids_file,
                     max_search_iterations=args.max_search_iterations,
                     naturalizer_model=args.naturalizer_model,
+                    judge_model=args.judge_model,
                     reasoning_effort=args.reasoning_effort,
                     max_tool_calls=args.max_tool_calls,
                     recap_method=args.recap_method,
                     no_retrieval_history=args.no_retrieval_history,
                     force_final_answer=args.force_final_answer,
+                    expected_samples=args.expected_samples,
+                    fail_fast=args.fail_fast,
                 )
                 all_summaries.append(summary)
             except Exception as e:
                 print(f"\n❌ Error with {model}: {e}")
+                if args.locked_model:
+                    _assert_usage_models_since(ledger_marker, args.locked_model)
+                if args.fail_fast:
+                    raise
                 import traceback
                 traceback.print_exc()
+
+    if args.locked_model:
+        _assert_usage_models_since(ledger_marker, args.locked_model)
 
     if all_summaries:
         print(f"\n{'='*60}")

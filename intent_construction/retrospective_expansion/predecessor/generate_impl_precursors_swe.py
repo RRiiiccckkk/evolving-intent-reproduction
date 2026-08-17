@@ -105,6 +105,52 @@ def build_impl_pg_entry(
     }
 
 
+def generate_impl_precursor_for_sample(
+    sample: dict[str, Any],
+    *,
+    template: str,
+    model: str,
+    reasoning_effort: str | None,
+) -> dict[str, Any]:
+    """Generate and attach one implementation precursor."""
+    existing_pgs = sample.get("predecessor_functions") or []
+    if len(existing_pgs) != 2:
+        raise ValueError("input must have exactly two predecessor_functions")
+    if existing_pgs[0].get("transition_type") != "real_bug_pair":
+        raise ValueError("pg[0] must be a real_bug_pair")
+    if existing_pgs[1].get("transition_type") != "exploration":
+        raise ValueError("pg[1] must be an exploration")
+    metadata = sample.get("swe_bench_metadata", {})
+    response = generate_json(
+        [
+            {
+                "role": "user",
+                "content": populate_prompt(
+                    template,
+                    {
+                        "REPO": metadata.get("repo", ""),
+                        "MODULE_FOCUS": derive_module_focus(sample),
+                        "TARGET_GOAL": sample.get("function", ""),
+                        "AFFECTED_FILES": json.dumps(metadata.get("affected_files", []) or []),
+                    },
+                ),
+            }
+        ],
+        model=model,
+        step="swe-impl-precursor",
+        reasoning_effort=reasoning_effort,
+    )
+    out = deepcopy(sample)
+    predecessors = list(existing_pgs)
+    predecessors[0] = build_impl_pg_entry(response)
+    out["predecessor_functions"] = predecessors
+    out["impl_precursor_info"] = {
+        "model": model,
+        "reasoning_effort": reasoning_effort,
+    }
+    return out
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="SWE-bench Verified implementation-precursor function generation")
     parser.add_argument("--input", required=True,
@@ -137,12 +183,6 @@ def main() -> None:
 
     def task(idx: int) -> tuple[int, dict[str, Any] | None, str | None]:
         sample = data[idx]
-        out = deepcopy(sample)
-        repo = sample.get("swe_bench_metadata", {}).get("repo", "")
-        mod_focus = derive_module_focus(sample)
-        target_function = sample.get("function", "")
-        affected_files = sample.get("swe_bench_metadata", {}).get("affected_files", []) or []
-
         # Validate input shape: pg[0] must be a real_bug_pair (replaceable),
         # pg[1] must be an exploration (preserved). Skip samples that don't
         # match — the alternative (silent fallback to original) produces a
@@ -161,31 +201,15 @@ def main() -> None:
                 "(expected 'exploration')"
             )
 
-        prompt = populate_prompt(template, {
-            "REPO": repo,
-            "MODULE_FOCUS": mod_focus,
-            "TARGET_GOAL": target_function,
-            "AFFECTED_FILES": json.dumps(affected_files),
-        })
         try:
-            r = generate_json(
-                [{"role": "user", "content": prompt}],
+            out = generate_impl_precursor_for_sample(
+                sample,
+                template=template,
                 model=args.model,
-                step="swe-impl-precursor",
                 reasoning_effort=args.reasoning_effort,
             )
         except Exception as exc:
             return idx, None, f"{type(exc).__name__}: {exc}"
-        try:
-            new_pg0 = build_impl_pg_entry(r)
-        except Exception as exc:
-            return idx, None, f"build_pg_entry: {type(exc).__name__}: {exc}"
-
-        # Replace pg[0] (the real_bug_pair G2) with our new impl-precursor.
-        # pg[1] (the G1 exploration) is preserved.
-        existing = list(existing_pgs)
-        existing[0] = new_pg0
-        out["predecessor_functions"] = existing
         return idx, out, None
 
     with ThreadPoolExecutor(max_workers=args.num_workers) as ex:

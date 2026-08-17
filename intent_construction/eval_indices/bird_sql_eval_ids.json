@@ -1,6 +1,6 @@
 {
   "dataset": "bird_sql",
-  "split": "train",
+  "split": "train+dev",
   "num_samples": 100,
   "source_file": "final_dataset/bird_sql_n100.json",
   "id_field": "original_id",

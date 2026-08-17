@@ -110,11 +110,15 @@ class RuleBasedNaturalizer(TurnNaturalizer):
 # ---------------------------------------------------------------------------
 
 def _call_llm(
-    prompt: str, model: str, max_tokens: int, fallback: str,
+    prompt: str, model: str, max_tokens: int | None, fallback: str,
     system: str | None = None,
 ) -> str:
     """Call the LLM and return cleaned text, falling back on error."""
-    from intent_construction.intent_extraction.core.llm_utils import generate_text
+    from intent_construction.intent_extraction.core.llm_utils import (
+        LLMAccountingError,
+        LLMIncompleteResponse,
+        generate_text,
+    )
 
     messages = []
     if system:
@@ -130,6 +134,8 @@ def _call_llm(
         )
         natural = result.strip().strip('"').strip("'")
         return natural if natural else fallback
+    except (LLMAccountingError, LLMIncompleteResponse):
+        raise
     except Exception:
         return fallback
 
@@ -227,7 +233,7 @@ _MAX_VALIDATION_RETRIES: int = 2
 
 
 def _call_llm_validated(
-    prompt: str, model: str, max_tokens: int, fallback: str,
+    prompt: str, model: str, max_tokens: int | None, fallback: str,
     system: str | None = None,
 ) -> str:
     """Call LLM with critical-value validation and retry.
@@ -342,7 +348,7 @@ class SearchNaturalizer(TurnNaturalizer):
                 original=content.rule_based_text,
                 response_aware_block=resp_block,
             )
-        return _call_llm_validated(prompt, self.model, max_tokens=300, fallback=content.rule_based_text)
+        return _call_llm_validated(prompt, self.model, max_tokens=None, fallback=content.rule_based_text)
 
 
 # ===========================================================================

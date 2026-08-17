@@ -9,6 +9,7 @@ to get the intermediate answer.
 from __future__ import annotations
 
 import sqlite3
+import time
 from dataclasses import dataclass
 from functools import reduce
 from pathlib import Path
@@ -30,7 +31,7 @@ class SQLResult:
     row_count: int = 0
 
 
-def execute_sql(db_path: str | Path, sql: str, timeout: int = 30) -> SQLResult:
+def execute_sql(db_path: str | Path, sql: str, timeout: float = 30) -> SQLResult:
     db_path = Path(db_path)
     if not db_path.exists():
         return SQLResult(success=False, error=f"Database not found: {db_path}")
@@ -40,6 +41,12 @@ def execute_sql(db_path: str | Path, sql: str, timeout: int = 30) -> SQLResult:
     except sqlite3.OperationalError:
         conn = sqlite3.connect(str(db_path), timeout=timeout)
     try:
+        conn.execute("PRAGMA query_only = ON")
+        deadline = time.monotonic() + timeout
+        conn.set_progress_handler(
+            lambda: 1 if time.monotonic() >= deadline else 0,
+            1_000,
+        )
         cursor = conn.cursor()
         cursor.execute(sql)
         columns = [d[0] for d in cursor.description] if cursor.description else []
@@ -137,8 +144,11 @@ def substitute_sql_value(sql: str, original: str, counterfactual: str) -> str:
     Tries single-quoted form first (string values), then unquoted
     (numeric values).  Only the first occurrence is replaced.
     """
-    quoted_orig = f"'{original}'"
-    quoted_pert = f"'{counterfactual}'"
+    def quote_sql_string(value: object) -> str:
+        return "'" + str(value).replace("'", "''") + "'"
+
+    quoted_orig = quote_sql_string(original)
+    quoted_pert = quote_sql_string(counterfactual)
     if quoted_orig in sql:
         return sql.replace(quoted_orig, quoted_pert, 1)
     if str(original) in sql:

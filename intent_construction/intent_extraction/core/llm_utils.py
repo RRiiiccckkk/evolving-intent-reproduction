@@ -24,6 +24,7 @@ import random
 import threading
 import time
 import uuid
+import httpx
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Dict, Any, Mapping, Optional
@@ -43,6 +44,13 @@ class LLMIncompleteResponse(RuntimeError):
 
 
 _ACCOUNTING_LOCK = threading.RLock()
+_CLIENT_TIMEOUT = httpx.Timeout(
+    connect=30.0,
+    read=1800.0,
+    write=600.0,
+    pool=600.0,
+)
+_CLIENT_MAX_RETRIES = 0
 
 
 # =============================================================================
@@ -241,8 +249,15 @@ def _normalize_chat_payload(
     )
     if is_compatible_kimi_k2:
         # Kimi K2 compatible endpoints only accept their default temperature
-        # (currently 1), so omitting the field is the portable representation.
+        # (currently 1), and reject explicit tool_choice values. Omitting both
+        # fields is the portable representation. Search stays sequential so a
+        # parallel batch cannot overshoot the per-turn budget.
         normalized.pop("temperature", None)
+        normalized.pop("tool_choice", None)
+        if normalized.get("tools"):
+            normalized["parallel_tool_calls"] = False
+        else:
+            normalized.pop("parallel_tool_calls", None)
         if "max_tokens" in normalized:
             normalized.setdefault(
                 "max_completion_tokens", normalized.pop("max_tokens")
@@ -323,12 +338,24 @@ def resolve_model_name(model: str) -> str:
     them explicitly.
     """
     name = clean_model_name(model)
+    locked_model = os.environ.get("LLM_LOCKED_MODEL", "").strip()
+    if locked_model and name != locked_model:
+        raise LLMAccountingError(
+            f"model lock requires {locked_model!r}; refused requested model {name!r}"
+        )
     backend = _select_backend()
     if backend == "azure":
-        return _azure_deployment_map().get(name, name)
-    if backend == "compatible":
-        return _compatible_model_map().get(name, name)
-    return name
+        resolved = _azure_deployment_map().get(name, name)
+    elif backend == "compatible":
+        resolved = _compatible_model_map().get(name, name)
+    else:
+        resolved = name
+    if locked_model and resolved != locked_model:
+        raise LLMAccountingError(
+            f"model lock requires provider model {locked_model!r}; "
+            f"refused resolved model {resolved!r}"
+        )
+    return resolved
 
 
 def get_client(use_responses_api: bool = False):
@@ -357,6 +384,8 @@ def get_client(use_responses_api: bool = False):
             api_key=os.environ["AZURE_OPENAI_API_KEY"],
             azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
             api_version=api_version,
+            timeout=_CLIENT_TIMEOUT,
+            max_retries=_CLIENT_MAX_RETRIES,
         )
     if backend == "compatible":
         if not os.environ.get("LLM_API_KEY") or not os.environ.get("LLM_BASE_URL"):
@@ -366,10 +395,16 @@ def get_client(use_responses_api: bool = False):
         return OpenAI(
             api_key=os.environ["LLM_API_KEY"],
             base_url=os.environ["LLM_BASE_URL"],
+            timeout=_CLIENT_TIMEOUT,
+            max_retries=_CLIENT_MAX_RETRIES,
         )
     if not os.environ.get("OPENAI_API_KEY"):
         raise RuntimeError("LLM_BACKEND=openai requires OPENAI_API_KEY")
-    return OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    return OpenAI(
+        api_key=os.environ["OPENAI_API_KEY"],
+        timeout=_CLIENT_TIMEOUT,
+        max_retries=_CLIENT_MAX_RETRIES,
+    )
 
 
 # =============================================================================
@@ -400,6 +435,15 @@ def _ledger_path() -> Optional[Path]:
     if not raw:
         return None
     return Path(os.path.expandvars(os.path.expanduser(raw))).resolve()
+
+
+def _usage_accounting_required() -> bool:
+    return os.environ.get("LLM_REQUIRE_USAGE_ACCOUNTING", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
 
 def _price_map() -> Dict[str, Any]:
@@ -902,10 +946,10 @@ def _record_response_usage(
     cap = reservation["cap_usd"] if reservation is not None else _hard_cap_usd()
     usage = _extract_usage(response)
     if usage is None:
-        if cap is not None:
+        if cap is not None or _usage_accounting_required():
             raise LLMAccountingError(
-                "API response has no usable token accounting; hard cap enforcement "
-                "failed closed"
+                "API response has no usable token accounting; required usage "
+                "recording failed closed"
             )
         return
     if path is None:
@@ -977,9 +1021,25 @@ def _accounted_api_call(
     # Plan-specific output limits are independent of accounting policy. A
     # hard cap still supplies its conservative fallback for unbounded calls.
     payload = dict(payload)
+    if _usage_accounting_required() and _ledger_path() is None:
+        raise LLMAccountingError(
+            "LLM_REQUIRE_USAGE_ACCOUNTING requires LLM_USAGE_LEDGER_PATH"
+        )
+    locked_effort = os.environ.get("LLM_REASONING_EFFORT", "").strip()
+    if locked_effort:
+        if locked_effort not in {"low", "medium", "high"}:
+            raise LLMAccountingError(
+                "LLM_REASONING_EFFORT must be low, medium, or high"
+            )
+        payload.pop("temperature", None)
+        if api == "responses":
+            payload["reasoning"] = {"effort": locked_effort}
+        else:
+            payload["reasoning_effort"] = locked_effort
     if api == "chat.completions":
         payload = _normalize_chat_payload(payload, resolved_model)
-    if _output_limits_disabled():
+    output_limits_disabled = _output_limits_disabled()
+    if output_limits_disabled:
         for field in ("max_output_tokens", "max_completion_tokens", "max_tokens"):
             payload.pop(field, None)
         max_output_tokens = None
@@ -1000,7 +1060,7 @@ def _accounted_api_call(
                         f"{field} must be an integer"
                     ) from exc
                 break
-    if max_output_tokens is None:
+    if max_output_tokens is None and not output_limits_disabled:
         default_output_tokens = _configured_default_output_tokens()
         if default_output_tokens is not None or _hard_cap_usd() is not None:
             max_output_tokens = (
@@ -1066,8 +1126,9 @@ def generate_json(
     client = get_client(use_responses_api=use_responses)
     
     rate_limit_count = 0
-    
-    for attempt in range(max_retries):
+    attempt = 0
+
+    while attempt < max_retries:
         try:
             print(f"[{step}] Calling model: {model} (deployment: {deployment_name}, attempt {attempt + 1}/{max_retries})")
             
@@ -1115,7 +1176,7 @@ def generate_json(
                     api="chat.completions",
                 )
                 response_content = _chat_final_content(response)
-            result = json.loads(response_content)
+            result = _parse_json_response(response_content)
             
             print(f"[{step}] Success!")
             return result
@@ -1123,7 +1184,8 @@ def generate_json(
         except json.JSONDecodeError as e:
             print(f"JSON decode error on attempt {attempt + 1}: {e}")
             print(f"Response content: {response_content[:200]}...")
-            if attempt == max_retries - 1:
+            attempt += 1
+            if attempt >= max_retries:
                 raise
             time.sleep(1)
             
@@ -1147,11 +1209,34 @@ def generate_json(
                 continue
             
             print(f"Error on attempt {attempt + 1}: {e}")
-            if attempt == max_retries - 1:
+            attempt += 1
+            if attempt >= max_retries:
                 raise
             time.sleep(1)
     
     raise RuntimeError(f"Failed to generate valid JSON after {max_retries} attempts")
+
+
+def _parse_json_response(content: str) -> Any:
+    """Parse one JSON value, optionally wrapped in a Markdown JSON fence."""
+    normalized = content.strip()
+    if normalized.startswith("```"):
+        if len(normalized) <= 6 or not normalized.endswith("```"):
+            raise json.JSONDecodeError("unterminated JSON code fence", normalized, 0)
+        fenced = normalized[3:-3]
+        lowered = fenced.lower()
+        if lowered.startswith("!json"):
+            fenced = fenced[5:]
+            if fenced and not fenced[0].isspace():
+                raise json.JSONDecodeError("invalid JSON code fence", normalized, 0)
+        elif lowered.startswith("json"):
+            fenced = fenced[4:]
+            if fenced and not fenced[0].isspace():
+                raise json.JSONDecodeError("invalid JSON code fence", normalized, 0)
+        elif fenced and fenced[0] not in "\r\n{[":
+            raise json.JSONDecodeError("invalid JSON code fence", normalized, 0)
+        normalized = fenced.strip()
+    return json.loads(normalized)
 
 
 def load_prompt(prompt_file: str) -> str:
@@ -1178,12 +1263,13 @@ def populate_prompt(template: str, replacements: Dict[str, str]) -> str:
 
 
 def generate_text(
-    messages: List[Dict[str, str]], 
+    messages: List[Dict[str, str]],
     model: str = "gpt-4o-mini",
     max_retries: int = 3,
     temperature: Optional[float] = 0.7,
     max_tokens: Optional[int] = None,
-    reasoning_effort: Optional[str] = None
+    reasoning_effort: Optional[str] = None,
+    timeout: Optional[float] = None
 ) -> str:
     """
     Generate text response from LLM.
@@ -1195,13 +1281,25 @@ def generate_text(
         temperature: Sampling temperature (None to use model default)
         max_tokens: Maximum tokens to generate (None for model default)
         reasoning_effort: Reasoning effort level ('low', 'medium', 'high') for GPT-5 models
-        
+        timeout: Optional per-call read timeout in seconds (None keeps the
+            shared client default). Bounds verification calls whose prompts
+            can trigger degenerate, effectively unbounded generations.
+
     Returns:
         Text response from the model
     """
     deployment_name = resolve_model_name(model)
     use_responses = _is_responses_api_model(model)
     client = get_client(use_responses_api=use_responses)
+    if timeout is not None:
+        client = client.with_options(
+            timeout=httpx.Timeout(
+                connect=30.0,
+                read=float(timeout),
+                write=600.0,
+                pool=600.0,
+            )
+        )
     
     for attempt in range(max_retries):
         try:

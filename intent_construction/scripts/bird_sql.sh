@@ -1,125 +1,105 @@
 #!/bin/bash
-# =============================================================================
-# BIRD-SQL complex-query data-construction pipeline
-# =============================================================================
-# Stage 0: Select complex queries from BIRD train+dev
-# Stage 1: Extract function+arguments for the selected subset
-# Stage 2: Argument counterfactual (WHERE + HAVING + LIMIT)
-# Stage 3: Function predecessor via LLM multi-clause rewrite (+ naturalizer)
-#
-# Usage:
-#   ./scripts/bird_sql.sh [N=200] [MODEL=gpt-5.1] [WORKERS=8] [COUNTERFACTUALS=3] [TAG=v2_n200]
-# =============================================================================
+# Reproduce the fixed published BIRD-SQL construction subset.
 
-set -e
-set -o pipefail
+set -euo pipefail
 
-N="${1:-200}"
-MODEL="${2:-gpt-5.1}"
-WORKERS="${3:-8}"
+N="${1:-100}"
+MODEL="${2:-kimi-k2.6}"
+WORKERS="${3:-4}"
 COUNTERFACTUALS="${4:-3}"
-TAG="${5:-v2_n200}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONSTRUCT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_ROOT="$(cd "${CONSTRUCT_DIR}/.." && pwd)"
+cd "${REPO_ROOT}"
+export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
 
-DATASET="bird_sql"
+BIRD_MODULE="intent_construction.intent_extraction.dataset_impl.bird_sql.run_published_construction"
+TASK_IDS_FILE="${REPO_ROOT}/intent_construction/eval_indices/bird_sql_task_ids.json"
+EVAL_MANIFEST="${REPO_ROOT}/intent_construction/eval_indices/bird_sql_eval_ids.json"
+RUN_DIR="${BIRD_RUN_DIR:-${REPO_ROOT}/reproduction/runs/bird-sql-kimi-k2.6}"
+DATA_DIR="${BIRD_DATA_DIR:-${RUN_DIR}/bird_data}"
+EXTRACTED="${REPO_ROOT}/intent_construction/intent_extraction/output/bird_sql/extracted.json"
+COND_OUT="${REPO_ROOT}/intent_construction/retrospective_expansion/counterfactual/output/bird_sql/argument_counterfactual.json"
+STAGE3_OUTPUT="${REPO_ROOT}/intent_construction/retrospective_expansion/predecessor/output/bird_sql/predecessor.json"
+FINAL_OUTPUT="${REPO_ROOT}/final_dataset/bird_sql_final.json"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+ONLY_DATABASE="${BIRD_ONLY_DATABASE:-}"
 
-BIRD_DIR="${CONSTRUCT_DIR}/intent_extraction/dataset_impl/bird_sql"
-EXTRACTION_DIR="${CONSTRUCT_DIR}/intent_extraction"
-COND_DIR="${CONSTRUCT_DIR}/retrospective_expansion/counterfactual"
-PREDECESSOR_DIR="${CONSTRUCT_DIR}/retrospective_expansion/predecessor"
-FINAL_DATASET_DIR="${REPO_ROOT}/final_dataset"
-
-SELECTED="${BIRD_DIR}/data/selected_complex_${TAG}.json"
-EXTRACTED="${EXTRACTION_DIR}/output/${DATASET}/extracted.json"
-COND_OUT="${COND_DIR}/output/${DATASET}/argument_counterfactual.json"
-STAGE3_OUTPUT="${PREDECESSOR_DIR}/output/${DATASET}/predecessor.json"
-FINAL_OUTPUT="${FINAL_DATASET_DIR}/${DATASET}_final.json"
-
-mkdir -p "$(dirname "${EXTRACTED}")" "$(dirname "${COND_OUT}")" "$(dirname "${STAGE3_OUTPUT}")"
-
-echo "=================================================================="
-echo "BIRD-SQL Complex Pipeline"
-echo "------------------------------------------------------------------"
-echo "  N samples:         ${N}"
-echo "  Model:             ${MODEL}"
-echo "  Workers:           ${WORKERS}"
-echo "  Counterfactuals/sample:   ${COUNTERFACTUALS}"
-echo "  Final output:      ${FINAL_OUTPUT}"
-echo "=================================================================="
-
-# -----------------------------------------------------------------------------
-# Stage 0: Selection
-# -----------------------------------------------------------------------------
-if [ -f "${SELECTED}" ]; then
-    EXISTING=$(python -c "import json; print(len(json.load(open('${SELECTED}'))))")
-    echo "[Stage 0] Selection cache hit (${EXISTING} samples) — skipping."
-else
-    echo "[Stage 0] Selecting ${N} complex BIRD samples..."
-    python "${BIRD_DIR}/select_complex.py" \
-        --n "${N}" \
-        --num_workers "${WORKERS}" \
-        --out "${SELECTED}"
+if [[ "${N}" != "100" ]]; then
+    echo "ERROR: the published BIRD-SQL reproduction is fixed at N=100." >&2
+    exit 2
+fi
+if [[ "${MODEL}" != "kimi-k2.6" ]]; then
+    echo "ERROR: construction must use exactly kimi-k2.6." >&2
+    exit 2
+fi
+if [[ -n "${REASONING_EFFORT:-}" ]]; then
+    echo "ERROR: use the locked LLM_REASONING_EFFORT policy, not REASONING_EFFORT." >&2
+    exit 2
+fi
+if [[ -n "${LLM_REASONING_EFFORT:-}" && "${LLM_REASONING_EFFORT}" != "medium" ]]; then
+    echo "ERROR: BIRD construction requires LLM_REASONING_EFFORT=medium." >&2
+    exit 2
+fi
+if [[ -n "${LLM_COST_HARD_CAP_USD:-}" ]]; then
+    echo "ERROR: this run records usage but must not enable LLM_COST_HARD_CAP_USD." >&2
+    exit 2
 fi
 
-# -----------------------------------------------------------------------------
-# Stage 1: Extraction (function + arguments for the selected subset)
-# -----------------------------------------------------------------------------
-echo ""
-echo "[Stage 1] Extracting function+arguments for the selected subset..."
-python "${BIRD_DIR}/extract_selected.py" \
-    --input  "${SELECTED}" \
-    --output "${EXTRACTED}" \
-    --model  "${MODEL}" \
-    --num_workers "${WORKERS}"
+if [[ -z "${OPENAI_API_KEY:-}" ]] &&
+   { [[ -z "${AZURE_OPENAI_API_KEY:-}" ]] || [[ -z "${AZURE_OPENAI_ENDPOINT:-}" ]]; } &&
+   { [[ -z "${LLM_API_KEY:-}" ]] || [[ -z "${LLM_BASE_URL:-}" ]]; }; then
+    echo "ERROR: configure OpenAI, Azure, or LLM_API_KEY + LLM_BASE_URL credentials." >&2
+    exit 2
+fi
 
-# -----------------------------------------------------------------------------
-# Stage 2: Argument counterfactual (WHERE + HAVING + LIMIT)
-# -----------------------------------------------------------------------------
-echo ""
-echo "[Stage 2] Argument counterfactual (WHERE + HAVING + LIMIT)..."
-python "${COND_DIR}/generate_counterfactuals_sql.py" \
-    --input  "${EXTRACTED}" \
-    --output "${COND_OUT}" \
-    --num_counterfactuals "${COUNTERFACTUALS}" \
-    --num_workers "${WORKERS}"
+export LLM_DISABLE_OUTPUT_LIMITS=1
+export LLM_LOCKED_MODEL="${MODEL}"
+export LLM_REASONING_EFFORT=medium
+export LLM_REQUIRE_USAGE_ACCOUNTING=1
+unset LLM_DEFAULT_MAX_OUTPUT_TOKENS
+unset LLM_BUDGET_DEFAULT_MAX_OUTPUT_TOKENS
+unset LLM_COST_HARD_CAP_USD
+export LLM_USAGE_LEDGER_PATH="${LLM_USAGE_LEDGER_PATH:-${RUN_DIR}/usage.jsonl}"
+if [[ -z "${LLM_PRICE_MAP:-}" ]]; then
+    export LLM_PRICE_MAP='{"kimi-k2.6":{"input":0.95,"cached_input":0.16,"output":4.0,"reasoning":4.0}}'
+fi
 
-# -----------------------------------------------------------------------------
-# Stage 3: Function predecessor (LLM multi-clause + naturalizer)
-# -----------------------------------------------------------------------------
-echo ""
-echo "[Stage 3] Function predecessor (LLM multi-clause rewrite + naturalizer)..."
-python "${PREDECESSOR_DIR}/generate_predecessors_sql_llm.py" \
-    --input  "${COND_OUT}" \
-    --output "${STAGE3_OUTPUT}" \
-    --num_predecessors "${COUNTERFACTUALS}" \
-    --model  "${MODEL}" \
-    --num_workers "${WORKERS}"
+mkdir -p \
+    "${RUN_DIR}" \
+    "${DATA_DIR}" \
+    "$(dirname "${EXTRACTED}")" \
+    "$(dirname "${COND_OUT}")" \
+    "$(dirname "${STAGE3_OUTPUT}")" \
+    "$(dirname "${FINAL_OUTPUT}")" \
+    "$(dirname "${LLM_USAGE_LEDGER_PATH}")"
 
-# -----------------------------------------------------------------------------
-# Copy final output
-# -----------------------------------------------------------------------------
-mkdir -p "${FINAL_DATASET_DIR}"
-cp "${STAGE3_OUTPUT}" "${FINAL_OUTPUT}"
+echo "BIRD-SQL construction: one database at a time, fixed 100 published IDs."
+DATABASE_ARGS=()
+if [[ -n "${ONLY_DATABASE}" ]]; then
+    DATABASE_ARGS=(--database "${ONLY_DATABASE}")
+fi
+"${PYTHON_BIN}" -m "${BIRD_MODULE}" \
+    --model "${MODEL}" \
+    --workers "${WORKERS}" \
+    --counterfactuals "${COUNTERFACTUALS}" \
+    --task-ids-file "${TASK_IDS_FILE}" \
+    --manifest "${EVAL_MANIFEST}" \
+    --run-dir "${RUN_DIR}" \
+    --data-dir "${DATA_DIR}" \
+    --extracted-output "${EXTRACTED}" \
+    --counterfactual-output "${COND_OUT}" \
+    --predecessor-output "${STAGE3_OUTPUT}" \
+    --final-output "${FINAL_OUTPUT}" \
+    ${DATABASE_ARGS[@]+"${DATABASE_ARGS[@]}"} \
+    --resume
 
-# -----------------------------------------------------------------------------
-# Summary
-# -----------------------------------------------------------------------------
-echo ""
-echo "=================================================================="
-echo "✓ Pipeline complete"
-echo "------------------------------------------------------------------"
-echo "  Selected:           ${SELECTED}"
-echo "  Extracted:          ${EXTRACTED}"
-echo "  Argument counterfactual:  ${COND_OUT}"
-echo "  Function predecessor:       ${STAGE3_OUTPUT}"
-echo "  Final dataset:      ${FINAL_OUTPUT}"
-echo "=================================================================="
-echo ""
-echo "Next steps:"
-echo "  1. Build the user-simulation dataset from ${FINAL_OUTPUT}."
-echo "  2. Run evaluation with execution accuracy:"
-echo "       python evaluation/runners/run_experiment.py \\"
-echo "         --dataset_name bird_sql --data_path ${FINAL_OUTPUT} --models ${MODEL}"
+if [[ -n "${ONLY_DATABASE}" ]]; then
+    echo "BIRD-SQL one-database smoke checkpointed: ${ONLY_DATABASE}"
+    echo "Usage ledger: ${LLM_USAGE_LEDGER_PATH}"
+    exit 0
+fi
+
+echo "BIRD-SQL construction complete: ${FINAL_OUTPUT}"
+echo "Usage ledger: ${LLM_USAGE_LEDGER_PATH}"

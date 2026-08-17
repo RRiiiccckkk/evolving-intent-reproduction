@@ -1,0 +1,4 @@
+# BrowseComp+ Plan A host and Modal deployment dependencies.
+-r requirements.txt
+modal[api-proxy-support]>=1.5,<2
+pyarrow>=18,<26

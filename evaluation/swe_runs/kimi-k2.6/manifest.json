@@ -1,0 +1,243 @@
+{
+  "backend": "compatible",
+  "created_at": "2026-08-15T10:31:03+00:00",
+  "dataset": {
+    "data_path": "final_dataset/swe_bench_verified_final.json",
+    "expected_count": 50,
+    "name": "princeton-nlp/SWE-bench_Verified",
+    "official_verifier_dataset": {
+      "filtered_path": "/__modal/volumes/vo-TlAC794XTnIHfivlG6QjJU/kimi-k2.6/data/swe_bench_verified_official_n50.json",
+      "filtered_sha256": "16b93ef1459e03fadf98435af8fdab964c5224b1ba04ab2a402dd770118f06b0",
+      "instance_ids": [
+        "astropy__astropy-13236",
+        "astropy__astropy-14508",
+        "astropy__astropy-14995",
+        "astropy__astropy-8707",
+        "django__django-10914",
+        "django__django-11066",
+        "django__django-11163",
+        "django__django-12143",
+        "django__django-13089",
+        "django__django-13343",
+        "django__django-13410",
+        "django__django-13658",
+        "django__django-13786",
+        "django__django-14493",
+        "django__django-14608",
+        "django__django-14765",
+        "django__django-15368",
+        "django__django-15569",
+        "django__django-15572",
+        "matplotlib__matplotlib-14623",
+        "matplotlib__matplotlib-20676",
+        "matplotlib__matplotlib-20859",
+        "matplotlib__matplotlib-22871",
+        "mwaskom__seaborn-3069",
+        "psf__requests-1724",
+        "psf__requests-5414",
+        "pydata__xarray-4695",
+        "pydata__xarray-6461",
+        "pydata__xarray-6721",
+        "pydata__xarray-6992",
+        "pylint-dev__pylint-6528",
+        "pylint-dev__pylint-6903",
+        "pylint-dev__pylint-7080",
+        "pylint-dev__pylint-7277",
+        "pytest-dev__pytest-5809",
+        "pytest-dev__pytest-6202",
+        "scikit-learn__scikit-learn-12973",
+        "scikit-learn__scikit-learn-14087",
+        "scikit-learn__scikit-learn-14496",
+        "scikit-learn__scikit-learn-14894",
+        "sphinx-doc__sphinx-10466",
+        "sphinx-doc__sphinx-7910",
+        "sphinx-doc__sphinx-8269",
+        "sphinx-doc__sphinx-9230",
+        "sphinx-doc__sphinx-9320",
+        "sphinx-doc__sphinx-9591",
+        "sympy__sympy-12489",
+        "sympy__sympy-13091",
+        "sympy__sympy-13372",
+        "sympy__sympy-15599"
+      ],
+      "rows": 50,
+      "source_path": "/workspace/tmp/source-data/swe_bench_verified_princeton.parquet",
+      "source_sha256": "a45b1fe4e2f0c8390b2b2938ac83e92ed5979000856808f3679c07812e9e6dcd"
+    },
+    "published_manifest": "intent_construction/eval_indices/swe_bench_verified_eval_ids.json",
+    "published_manifest_sha256": "6b0e238ecf790b7f4d62b3d4ebb4f1a57b786097ee380cfaeb7d3f8ec5c6e6b4",
+    "published_task_ids": "intent_construction/eval_indices/swe_bench_verified_task_ids.json",
+    "published_task_ids_sha256": "ca8b598a600b4e8e42a5ce579730312d8ec445f3e339c0a7b03f59f3ce43b75d",
+    "split": "test",
+    "task_ids": [
+      "extracted-swe_bench_verified-test-astropy__astropy-13236",
+      "extracted-swe_bench_verified-test-astropy__astropy-14508",
+      "extracted-swe_bench_verified-test-astropy__astropy-14995",
+      "extracted-swe_bench_verified-test-astropy__astropy-8707",
+      "extracted-swe_bench_verified-test-django__django-10914",
+      "extracted-swe_bench_verified-test-django__django-11066",
+      "extracted-swe_bench_verified-test-django__django-11163",
+      "extracted-swe_bench_verified-test-django__django-12143",
+      "extracted-swe_bench_verified-test-django__django-13089",
+      "extracted-swe_bench_verified-test-django__django-13343",
+      "extracted-swe_bench_verified-test-django__django-13410",
+      "extracted-swe_bench_verified-test-django__django-13658",
+      "extracted-swe_bench_verified-test-django__django-13786",
+      "extracted-swe_bench_verified-test-django__django-14493",
+      "extracted-swe_bench_verified-test-django__django-14608",
+      "extracted-swe_bench_verified-test-django__django-14765",
+      "extracted-swe_bench_verified-test-django__django-15368",
+      "extracted-swe_bench_verified-test-django__django-15569",
+      "extracted-swe_bench_verified-test-django__django-15572",
+      "extracted-swe_bench_verified-test-matplotlib__matplotlib-14623",
+      "extracted-swe_bench_verified-test-matplotlib__matplotlib-20676",
+      "extracted-swe_bench_verified-test-matplotlib__matplotlib-20859",
+      "extracted-swe_bench_verified-test-matplotlib__matplotlib-22871",
+      "extracted-swe_bench_verified-test-mwaskom__seaborn-3069",
+      "extracted-swe_bench_verified-test-psf__requests-1724",
+      "extracted-swe_bench_verified-test-psf__requests-5414",
+      "extracted-swe_bench_verified-test-pydata__xarray-4695",
+      "extracted-swe_bench_verified-test-pydata__xarray-6461",
+      "extracted-swe_bench_verified-test-pydata__xarray-6721",
+      "extracted-swe_bench_verified-test-pydata__xarray-6992",
+      "extracted-swe_bench_verified-test-pylint-dev__pylint-6528",
+      "extracted-swe_bench_verified-test-pylint-dev__pylint-6903",
+      "extracted-swe_bench_verified-test-pylint-dev__pylint-7080",
+      "extracted-swe_bench_verified-test-pylint-dev__pylint-7277",
+      "extracted-swe_bench_verified-test-pytest-dev__pytest-5809",
+      "extracted-swe_bench_verified-test-pytest-dev__pytest-6202",
+      "extracted-swe_bench_verified-test-scikit-learn__scikit-learn-12973",
+      "extracted-swe_bench_verified-test-scikit-learn__scikit-learn-14087",
+      "extracted-swe_bench_verified-test-scikit-learn__scikit-learn-14496",
+      "extracted-swe_bench_verified-test-scikit-learn__scikit-learn-14894",
+      "extracted-swe_bench_verified-test-sphinx-doc__sphinx-10466",
+      "extracted-swe_bench_verified-test-sphinx-doc__sphinx-7910",
+      "extracted-swe_bench_verified-test-sphinx-doc__sphinx-8269",
+      "extracted-swe_bench_verified-test-sphinx-doc__sphinx-9230",
+      "extracted-swe_bench_verified-test-sphinx-doc__sphinx-9320",
+      "extracted-swe_bench_verified-test-sphinx-doc__sphinx-9591",
+      "extracted-swe_bench_verified-test-sympy__sympy-12489",
+      "extracted-swe_bench_verified-test-sympy__sympy-13091",
+      "extracted-swe_bench_verified-test-sympy__sympy-13372",
+      "extracted-swe_bench_verified-test-sympy__sympy-15599"
+    ]
+  },
+  "models": {
+    "requested": [
+      "kimi-k2.6"
+    ],
+    "resolved": [
+      "kimi-k2.6"
+    ]
+  },
+  "repository": {
+    "commit": null,
+    "path": "/workspace"
+  },
+  "runtime": {
+    "agent_environment": "swerex_modal",
+    "cost_hard_cap_usd": null,
+    "harness_modal": true,
+    "model_step_limit_per_turn": 0,
+    "output_token_limit": null,
+    "parallel_tool_calls": false,
+    "reasoning_effort": "medium",
+    "run_dir": "/__modal/volumes/vo-TlAC794XTnIHfivlG6QjJU/kimi-k2.6",
+    "usage_ledger": "/__modal/volumes/vo-TlAC794XTnIHfivlG6QjJU/kimi-k2.6/usage.jsonl"
+  },
+  "scenario_runs": {
+    "evolve": {
+      "completed": 50,
+      "expected": 50,
+      "ledger_end_offset": 5918586,
+      "ledger_start_offset": 5776025,
+      "pending_before_run": 2,
+      "result_path": "/__modal/volumes/vo-TlAC794XTnIHfivlG6QjJU/kimi-k2.6/results/evolve.json",
+      "status": "complete",
+      "usage": {
+        "cached_tokens": 33424384,
+        "calls": 448,
+        "cost_usd": 6.74327809,
+        "input_tokens": 34179311,
+        "output_tokens": 169549,
+        "reasoning_tokens": 124397,
+        "requested_models": [
+          "kimi-k2.6"
+        ],
+        "resolved_models": [
+          "kimi-k2.6"
+        ]
+      }
+    },
+    "single": {
+      "completed": 50,
+      "expected": 50,
+      "ledger_end_offset": 5776025,
+      "ledger_start_offset": 5776025,
+      "pending_before_run": 0,
+      "result_path": "/__modal/volumes/vo-TlAC794XTnIHfivlG6QjJU/kimi-k2.6/results/single.json",
+      "status": "complete",
+      "usage": {
+        "cached_tokens": 0,
+        "calls": 0,
+        "cost_usd": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "requested_models": [],
+        "resolved_models": []
+      }
+    }
+  },
+  "scenarios": [
+    {
+      "name": "single",
+      "revisions": 0,
+      "switches": 0,
+      "tool_call_limit_per_turn": 200,
+      "turns": 1
+    },
+    {
+      "name": "evolve",
+      "revisions": 2,
+      "switches": 2,
+      "tool_call_limit_per_turn": 200,
+      "turns": 7
+    }
+  ],
+  "schema_version": 2,
+  "status": "complete",
+  "updated_at": "2026-08-16T16:53:52+00:00",
+  "usage": {
+    "invocation": {
+      "cached_tokens": 33424384,
+      "calls": 448,
+      "cost_usd": 6.74327809,
+      "input_tokens": 34179311,
+      "output_tokens": 169549,
+      "reasoning_tokens": 124397,
+      "requested_models": [
+        "kimi-k2.6"
+      ],
+      "resolved_models": [
+        "kimi-k2.6"
+      ]
+    },
+    "invocation_start_offset": 5776025,
+    "ledger_end_offset": 5918586,
+    "total": {
+      "cached_tokens": 1268701480,
+      "calls": 18819,
+      "cost_usd": 252.575056849999,
+      "input_tokens": 1298692899,
+      "output_tokens": 5272743,
+      "reasoning_tokens": 3717855,
+      "requested_models": [
+        "kimi-k2.6"
+      ],
+      "resolved_models": [
+        "kimi-k2.6"
+      ]
+    }
+  }
+}

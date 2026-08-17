@@ -9,16 +9,25 @@ import json
 import re
 from typing import Optional
 
-from datasets import load_dataset
-from rank_bm25 import BM25Okapi
-
-
 DEFAULT_CORPUS_DATASET = "Tevatron/browsecomp-plus-corpus"
+DEFAULT_CORPUS_REVISION = "b27b02bc3e45511b8b82a13e6f90ce761df726f6"
 
 
 def _tokenize(text: str) -> list[str]:
     """Simple whitespace + punctuation tokenizer for BM25."""
     return re.findall(r"\w+", text.lower())
+
+
+def _load_corpus(dataset: str, revision: str):
+    from datasets import load_dataset
+
+    return load_dataset(dataset, split="train", revision=revision)
+
+
+def _build_index(tokenized_corpus: list[list[str]]):
+    from rank_bm25 import BM25Okapi
+
+    return BM25Okapi(tokenized_corpus)
 
 
 class BM25Retriever:
@@ -31,6 +40,7 @@ class BM25Retriever:
     def __init__(
         self,
         corpus_dataset: str = DEFAULT_CORPUS_DATASET,
+        corpus_revision: str = DEFAULT_CORPUS_REVISION,
         snippet_max_words: int = 500,
         k: int = 5,
     ):
@@ -39,7 +49,7 @@ class BM25Retriever:
 
         # Load corpus from HuggingFace
         print(f"  [BM25Retriever] Loading corpus: {corpus_dataset}")
-        ds = load_dataset(corpus_dataset, split="train")
+        ds = _load_corpus(corpus_dataset, corpus_revision)
         self.docids: list[str] = []
         self.texts: list[str] = []
         for row in ds:
@@ -50,7 +60,7 @@ class BM25Retriever:
         # Build BM25 index
         print("  [BM25Retriever] Building BM25 index...")
         tokenized_corpus = [_tokenize(text) for text in self.texts]
-        self.bm25 = BM25Okapi(tokenized_corpus)
+        self.bm25 = _build_index(tokenized_corpus)
         print("  [BM25Retriever] BM25 index ready")
 
     def search(self, query: str, k: int | None = None) -> str:

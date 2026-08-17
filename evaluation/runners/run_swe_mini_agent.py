@@ -29,6 +29,7 @@ and ``--num_revisions``. With those at their defaults the runner produces the
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -42,18 +43,207 @@ from typing import Any
 _THIS = Path(__file__).resolve()
 _REPO = _THIS.parent.parent.parent
 
-from intent_construction.intent_extraction.core.llm_utils import clean_model_name  # noqa: E402
+from intent_construction.intent_extraction.core.llm_utils import (  # noqa: E402
+    clean_model_name,
+    resolve_model_name,
+)
 from evaluation.common.swe_harness import SWEHarness  # noqa: E402
 from evaluation.common.swe_minisweagent_scaffold import (  # noqa: E402
     MiniAgentResult,
     run_evolvingintent_with_mini_agent,
 )
 from situated_simulation.user_simulation import EvolvingIntent  # noqa: E402
+from evaluation.swe_bench.state import (  # noqa: E402
+    EXPECTED_REASONING_EFFORT,
+    MODEL_STEP_LIMIT_PER_TURN,
+    SCENARIO_BY_NAME,
+    TOOL_CALL_LIMIT_PER_TURN,
+    HardeningError,
+    TaskCheckpointStore,
+    assert_no_output_limit_fields,
+    atomic_write_json,
+    validate_aggregate_results,
+    validate_exact_ids,
+    validate_requested_models,
+    read_json,
+    ledger_offset,
+    load_published_id_map,
+    load_published_task_ids,
+    read_usage_events,
+    validate_runtime_environment,
+    validate_usage_events,
+)
 
 EXPERIMENTS_DIR = _REPO / "evaluation" / "experiments"
+SWEREX_COMMAND_TIMEOUT_SECONDS = 30 * 60
+SWEREX_RUNTIME_TIMEOUT_SECONDS = 24 * 60 * 60
+PUBLISHED_EVAL_MANIFEST = (
+    _REPO / "intent_construction" / "eval_indices" / "swe_bench_verified_eval_ids.json"
+)
+PUBLISHED_TASK_IDS = (
+    _REPO / "intent_construction" / "eval_indices" / "swe_bench_verified_task_ids.json"
+)
 
 
 _VALID_SOURCES = ("raw", "paraphrase")
+
+
+def _load_reusable_mini_result(
+    trajectory_path: str | Path,
+    *,
+    task_id: str,
+    instance_id: str,
+    model: str,
+    user_turns: list[str],
+    reasoning_effort: str | None,
+    step_limit_per_turn: int | None,
+    tool_call_limit_per_turn: int | None,
+    use_tool_calling: bool,
+) -> tuple[MiniAgentResult, str] | None:
+    """Recover a completed agent patch when only the verifier needs retrying."""
+    path = Path(trajectory_path)
+    if not path.is_file() or path.stem != task_id:
+        return None
+    try:
+        raw = path.read_bytes()
+        payload = json.loads(raw)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict) or payload.get("trajectory_format") != "mini-swe-agent-1.1":
+        return None
+
+    info = payload.get("info")
+    messages = payload.get("messages")
+    if not isinstance(info, dict) or not isinstance(messages, list):
+        return None
+    submission = info.get("submission")
+    if (
+        info.get("exit_status") != "Submitted"
+        or not isinstance(submission, str)
+        or not submission.strip().startswith("diff --git ")
+    ):
+        return None
+
+    config = info.get("config")
+    if not isinstance(config, dict):
+        return None
+    try:
+        assert_no_output_limit_fields(config, location="reusable SWE trajectory")
+    except HardeningError:
+        return None
+    model_config = config.get("model")
+    model_kwargs = model_config.get("model_kwargs") if isinstance(model_config, dict) else None
+    if (
+        not isinstance(model_config, dict)
+        or model_config.get("model_name") != model
+        or not isinstance(model_kwargs, dict)
+        or model_kwargs.get("reasoning_effort") != reasoning_effort
+    ):
+        return None
+    expected_model_type = ".LLMToolModel" if use_tool_calling else ".LLMTextbasedModel"
+    if not str(config.get("model_type", "")).endswith(expected_model_type):
+        return None
+
+    agent_config = config.get("agent")
+    if not isinstance(agent_config, dict):
+        return None
+    configured_output = agent_config.get("output_path")
+    if not isinstance(configured_output, str):
+        return None
+    try:
+        if Path(configured_output).resolve() != path.resolve():
+            return None
+    except OSError:
+        return None
+    if agent_config.get("step_limit") != step_limit_per_turn:
+        return None
+
+    environment = config.get("environment")
+    image = environment.get("image") if isinstance(environment, dict) else ""
+    instance_marker = instance_id.lower().replace("__", "_1776_")
+    if instance_marker not in str(image).lower():
+        return None
+
+    trajectory_users = [
+        str(message.get("content") or "")
+        for message in messages
+        if isinstance(message, dict) and message.get("role") == "user"
+    ]
+    if len(trajectory_users) != len(user_turns) or any(
+        turn not in rendered for turn, rendered in zip(user_turns, trajectory_users)
+    ):
+        return None
+
+    exit_messages = [
+        message
+        for message in messages
+        if isinstance(message, dict) and message.get("role") == "exit"
+    ]
+    exit_extra = exit_messages[-1].get("extra") if exit_messages else None
+    if (
+        not isinstance(exit_extra, dict)
+        or exit_extra.get("exit_status") != "Submitted"
+        or exit_extra.get("submission") != submission
+    ):
+        return None
+
+    tool_budget = config.get("tool_budget")
+    completed_tool_calls = (
+        tool_budget.get("completed_turns") if isinstance(tool_budget, dict) else None
+    )
+    if (
+        not isinstance(tool_budget, dict)
+        or tool_budget.get("limit_per_turn") != tool_call_limit_per_turn
+        or not isinstance(completed_tool_calls, list)
+        or len(completed_tool_calls) != len(user_turns)
+        or not all(
+            isinstance(value, int)
+            and value >= 0
+            and (
+                tool_call_limit_per_turn is None
+                or value <= tool_call_limit_per_turn
+            )
+            for value in completed_tool_calls
+        )
+    ):
+        return None
+
+    per_turn_steps: list[int] = []
+    for message in messages:
+        if not isinstance(message, dict):
+            return None
+        role = message.get("role")
+        if role == "user":
+            per_turn_steps.append(0)
+        elif role == "assistant" and per_turn_steps:
+            per_turn_steps[-1] += 1
+    if len(per_turn_steps) != len(user_turns):
+        return None
+
+    model_stats = info.get("model_stats")
+    raw_cost = model_stats.get("instance_cost", 0.0) if isinstance(model_stats, dict) else 0.0
+    try:
+        cost = float(raw_cost or 0.0)
+    except (TypeError, ValueError):
+        return None
+    return (
+        MiniAgentResult(
+            instance_id=instance_id,
+            submission=submission,
+            exit_status="Submitted",
+            n_steps=sum(per_turn_steps),
+            n_user_turns_delivered=len(user_turns),
+            cost=cost,
+            error=None,
+            final_messages=list(messages),
+            scaffold_mode="native" if use_tool_calling else "textbased",
+            step_limit_per_turn=step_limit_per_turn,
+            per_turn_steps=per_turn_steps,
+            tool_call_limit_per_turn=tool_call_limit_per_turn,
+            per_turn_tool_calls=list(completed_tool_calls),
+        ),
+        hashlib.sha256(raw).hexdigest(),
+    )
 
 
 def _question_from_sample(sample: dict[str, Any], source: str) -> str:
@@ -118,6 +308,11 @@ def evaluate_one(
     step_limit_per_turn: int | None = None,
     use_tool_calling: bool = False,
     reasoning_effort: str | None = None,
+    tool_call_limit_per_turn: int | None = None,
+    environment_class: str = "docker",
+    checkpoint_scenario: str | None = None,
+    resolved_model: str | None = None,
+    trajectory_path: str | Path | None = None,
 ) -> dict[str, Any]:
     instance_id = sample.get("original_id") or ""
     task_id = sample.get("task_id") or instance_id
@@ -147,24 +342,62 @@ def evaluate_one(
     overrides: dict[str, Any] = {}
     if reasoning_effort:
         overrides["model"] = {"model_kwargs": {"reasoning_effort": reasoning_effort}}
+    if tool_call_limit_per_turn is not None:
+        overrides.setdefault("model", {}).setdefault("model_kwargs", {})[
+            "parallel_tool_calls"
+        ] = False
+    if environment_class:
+        overrides["environment"] = {"environment_class": environment_class}
+        if environment_class == "swerex_modal":
+            overrides["environment"].update(
+                {
+                    "timeout": SWEREX_COMMAND_TIMEOUT_SECONDS,
+                    "startup_timeout": 600.0,
+                    "runtime_timeout": float(SWEREX_RUNTIME_TIMEOUT_SECONDS),
+                    "deployment_timeout": float(SWEREX_RUNTIME_TIMEOUT_SECONDS),
+                    "install_pipx": True,
+                    "modal_sandbox_kwargs": {},
+                }
+            )
+    assert_no_output_limit_fields(overrides, location="runner overrides")
 
     error: str | None = None
     success = True
     mini_result: MiniAgentResult | None = None
-    try:
-        mini_result = run_evolvingintent_with_mini_agent(
+    reused_trajectory_sha256: str | None = None
+    reusable = None
+    if trajectory_path is not None and checkpoint_scenario in SCENARIO_BY_NAME:
+        reusable = _load_reusable_mini_result(
+            trajectory_path,
+            task_id=str(task_id),
+            instance_id=str(instance_id),
+            model=model,
             user_turns=user_turns,
-            instance=instance,
-            model_name=model,
-            cost_limit=cost_limit,
-            step_limit=step_limit,
+            reasoning_effort=reasoning_effort,
             step_limit_per_turn=step_limit_per_turn,
+            tool_call_limit_per_turn=tool_call_limit_per_turn,
             use_tool_calling=use_tool_calling,
-            overrides=overrides if overrides else None,
         )
-    except Exception as e:
-        success = False
-        error = f"mini_agent_failed: {type(e).__name__}: {e}"
+    if reusable is not None:
+        mini_result, reused_trajectory_sha256 = reusable
+        print(f"Reusing completed agent trajectory for verifier retry: {task_id}")
+    else:
+        try:
+            mini_result = run_evolvingintent_with_mini_agent(
+                user_turns=user_turns,
+                instance=instance,
+                model_name=model,
+                cost_limit=cost_limit,
+                step_limit=step_limit,
+                step_limit_per_turn=step_limit_per_turn,
+                tool_call_limit_per_turn=tool_call_limit_per_turn,
+                output_path=trajectory_path,
+                use_tool_calling=use_tool_calling,
+                overrides=overrides if overrides else None,
+            )
+        except Exception as e:
+            success = False
+            error = f"mini_agent_failed: {type(e).__name__}: {e}"
 
     if not success or mini_result is None:
         return {
@@ -225,7 +458,15 @@ def evaluate_one(
             "exit_status": mini_result.exit_status,
             "step_limit_per_turn": mini_result.step_limit_per_turn,
             "per_turn_steps": list(mini_result.per_turn_steps),
+            "tool_call_limit_per_turn": mini_result.tool_call_limit_per_turn,
+            "per_turn_tool_calls": list(mini_result.per_turn_tool_calls),
             "scenario": sample.get("_scenario", "fully-specified"),
+            "checkpoint_scenario": checkpoint_scenario,
+            "requested_model": model,
+            "resolved_model": resolved_model or resolve_model_name(model),
+            "reasoning_effort": reasoning_effort,
+            "agent_reused_from_trajectory": reused_trajectory_sha256 is not None,
+            "agent_trajectory_sha256": reused_trajectory_sha256,
         },
         "swe_eval": swe_eval,
     }
@@ -258,9 +499,78 @@ def run(
     prefix_style: str = "base",
     naturalizer_model: str | None = None,
     include_evidence: bool = True,
+    strict_task_ids: bool = False,
+    checkpoint_dir: str | None = None,
+    checkpoint_scenario: str | None = None,
+    output_path_override: str | None = None,
+    tool_call_limit_per_turn: int | None = None,
+    environment_class: str = "docker",
+    harness_dataset_path: str | None = None,
 ) -> dict[str, Any]:
     if source not in _VALID_SOURCES:
         raise ValueError(f"--source must be one of {_VALID_SOURCES}")
+    strict_resolved_model: str | None = None
+    strict_ledger_path: Path | None = None
+    strict_ledger_start = 0
+    if strict_task_ids:
+        validate_requested_models([model])
+        if reasoning_effort != EXPECTED_REASONING_EFFORT:
+            raise HardeningError(
+                "strict SWE mode requires "
+                f"--reasoning_effort {EXPECTED_REASONING_EFFORT}"
+            )
+        strict_resolved_model = validate_runtime_environment(os.environ)
+        if resolve_model_name(model) != strict_resolved_model:
+            raise HardeningError("resolved Kimi model changed during strict preflight")
+        raw_ledger_path = os.environ.get("LLM_USAGE_LEDGER_PATH", "").strip()
+        if not raw_ledger_path:
+            raise HardeningError("strict SWE mode requires LLM_USAGE_LEDGER_PATH")
+        strict_ledger_path = Path(raw_ledger_path).expanduser().resolve()
+        strict_ledger_start = ledger_offset(strict_ledger_path)
+        if not task_ids_file:
+            raise HardeningError("strict SWE mode requires --task_ids_file")
+        if num_samples is not None or rerun_failed or extend:
+            raise HardeningError(
+                "strict SWE mode forbids --num_samples, --rerun_failed, and --extend"
+            )
+        if naturalizer_model is not None:
+            raise HardeningError("strict SWE mode forbids an online naturalizer model")
+        if source != "paraphrase" or ordering != "interleaved" or prefix_style != "base":
+            raise HardeningError("strict SWE mode requires the fixed prompt/scheduler configuration")
+        if not include_evidence or not use_tool_calling:
+            raise HardeningError("strict SWE mode requires evidence and native tool calling")
+        if checkpoint_dir is None or checkpoint_scenario not in SCENARIO_BY_NAME:
+            raise HardeningError(
+                "strict SWE mode requires --checkpoint_dir and a known --checkpoint_scenario"
+            )
+        if tool_call_limit_per_turn != TOOL_CALL_LIMIT_PER_TURN:
+            raise HardeningError(
+                f"strict SWE mode requires --tool_call_limit_per_turn {TOOL_CALL_LIMIT_PER_TURN}"
+            )
+        expected_spec = SCENARIO_BY_NAME[checkpoint_scenario]
+        if (
+            num_turns,
+            num_revisions,
+            num_switches,
+        ) != (
+            expected_spec.turns,
+            expected_spec.revisions,
+            expected_spec.switches,
+        ):
+            raise HardeningError(
+                f"scenario {checkpoint_scenario!r} does not match its fixed turn configuration"
+            )
+        if step_limit_per_turn != MODEL_STEP_LIMIT_PER_TURN:
+            raise HardeningError(
+                "strict SWE mode requires an unlimited model-step budget "
+                f"(--step_limit_per_turn {MODEL_STEP_LIMIT_PER_TURN})"
+            )
+        if cost_limit != 0:
+            raise HardeningError("strict SWE mode forbids mini-swe-agent's cost gate")
+        if environment_class != "swerex_modal":
+            raise HardeningError("strict SWE mode requires the swerex_modal environment")
+        if not harness_dataset_path:
+            raise HardeningError("strict SWE mode requires --harness_dataset_path")
 
     # Explicit AND gate: only the legacy JSON path counts as fully-specified.
     # Single-turn fully-specified MUST use the JSON path to preserve the
@@ -275,20 +585,24 @@ def run(
         scenario = "fully-specified"
         with open(data_path) as f:
             data: list[dict[str, Any]] = json.load(f)
+        requested_task_ids: list[str] | None = None
         if task_ids_file:
             with open(task_ids_file) as f:
                 payload = json.load(f)
-                allowed = set(payload.get("task_ids", payload))
+                requested_task_ids = list(payload.get("task_ids", payload))
+                allowed = set(requested_task_ids)
             data = [d for d in data if d.get("task_id") in allowed]
         if num_samples is not None and not rerun_failed and not extend:
             data = data[:num_samples]
     else:
         # Multi-turn path: build samples through EvolvingIntent.
         task_ids_filter: set[str] | None = None
+        requested_task_ids = None
         if task_ids_file:
             with open(task_ids_file) as f:
                 payload = json.load(f)
-                task_ids_filter = set(payload.get("task_ids", payload))
+                requested_task_ids = list(payload.get("task_ids", payload))
+                task_ids_filter = set(requested_task_ids)
         sim = EvolvingIntent(
             data_path=data_path,
             mode="eval",
@@ -308,6 +622,51 @@ def run(
             samples = samples[:num_samples]
         data = [_sample_to_dict(gs) for gs in samples]
 
+    if strict_task_ids:
+        assert requested_task_ids is not None
+        canonical_task_ids = load_published_task_ids(
+            PUBLISHED_EVAL_MANIFEST,
+            PUBLISHED_TASK_IDS,
+        )
+        validate_exact_ids(
+            requested_task_ids,
+            canonical_task_ids,
+            label="requested task IDs",
+            require_order=True,
+        )
+        validate_exact_ids(
+            [str(item.get("task_id") or "") for item in data],
+            canonical_task_ids,
+            label="scheduled SWE samples",
+        )
+        canonical_original_ids = load_published_id_map(PUBLISHED_EVAL_MANIFEST)
+        mismatched_mappings = [
+            item.get("task_id")
+            for item in data
+            if item.get("original_id")
+            != canonical_original_ids.get(str(item.get("task_id") or ""))
+        ]
+        if mismatched_mappings:
+            raise HardeningError(
+                "scheduled SWE task/original ID mapping differs from the published set: "
+                f"{mismatched_mappings[:5]}"
+            )
+        harness_rows = read_json(
+            harness_dataset_path,
+            label="filtered official SWE harness dataset",
+        )
+        if not isinstance(harness_rows, list):
+            raise HardeningError("filtered official SWE harness dataset must be a list")
+        validate_exact_ids(
+            [
+                str(row.get("instance_id") or "")
+                for row in harness_rows
+                if isinstance(row, dict)
+            ],
+            [str(item.get("original_id") or "") for item in data],
+            label="official SWE harness instances",
+        )
+
     # Default suffix when use_tool_calling=True so on-disk files don't
     # collide with the existing text-based baselines (gpt-5.1.json).
     # Final filename: gpt-5.1_native.json (single underscore).
@@ -325,13 +684,17 @@ def run(
     if output_suffix:
         output_filename = output_filename.replace(".json", f"_{output_suffix}.json")
 
-    exp_dir = EXPERIMENTS_DIR / _experiments_subdir(source, scenario) / "swe_bench_verified"
-    exp_dir.mkdir(parents=True, exist_ok=True)
-    output_path = exp_dir / output_filename
+    if output_path_override:
+        output_path = Path(output_path_override).resolve()
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        exp_dir = EXPERIMENTS_DIR / _experiments_subdir(source, scenario) / "swe_bench_verified"
+        exp_dir.mkdir(parents=True, exist_ok=True)
+        output_path = exp_dir / output_filename
 
     existing: dict[str, Any] = {}
     failed_ids: list[str] | None = None
-    if output_path.exists():
+    if output_path.exists() and checkpoint_dir is None:
         if extend:
             with open(output_path) as f:
                 existing = json.load(f)
@@ -386,14 +749,57 @@ def run(
     # process. Only relevant when multiple models share one launcher
     # process (multi-process launching gives the same isolation
     # automatically, since each process has its own SWEHarness).
-    harness = SWEHarness()
+    harness_kwargs: dict[str, Any] = {
+        "modal": environment_class == "swerex_modal",
+    }
+    if harness_dataset_path:
+        harness_kwargs["dataset_name"] = str(Path(harness_dataset_path).resolve())
+    harness = SWEHarness(**harness_kwargs)
     harness_run_id = f"swe_{clean_model_name(model)}"
+    resolved_model = strict_resolved_model or resolve_model_name(model)
+    trajectory_dir: Path | None = None
+    if checkpoint_scenario in SCENARIO_BY_NAME:
+        run_root = output_path.parent.parent
+        trajectory_dir = run_root / "trajectories" / str(checkpoint_scenario)
+
+    def _trajectory_path(sample: dict[str, Any]) -> Path | None:
+        if trajectory_dir is None:
+            return None
+        task_id = str(sample.get("task_id") or "unknown").replace("/", "_")
+        return trajectory_dir / f"{task_id}.json"
 
     # Results buffer: starts with whatever extend/rerun_failed loaded so
     # incremental saves always reflect the full merged state. The
     # ``existing`` dict has already been used to filter ``data``; from
     # here on it's just the seed for ``results``.
     results: dict[str, Any] = dict(existing)
+    checkpoint_store: TaskCheckpointStore | None = None
+    resumed_count = 0
+    pending_at_start = len(data)
+    if checkpoint_dir is not None:
+        if checkpoint_scenario not in SCENARIO_BY_NAME:
+            raise HardeningError(f"unknown checkpoint scenario: {checkpoint_scenario!r}")
+        checkpoint_store = TaskCheckpointStore(
+            checkpoint_dir,
+            scenario=SCENARIO_BY_NAME[checkpoint_scenario],
+            requested_model=model,
+            resolved_model=resolved_model,
+        )
+        pending: list[dict[str, Any]] = []
+        for sample in data:
+            task_id = str(sample.get("task_id") or "")
+            if checkpoint_store.exists(task_id):
+                results[task_id] = checkpoint_store.load(task_id)
+                resumed_count += 1
+            else:
+                pending.append(sample)
+        data = pending
+        pending_at_start = len(data)
+        print(
+            f"Checkpoint resume: valid={resumed_count}, pending={len(data)}, "
+            f"directory={checkpoint_store.directory}"
+        )
+    pending_task_ids_at_start = [str(sample.get("task_id") or "") for sample in data]
     write_lock = threading.Lock()
 
     def _save_incremental() -> None:
@@ -404,16 +810,23 @@ def run(
         previous file remains intact until rename succeeds.
         """
         with write_lock:
-            tmp = output_path.with_suffix(output_path.suffix + ".tmp")
-            with open(tmp, "w") as f:
-                json.dump(results, f, indent=2, ensure_ascii=False)
-            tmp.replace(output_path)
+            atomic_write_json(output_path, results)
 
     # Make sure the file exists from the start so other tooling can
     # poll it while the run is in progress (and `--extend` on a later
     # invocation finds something even if we crash before the first
     # task completes).
-    _save_incremental()
+    if results:
+        _save_incremental()
+
+    failures: list[str] = []
+
+    def _accept_result(result: dict[str, Any]) -> None:
+        task_id = str(result.get("task_id") or "")
+        if checkpoint_store is not None:
+            checkpoint_store.write(task_id, result)
+        results[task_id] = result
+        _save_incremental()
 
     if num_workers > 1:
         with ThreadPoolExecutor(max_workers=num_workers) as ex:
@@ -422,8 +835,13 @@ def run(
                     evaluate_one, sample, model, source, harness,
                     cost_limit=cost_limit, step_limit=step_limit,
                     step_limit_per_turn=step_limit_per_turn,
+                    tool_call_limit_per_turn=tool_call_limit_per_turn,
                     use_tool_calling=use_tool_calling,
                     reasoning_effort=reasoning_effort,
+                    environment_class=environment_class,
+                    checkpoint_scenario=checkpoint_scenario,
+                    resolved_model=resolved_model,
+                    trajectory_path=_trajectory_path(sample),
                 ): sample
                 for sample in data
             }
@@ -431,11 +849,11 @@ def run(
             for fut in tqdm(as_completed(futs), total=len(data), desc=model):
                 try:
                     r = fut.result()
-                    results[r["task_id"]] = r
-                    _save_incremental()
+                    _accept_result(r)
                 except Exception as e:
                     s = futs[fut]
                     print(f"\n❌ {s.get('task_id')}: {e}")
+                    failures.append(f"{s.get('task_id')}: {type(e).__name__}: {e}")
     else:
         from tqdm import tqdm
         for sample in tqdm(data, desc=model):
@@ -444,17 +862,67 @@ def run(
                     sample, model, source, harness,
                     cost_limit=cost_limit, step_limit=step_limit,
                     step_limit_per_turn=step_limit_per_turn,
+                    tool_call_limit_per_turn=tool_call_limit_per_turn,
                     use_tool_calling=use_tool_calling,
                     reasoning_effort=reasoning_effort,
+                    environment_class=environment_class,
+                    checkpoint_scenario=checkpoint_scenario,
+                    resolved_model=resolved_model,
+                    trajectory_path=_trajectory_path(sample),
                 )
-                results[r["task_id"]] = r
-                _save_incremental()
+                _accept_result(r)
             except Exception as e:
                 print(f"\n❌ {sample.get('task_id')}: {e}")
+                failures.append(
+                    f"{sample.get('task_id')}: {type(e).__name__}: {e}"
+                )
 
     # Final save (no-op if we've been saving incrementally, but cheap
     # insurance and writes the same atomic file).
-    _save_incremental()
+    if results:
+        _save_incremental()
+
+    if strict_task_ids:
+        assert requested_task_ids is not None
+        assert checkpoint_store is not None
+        validate_aggregate_results(
+            results,
+            requested_task_ids,
+            store=checkpoint_store,
+        )
+    if failures:
+        raise RuntimeError(
+            f"{len(failures)} SWE task(s) failed; first failure: {failures[0]}"
+        )
+    if strict_task_ids:
+        assert strict_ledger_path is not None
+        all_usage_events = read_usage_events(strict_ledger_path)
+        validate_usage_events(
+            all_usage_events,
+            requested_model=model,
+            resolved_model=resolved_model,
+        )
+        new_usage_events = read_usage_events(
+            strict_ledger_path,
+            start_offset=strict_ledger_start,
+        )
+        validate_usage_events(
+            new_usage_events,
+            requested_model=model,
+            resolved_model=resolved_model,
+        )
+        if pending_at_start and not new_usage_events:
+            verifier_only_retry = all(
+                (results.get(task_id, {}).get("metadata") or {}).get(
+                    "agent_reused_from_trajectory"
+                )
+                is True
+                for task_id in pending_task_ids_at_start
+            )
+            if not verifier_only_retry:
+                raise HardeningError(
+                    "strict SWE tasks completed without provider usage records"
+                )
 
     total = len(results)
     correct = sum(1 for r in results.values() if r.get("correct"))
@@ -466,6 +934,8 @@ def run(
         "model": model, "source": source,
         "total": total, "correct": correct, "failed": failed,
         "accuracy": accuracy, "output_path": str(output_path),
+        "resumed": resumed_count,
+        "executed": len(results) - resumed_count,
         "timestamp": datetime.now().isoformat(),
     }
 
@@ -498,9 +968,9 @@ def main() -> None:
     p.add_argument("--extend", action="store_true",
                    help="Keep existing per-sample results; only run task_ids not yet present.")
     p.add_argument("--output_suffix", type=str, default=None)
-    p.add_argument("--reasoning_effort", type=str, default="medium",
+    p.add_argument("--reasoning_effort", type=str, default=None,
                    choices=["minimal", "low", "medium", "high"],
-                   help="Reasoning effort for GPT-5.x reasoning models. Default 'medium' "
+                   help="Optional reasoning effort for GPT-5.x reasoning models. "
                         "matches mini-swe-agent v2 leaderboard config (metadata.yaml: "
                         "'GPT-5.1 (2025-11-13) (medium reasoning)').")
     p.add_argument("--use_tool_calling", action="store_true",
@@ -526,7 +996,23 @@ def main() -> None:
                    choices=["base", "function-naturalized", "function-naturalized-v2"])
     p.add_argument("--naturalizer_model", type=str, default=None,
                    help="Optional online naturalizer model.")
+    p.add_argument("--tool_call_limit_per_turn", type=int, default=None,
+                   help="Cap actual environment execute calls per user turn. The hardened path requires 200.")
+    p.add_argument("--environment_class", type=str, default="docker",
+                   choices=["docker", "swerex_modal"],
+                   help="mini-swe-agent execution environment.")
+    p.add_argument("--strict_task_ids", action="store_true",
+                   help="Fail closed unless the fixed 50-task Kimi run is complete.")
+    p.add_argument("--checkpoint_dir", type=str, default=None,
+                   help="Directory for one atomic checkpoint per task ID.")
+    p.add_argument("--checkpoint_scenario", choices=sorted(SCENARIO_BY_NAME), default=None)
+    p.add_argument("--output_path", type=str, default=None,
+                   help="Explicit aggregate result path (checkpoint mode is the resume source).")
+    p.add_argument("--harness_dataset_path", type=str, default=None,
+                   help="Local filtered official SWE dataset for the verifier (.json).")
     args = p.parse_args()
+    if args.strict_task_ids:
+        validate_requested_models(args.models)
 
     summaries = []
     # Sentinel -1 means "fall back to legacy single-cap mode" (use --step_limit
@@ -555,6 +1041,13 @@ def main() -> None:
             ordering=args.ordering,
             prefix_style=args.prefix_style,
             naturalizer_model=args.naturalizer_model,
+            strict_task_ids=args.strict_task_ids,
+            checkpoint_dir=args.checkpoint_dir,
+            checkpoint_scenario=args.checkpoint_scenario,
+            output_path_override=args.output_path,
+            tool_call_limit_per_turn=args.tool_call_limit_per_turn,
+            environment_class=args.environment_class,
+            harness_dataset_path=args.harness_dataset_path,
         )
         summaries.append(s)
 

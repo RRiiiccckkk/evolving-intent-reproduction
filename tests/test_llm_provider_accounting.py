@@ -63,8 +63,13 @@ class ProviderConfigurationTests(unittest.TestCase):
 
         self.assertIs(client, openai.return_value)
         openai.assert_called_once_with(
-            api_key="not-a-real-key", base_url="https://example.invalid/v1"
+            api_key="not-a-real-key",
+            base_url="https://example.invalid/v1",
+            timeout=llm_utils._CLIENT_TIMEOUT,
+            max_retries=0,
         )
+        self.assertEqual(llm_utils._CLIENT_TIMEOUT.connect, 30.0)
+        self.assertEqual(llm_utils._CLIENT_TIMEOUT.read, 1800.0)
         self.assertEqual(llm_utils.resolve_model_name("plan-a"), "kimi-k2.5")
 
     def test_legacy_backend_precedence_is_unchanged(self):
@@ -291,6 +296,73 @@ class ProviderConfigurationTests(unittest.TestCase):
                         )
                 create.assert_called_once()
 
+    def test_generate_json_accepts_one_markdown_json_fence_without_retry(self):
+        os.environ["OPENAI_API_KEY"] = "not-a-real-key"
+        create = Mock(
+            return_value=_chat_response(content='```json\n{"ok": true}\n```')
+        )
+        client = SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=create))
+        )
+
+        with patch.object(llm_utils, "get_client", return_value=client):
+            result = llm_utils.generate_json(
+                [{"role": "user", "content": "json"}],
+                model="test-model",
+                max_retries=3,
+            )
+
+        self.assertEqual(result, {"ok": True})
+        create.assert_called_once()
+
+    def test_generate_json_rate_limits_do_not_consume_content_retries(self):
+        os.environ["OPENAI_API_KEY"] = "not-a-real-key"
+        create = Mock(
+            side_effect=[
+                RuntimeError("429 rate limit"),
+                RuntimeError("429 rate limit"),
+                _chat_response(content='{"ok": true}'),
+            ]
+        )
+        client = SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=create))
+        )
+
+        with patch.object(llm_utils, "get_client", return_value=client), patch.object(
+            llm_utils, "_compute_retry_wait", return_value=0
+        ), patch.object(llm_utils.time, "sleep"):
+            result = llm_utils.generate_json(
+                [{"role": "user", "content": "json"}],
+                model="test-model",
+                max_retries=1,
+                rate_limit_retries=3,
+            )
+
+        self.assertEqual(result, {"ok": True})
+        self.assertEqual(create.call_count, 3)
+
+    def test_json_fence_parser_rejects_trailing_text_and_multiple_values(self):
+        invalid = (
+            '```json\n{"ok": true}\n```\nextra',
+            '```json\n{"ok": true}\n{"second": true}\n```',
+        )
+        for content in invalid:
+            with self.subTest(content=content):
+                with self.assertRaises(json.JSONDecodeError):
+                    llm_utils._parse_json_response(content)
+
+    def test_json_fence_parser_accepts_json_starting_on_opening_fence(self):
+        self.assertEqual(
+            llm_utils._parse_json_response('```{"ok": true}\n```'),
+            {"ok": True},
+        )
+
+    def test_json_fence_parser_accepts_kimi_bang_json_tag(self):
+        self.assertEqual(
+            llm_utils._parse_json_response('```!json\n{"ok": true}\n```'),
+            {"ok": True},
+        )
+
 
 class UsageAccountingTests(unittest.TestCase):
     def setUp(self):
@@ -362,6 +434,7 @@ class UsageAccountingTests(unittest.TestCase):
 
     def test_output_limits_can_be_disabled(self):
         os.environ["LLM_DISABLE_OUTPUT_LIMITS"] = "1"
+        os.environ["LLM_DEFAULT_MAX_OUTPUT_TOKENS"] = "8192"
         create = Mock(return_value=_chat_response())
 
         llm_utils._accounted_api_call(
@@ -373,7 +446,8 @@ class UsageAccountingTests(unittest.TestCase):
             max_output_tokens=77,
         )
 
-        self.assertNotIn("max_tokens", create.call_args.kwargs)
+        for field in ("max_tokens", "max_completion_tokens", "max_output_tokens"):
+            self.assertNotIn(field, create.call_args.kwargs)
 
     def test_ledger_requires_matching_prices_without_hard_cap(self):
         os.environ["LLM_USAGE_LEDGER_PATH"] = str(self.ledger)

@@ -1333,12 +1333,18 @@ def create_sample(
     for s in slots:
         if s.turn_idx == 0 or s.events or s.arguments:
             continue
-        # Find the nearest slot with >1 argument and a non-redundant item
+        # Find the nearest donor that stays non-empty after moving an argument.
+        # An event-bearing slot can donate its sole argument because the event
+        # still gives that turn content. Turn 0 must retain an argument so the
+        # initial request is not reduced to a bare function.
         best_donor = None
         best_dist = float("inf")
         best_ci_idx = -1
         for d in slots:
-            if d is s or len(d.arguments) <= 1:
+            can_donate = len(d.arguments) > 1 or (
+                d.turn_idx != 0 and bool(d.events) and len(d.arguments) == 1
+            )
+            if d is s or not can_donate:
                 continue
             for idx in range(len(d.arguments) - 1, -1, -1):
                 if not _is_redundant_at(d.arguments[idx], s.turn_idx):

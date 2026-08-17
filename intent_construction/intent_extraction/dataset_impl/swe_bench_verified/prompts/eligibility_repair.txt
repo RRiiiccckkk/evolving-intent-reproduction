@@ -1,0 +1,39 @@
+You are auditing an intent extraction from a SWE-bench GitHub issue. The
+existing extraction has no argument that can support a localized argument
+revision. Extract exactly ONE additional concrete requirement from the problem
+statement.
+
+Output JSON with this exact shape:
+{
+  "argument": "one self-contained requirement grounded in the issue",
+  "category": "location|approach|scope|constraint",
+  "grounding_quote": "an exact contiguous quote from the problem statement",
+  "mutable_span": "an exact localized value or identifier inside argument"
+}
+
+Rules:
+1. Use only information explicitly present in the problem statement. Do not use
+   the gold patch, tests, repository knowledge, or unstated assumptions.
+2. Prefer, in order: an explicit expected behavior as a constraint; a named
+   affected file, API, function, class, or component as a location; an explicit
+   author-suggested fix as an approach; or an explicit implementation scope.
+3. Use approach only when the issue author explicitly suggests the approach.
+4. Do not turn a symptom or reproduction trigger into an eligible category just
+   to satisfy the request.
+5. The new argument must add a concrete condition that is not an exact duplicate
+   of an existing condition. It may make a requirement implicit in the goal
+   explicit when that requirement is stated in the issue.
+6. grounding_quote must be copied verbatim and contiguously from the problem
+   statement and must directly support the argument.
+7. mutable_span must be copied verbatim and contiguously from argument. Choose
+   the smallest value or identifier that can be replaced later while leaving the
+   rest of the argument intact.
+
+Problem statement:
+[[PROBLEM_STATEMENT]]
+
+Extracted goal:
+[[GOAL]]
+
+Existing conditions:
+[[CONDITIONS]]

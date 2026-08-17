@@ -10,6 +10,7 @@ Key design decisions:
 - Gold patch is used ONLY for post-extraction verification (alignment check)
 """
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -55,7 +56,8 @@ class SWEBenchVerifiedExtractor(BaseExtractor):
         num_arguments: int = 4,
         max_verification_attempts: int = 5,
         verif_model: str = "gpt-5.1",
-        enable_model_verification: bool = True
+        enable_model_verification: bool = True,
+        reasoning_effort: str | None = None,
     ):
         super().__init__(
             model=model,
@@ -64,6 +66,7 @@ class SWEBenchVerifiedExtractor(BaseExtractor):
             verif_model=verif_model,
             enable_model_verification=enable_model_verification
         )
+        self.reasoning_effort = reasoning_effort
 
     def get_dataset_name(self) -> str:
         return "swe_bench_verified"
@@ -78,6 +81,195 @@ class SWEBenchVerifiedExtractor(BaseExtractor):
         self.prompt_conversational = load_prompt(prompts_dir / "conversational.txt")
         self.prompt_verification = load_prompt(prompts_dir / "verification.txt")
         self.prompt_patch_alignment = load_prompt(prompts_dir / "patch_alignment.txt")
+        self.prompt_eligibility_repair = load_prompt(
+            prompts_dir / "eligibility_repair.txt"
+        )
+        self.prompt_eligibility_repair_verification = load_prompt(
+            prompts_dir / "eligibility_repair_verification.txt"
+        )
+
+    def ensure_counterfactual_eligibility(
+        self,
+        sample: Dict[str, Any],
+        source_sample: Dict[str, Any] | None = None,
+        *,
+        max_attempts: int = 3,
+    ) -> Dict[str, Any]:
+        """Run explicit Stage 1b repair for a target with no mutable argument."""
+        arguments = sample.get("arguments", [])
+        if any(
+            argument.get("category") in COUNTERFACTUAL_ELIGIBLE_CATEGORIES
+            for argument in arguments
+        ):
+            return sample
+
+        if source_sample is None:
+            raise ValueError("Stage 1b repair requires the original SWE source sample")
+        raw_problem_statement = str(source_sample.get("question", ""))
+        problem_statement = clean_problem_statement(raw_problem_statement)
+        prompt = populate_prompt(
+            self.prompt_eligibility_repair,
+            {
+                "PROBLEM_STATEMENT": problem_statement,
+                "GOAL": sample.get("function", ""),
+                "CONDITIONS": json.dumps(arguments, indent=2),
+            },
+        )
+        rejection = ""
+        argument_ids = [
+            argument.get("argument_id")
+            for argument in arguments
+            if isinstance(argument.get("argument_id"), int)
+        ]
+        added_argument_id = max(argument_ids, default=0) + 1
+        repair_prompt_sha256 = hashlib.sha256(
+            self.prompt_eligibility_repair.encode("utf-8")
+        ).hexdigest()
+        grounding_prompt_sha256 = hashlib.sha256(
+            self.prompt_eligibility_repair_verification.encode("utf-8")
+        ).hexdigest()
+        for _ in range(max_attempts):
+            attempt_prompt = prompt
+            if rejection:
+                attempt_prompt += (
+                    "\n\nThe previous output was rejected because: "
+                    f"{rejection}\nReturn a corrected JSON object."
+                )
+            result = generate_json(
+                [{"role": "user", "content": attempt_prompt}],
+                model=self.model,
+                step="extraction-eligibility-repair",
+                reasoning_effort=self.reasoning_effort,
+            )
+            category = str(result.get("category") or "").strip().lower()
+            argument_text = str(result.get("argument") or "").strip()
+            grounding_quote = str(result.get("grounding_quote") or "").strip()
+            mutable_span = str(result.get("mutable_span") or "").strip()
+            if category not in COUNTERFACTUAL_ELIGIBLE_CATEGORIES:
+                rejection = "category is not location, approach, scope, or constraint"
+                continue
+            if not argument_text:
+                rejection = "argument is empty"
+                continue
+            if not grounding_quote:
+                rejection = "grounding_quote is empty"
+                continue
+            quote_start = raw_problem_statement.find(grounding_quote)
+            if quote_start < 0:
+                rejection = "grounding_quote is not a verbatim span of the problem statement"
+                continue
+            if not mutable_span or mutable_span not in argument_text:
+                rejection = "mutable_span is not a verbatim span of the argument"
+                continue
+            existing = {
+                " ".join(str(argument.get("argument") or "").split()).casefold()
+                for argument in arguments
+            }
+            if " ".join(argument_text.split()).casefold() in existing:
+                rejection = "argument exactly duplicates an existing condition"
+                continue
+            if " ".join(argument_text.split()).casefold() == " ".join(
+                str(sample.get("function") or "").split()
+            ).casefold():
+                rejection = "argument merely duplicates the extracted goal"
+                continue
+
+            grounding_prompt = populate_prompt(
+                self.prompt_eligibility_repair_verification,
+                {
+                    "PROBLEM_STATEMENT": problem_statement,
+                    "GOAL": sample.get("function", ""),
+                    "ARGUMENT": argument_text,
+                    "CATEGORY": category,
+                    "GROUNDING_QUOTE": grounding_quote,
+                    "MUTABLE_SPAN": mutable_span,
+                },
+            )
+            grounding = generate_json(
+                [{"role": "user", "content": grounding_prompt}],
+                model=self.model,
+                step="extraction-eligibility-repair-grounding",
+                reasoning_effort=self.reasoning_effort,
+            )
+            grounding_checks = (
+                "supported_by_quote",
+                "category_correct",
+                "self_contained",
+                "localized_revision",
+                "not_goal_restatement",
+            )
+            failed_checks = [
+                check for check in grounding_checks if grounding.get(check) is not True
+            ]
+            if failed_checks:
+                rejection = (
+                    "grounding verifier rejected: "
+                    + ", ".join(failed_checks)
+                    + "; "
+                    + str(grounding.get("reasoning") or "no reasoning")
+                )
+                continue
+
+            added_argument = {
+                "argument_id": added_argument_id,
+                "argument": argument_text,
+                "category": category,
+                "counterfactual_eligible": True,
+                "eligibility_repair": True,
+            }
+            output = dict(sample)
+            output["arguments"] = [dict(argument) for argument in arguments] + [
+                added_argument
+            ]
+            output["num_arguments"] = len(output["arguments"])
+            output["fully_specified_question"] = " ".join(
+                [output.get("function", "")]
+                + [argument["argument"] for argument in output["arguments"]]
+            ).strip()
+            extracted = {
+                "function": output["function"],
+                "arguments": output["arguments"],
+            }
+            if not self.verify_coverage(source_sample, extracted):
+                rejection = "coverage verifier rejected the repaired extraction"
+                continue
+            if not self.verify_solvability(source_sample, extracted):
+                rejection = "gold-patch alignment rejected the repaired extraction"
+                continue
+
+            output["eligibility_repair_info"] = {
+                "added_argument_id": added_argument_id,
+                "category": category,
+                "coverage_verification": True,
+                "grounding_quote": grounding_quote,
+                "grounding_quote_start": quote_start,
+                "grounding_quote_end": quote_start + len(grounding_quote),
+                "grounding_verifier": {
+                    "decision": "passed",
+                    "model": self.model,
+                    "prompt_sha256": grounding_prompt_sha256,
+                    "reasoning": str(grounding.get("reasoning") or ""),
+                    "reasoning_effort": self.reasoning_effort,
+                },
+                "model": self.model,
+                "mutable_span": mutable_span,
+                "patch_alignment_verification": True,
+                "prompt_sha256": repair_prompt_sha256,
+                "reasoning_effort": self.reasoning_effort,
+                "reason": "no_counterfactual_eligible_argument",
+                "repair_version": "eligible_argument_v1",
+                "source": "problem_statement",
+                "source_sha256": hashlib.sha256(
+                    raw_problem_statement.encode("utf-8")
+                ).hexdigest(),
+                "verifier_decision": "full_pipeline_passed",
+            }
+            return output
+
+        raise ValueError(
+            "could not extract a grounded counterfactual-eligible SWE argument: "
+            + (rejection or "unknown validation failure")
+        )
 
     def decompose(self, sample: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -94,7 +286,8 @@ class SWEBenchVerifiedExtractor(BaseExtractor):
         result = generate_json(
             [{"role": "user", "content": prompt}],
             model=self.model,
-            step="extraction-decompose"
+            step="extraction-decompose",
+            reasoning_effort=self.reasoning_effort,
         )
 
         return {
@@ -122,7 +315,8 @@ class SWEBenchVerifiedExtractor(BaseExtractor):
         result = generate_json(
             [{"role": "user", "content": prompt}],
             model=self.model,
-            step="extraction-conversational"
+            step="extraction-conversational",
+            reasoning_effort=self.reasoning_effort,
         )
 
         # Preserve category metadata from decompose step
@@ -179,7 +373,8 @@ class SWEBenchVerifiedExtractor(BaseExtractor):
         result = generate_json(
             [{"role": "user", "content": prompt}],
             model=self.model,
-            step="extraction-verification"
+            step="extraction-verification",
+            reasoning_effort=self.reasoning_effort,
         )
 
         return result.get("coverage", "incomplete") == "complete"
@@ -215,7 +410,8 @@ class SWEBenchVerifiedExtractor(BaseExtractor):
         result = generate_json(
             [{"role": "user", "content": prompt}],
             model=self.verif_model,
-            step="extraction-patch-alignment"
+            step="extraction-patch-alignment",
+            reasoning_effort=self.reasoning_effort,
         )
 
         aligned = result.get("aligned", False)

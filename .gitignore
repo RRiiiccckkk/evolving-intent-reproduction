@@ -14,6 +14,10 @@
 # Local reproduction outputs and Python caches
 reproduction/runs/
 reproduction/**/__pycache__/
+evaluation/swe_runs/
+evaluation/swe_workspace/
+.claude_resources.json
+tmp/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -503,3 +507,6 @@ BrowseComp-Plus/
 evaluation/experiments/
 evaluation/swe_workspace/
 evaluation/logs/
+
+# OMC orchestration state
+.omc/

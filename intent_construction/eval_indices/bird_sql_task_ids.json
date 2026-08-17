@@ -1,5 +1,5 @@
 {
-  "description": "bird_sql eval subset task_ids (n=100, split=train). Used by evaluation/scripts/run_bird.sh to reproduce the paper eval subset.",
+  "description": "bird_sql eval subset task_ids (n=100, split=train+dev). Used by evaluation/scripts/run_bird.sh to reproduce the paper eval subset.",
   "num_samples": 100,
   "task_ids": [
     "bird_sql_train_3957",

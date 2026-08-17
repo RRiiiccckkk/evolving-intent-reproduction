@@ -34,7 +34,13 @@ from tqdm import tqdm
 from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from intent_construction.intent_extraction.core.llm_utils import generate_json, load_prompt, populate_prompt
+from intent_construction.intent_extraction.core.llm_utils import (
+    LLMAccountingError,
+    LLMIncompleteResponse,
+    generate_json,
+    load_prompt,
+    populate_prompt,
+)
 
 
 class CounterfactualGenerator:
@@ -262,6 +268,8 @@ class CounterfactualGenerator:
                     final_result["_article_grammar_adjusted"] = True
                 return final_result
                 
+            except (LLMAccountingError, LLMIncompleteResponse):
+                raise
             except Exception as e:
                 print(f"    Error generating counterfactual argument: {e} (attempt {attempt + 1})")
                 validation_feedback = ""

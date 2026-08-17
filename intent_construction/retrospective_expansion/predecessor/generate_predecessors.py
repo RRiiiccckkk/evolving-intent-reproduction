@@ -33,7 +33,25 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from tqdm import tqdm
 
-from intent_construction.intent_extraction.core.llm_utils import generate_json, generate_text, load_prompt, populate_prompt
+from intent_construction.intent_extraction.core.llm_utils import (
+    LLMAccountingError,
+    LLMIncompleteResponse,
+    generate_json,
+    generate_text,
+    load_prompt,
+    populate_prompt,
+)
+
+
+class PredecessorContentFilterError(RuntimeError):
+    """Raised so chain generation can replace provider-rejected context."""
+
+
+def _is_content_filter_error(error: BaseException) -> bool:
+    message = str(error).lower()
+    return "content_filter" in message or (
+        "high risk" in message and "prompt" in message
+    )
 
 
 # =============================================================================
@@ -315,12 +333,13 @@ class PredecessorGenerator:
         reasoning_effort: str = None,
         fallback_model: str = None,
         share_num: int = None,
-        max_verify_attempts: int = 2,
+        max_verify_attempts: int | None = None,
         judge_model: str = "gpt-5.1",
         verify_independence: bool = True,
         independence_runs: int = 3,
         max_independence_retries: int = 2,
         corpus_dataset: str | None = None,
+        corpus_revision: str | None = None,
     ):
         """
         Initialize the predecessor function generator.
@@ -336,7 +355,8 @@ class PredecessorGenerator:
             reasoning_effort: For reasoning models ('low', 'medium', 'high')
             fallback_model: Stronger model for escalation on failure
             share_num: Exact number of shared arguments (None = archetype default)
-            max_verify_attempts: Max retries for cross-turn verification
+            max_verify_attempts: Max retries for cross-turn verification.
+                Defaults to 5 for BrowseComp and 2 for other datasets.
             judge_model: Model for all LLM-as-Judge tasks — similarity check,
                 cross-turn relevance, and functional independence (default: gpt-5.1)
             verify_independence: Whether to run functional independence test
@@ -347,6 +367,7 @@ class PredecessorGenerator:
                 regeneration when functional independence fails (default: 2)
             corpus_dataset: HuggingFace corpus dataset for BM25 retrieval in
                 BrowseComp independence check (default: Tevatron/browsecomp-plus-corpus)
+            corpus_revision: Immutable HuggingFace revision for the BM25 corpus.
         """
         self.model = model
         self.prompts_dir = Path(prompts_dir)
@@ -358,7 +379,11 @@ class PredecessorGenerator:
         self.reasoning_effort = reasoning_effort
         self.fallback_model = fallback_model
         self.share_num = share_num
-        self.max_verify_attempts = max_verify_attempts
+        self.max_verify_attempts = (
+            5
+            if max_verify_attempts is None and dataset_type == "browsecomp"
+            else 2 if max_verify_attempts is None else max_verify_attempts
+        )
         self.judge_model = judge_model
         self.verify_independence = verify_independence
         self.independence_runs = independence_runs
@@ -375,6 +400,7 @@ class PredecessorGenerator:
             from intent_construction.retrospective_expansion.predecessor.bm25_retriever import BM25Retriever
             self._bm25_retriever = BM25Retriever(
                 corpus_dataset=corpus_dataset or "Tevatron/browsecomp-plus-corpus",
+                **({"corpus_revision": corpus_revision} if corpus_revision else {}),
             )
         
         # Random generator for per-step archetype selection
@@ -444,15 +470,22 @@ Reply with EXACTLY one word: SIMILAR or DIFFERENT"""
             goal_a=function_a,
             goal_b=function_b,
         )
+        prompt += '\n\nReturn only JSON in this form: {"similar": true or false}'
         try:
-            response = generate_text(
+            response = generate_json(
                 [{"role": "user", "content": prompt}],
                 model=self.judge_model,
-                max_tokens=10,
-                temperature=None,
+                step="predecessor-similarity-check",
+                max_retries=1,
+                temperature=self.temperature,
+                reasoning_effort=self.reasoning_effort,
             )
-            verdict = response.strip().upper()
-            return "SIMILAR" in verdict
+            verdict = response.get("similar") if isinstance(response, dict) else None
+            if not isinstance(verdict, bool):
+                raise LLMIncompleteResponse("similarity verdict is missing")
+            return verdict
+        except (LLMAccountingError, LLMIncompleteResponse):
+            raise
         except Exception as e:
             # On failure, fall back to word-overlap heuristic
             pred_words = set(re.findall(r'\w+', function_a.lower())) - _STOP_WORDS
@@ -627,6 +660,8 @@ Reply with EXACTLY one word: SIMILAR or DIFFERENT"""
                         "answer_with_new_cond": answer_b,
                         "ground_truth": ground_truth,
                     })
+            except (LLMAccountingError, LLMIncompleteResponse):
+                raise
             except Exception as e:
                 print(f"    ⚠️  Functional independence run {run+1} error: {e}")
                 continue
@@ -705,7 +740,7 @@ Reply with EXACTLY one word: SIMILAR or DIFFERENT"""
                 f"Question: {question}\n\n"
                 "Clues:\n" + "\n".join(f"- {c}" for c in clues) + "\n\n"
                 f"Reference Documents:\n{context}\n\n"
-                "Answer:"
+                'Return only JSON in this form: {"answer": "short factual answer"}'
             )
 
         judge_prompt_template = (
@@ -721,6 +756,33 @@ Reply with EXACTLY one word: SIMILAR or DIFFERENT"""
 
         pass_count = 0
         wrong_answers = []
+
+        def generate_complete_answer(prompt: str) -> str:
+            attempts = 3
+            for attempt in range(attempts):
+                try:
+                    response = generate_json(
+                        [{"role": "user", "content": prompt}],
+                        model=self.model,
+                        step="functional-independence-browsecomp-answer",
+                        max_retries=1,
+                        temperature=self.temperature,
+                        reasoning_effort=self.reasoning_effort,
+                    )
+                    answer = response.get("answer") if isinstance(response, dict) else None
+                    if not isinstance(answer, str) or not answer.strip():
+                        raise LLMIncompleteResponse(
+                            "BrowseComp independence answer is missing"
+                        )
+                    return answer.strip()
+                except LLMIncompleteResponse:
+                    if attempt == attempts - 1:
+                        raise
+                    print(
+                        "    Incomplete BrowseComp independence answer; "
+                        f"retrying ({attempt + 2}/{attempts})"
+                    )
+            raise RuntimeError("unreachable incomplete-response retry state")
 
         # Retrieve docs ONCE using only the original function + arguments.
         # Both answers use the same docs so we isolate the distraction effect
@@ -738,21 +800,11 @@ Reply with EXACTLY one word: SIMILAR or DIFFERENT"""
                 )
 
                 # Answer A: generator model with original arguments + retrieved docs
-                response_a = generate_text(
-                    [{"role": "user", "content": base_prompt}],
-                    model=self.model,
-                    temperature=self.temperature,
-                    max_tokens=500,
-                )
+                response_a = generate_complete_answer(base_prompt)
                 answer_a = response_a.strip()
 
                 # Answer B: generator model with all arguments + SAME retrieved docs
-                response_b = generate_text(
-                    [{"role": "user", "content": extended_prompt}],
-                    model=self.model,
-                    temperature=self.temperature,
-                    max_tokens=500,
-                )
+                response_b = generate_complete_answer(extended_prompt)
                 answer_b = response_b.strip()
 
                 # Quick string check
@@ -796,6 +848,8 @@ Reply with EXACTLY one word: SIMILAR or DIFFERENT"""
                     "answer_with_new_cond": answer_b,
                     "ground_truth": ground_truth,
                 })
+            except (LLMAccountingError, LLMIncompleteResponse):
+                raise
             except Exception as e:
                 print(f"    ⚠️  Functional independence run {run+1} error: {e}")
                 continue
@@ -956,6 +1010,8 @@ Output valid JSON:
 
             return shared_conds + new_cond_objects
 
+        except (LLMAccountingError, LLMIncompleteResponse):
+            raise
         except Exception as e:
             print(f"    ⚠️  Argument regeneration with feedback failed: {e}")
             return None
@@ -993,35 +1049,55 @@ Output valid JSON:
         
         # Try generation + verification (with retries)
         answer_keywords = self._extract_answer_keywords(answer)
+        predecessors: List[Dict[str, Any]] = []
+        verification_result = None
+        chain_ready = False
         for verify_attempt in range(self.max_verify_attempts):
-            predecessors = self._generate_chain(
-                function=function,
-                arguments=arguments,
-                num_predecessors=num_preds,
-                answer_keywords=answer_keywords,
-            )
+            try:
+                candidate_chain = self._generate_chain(
+                    function=function,
+                    arguments=arguments,
+                    num_predecessors=num_preds,
+                    answer_keywords=answer_keywords,
+                )
+            except PredecessorContentFilterError:
+                if verify_attempt < self.max_verify_attempts - 1:
+                    print(
+                        "  Content filter rejected generated chain context; "
+                        "regenerating the chain"
+                    )
+                    continue
+                print(f"  Failed content-filter-safe chain generation for {task_id}")
+                return None
             
-            if not predecessors:
+            if not candidate_chain:
                 print(f"  ✗ Failed to generate chain for {task_id}")
                 return None
             
             # Reverse to chronological order (t-2, t-1, t)
-            predecessors.reverse()
+            candidate_chain.reverse()
             
             # Cross-turn verification
             verification_result = self._verify_chain(
-                predecessors=predecessors,
+                predecessors=candidate_chain,
                 original_function=function,
                 original_arguments=arguments,
             )
+            predecessors = candidate_chain
             
             if verification_result is None or verification_result["passed"]:
+                chain_ready = True
                 break
             
             if verify_attempt < self.max_verify_attempts - 1:
                 print(f"  ↻ Verification failed, regenerating (attempt {verify_attempt + 2}/{self.max_verify_attempts})")
             else:
                 print(f"  ✗ Max verification attempts reached for {task_id}")
+
+        if not chain_ready or (
+            verification_result is not None and not verification_result["passed"]
+        ):
+            return None
         
         # ── Functional independence test: g(C ∪ C_new) == g(C) ──
         # After the chain passes cross-turn LLM-judge, verify that fabricated
@@ -1224,6 +1300,7 @@ Output valid JSON:
         )
         
         model = self.model
+        rejected_result: Optional[Dict[str, Any]] = None
         for attempt in range(self.max_attempts):
             # Escalate to fallback model after half the attempts
             if (self.fallback_model and attempt >= self.max_attempts // 2
@@ -1232,10 +1309,37 @@ Output valid JSON:
                 model = self.fallback_model
             
             try:
+                messages = [{"role": "user", "content": prompt}]
+                if rejected_result is not None:
+                    rejected_function = str(
+                        rejected_result.get("predecessor_function", "")
+                    ).strip()
+                    word_count = len(rejected_function.split())
+                    length_feedback = (
+                        f" The rejected question contained {word_count} words."
+                        if word_count > 35
+                        else ""
+                    )
+                    messages.extend([
+                        {
+                            "role": "assistant",
+                            "content": json.dumps(rejected_result, ensure_ascii=False),
+                        },
+                        {
+                            "role": "user",
+                            "content": (
+                                "That candidate failed deterministic validation."
+                                f"{length_feedback} Return a different valid JSON "
+                                "candidate and keep predecessor_function at MAX 30 "
+                                "words. Do not repeat the rejected question."
+                            ),
+                        },
+                    ])
                 result = generate_json(
-                    [{"role": "user", "content": prompt}],
+                    messages,
                     model=model,
                     step="predecessor-function-generation",
+                    max_retries=1,
                     temperature=self.temperature,
                     reasoning_effort=self.reasoning_effort,
                 )
@@ -1251,8 +1355,15 @@ Output valid JSON:
                 )
                 if validated:
                     return validated
+                rejected_result = result
                     
+            except (LLMAccountingError, LLMIncompleteResponse):
+                raise
             except Exception as e:
+                if _is_content_filter_error(e):
+                    raise PredecessorContentFilterError(
+                        "provider content filter rejected predecessor context"
+                    ) from e
                 print(f"    Error generating predecessor function: {e} (attempt {attempt + 1})")
                 continue
         
@@ -1525,6 +1636,8 @@ Output valid JSON:
                 "problematic_arguments": result.get("problematic_arguments", []),
                 "judgments": result.get("judgments", []),
             }
+        except (LLMAccountingError, LLMIncompleteResponse):
+            raise
         except Exception as e:
             print(f"    Warning: relevance check failed for turn {turn_label}: {e}")
             return {
@@ -1792,6 +1905,10 @@ def main():
         help="HuggingFace corpus dataset for BM25 retrieval in BrowseComp independence check "
              "(default: Tevatron/browsecomp-plus-corpus)"
     )
+    parser.add_argument(
+        "--corpus_revision", type=str, default=None,
+        help="Immutable HuggingFace revision for the BrowseComp BM25 corpus"
+    )
     args = parser.parse_args()
     
     # Auto-append share_num to output filename if set
@@ -1865,6 +1982,7 @@ def main():
         independence_runs=args.independence_runs,
         max_independence_retries=args.max_independence_retries,
         corpus_dataset=args.corpus_dataset,
+        corpus_revision=args.corpus_revision,
     )
     
     def process_sample(idx_sample):

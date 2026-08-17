@@ -9,7 +9,14 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 
 from intent_construction.intent_extraction.core.base_extractor import BaseExtractor
-from intent_construction.intent_extraction.core.llm_utils import generate_json, generate_text, load_prompt, populate_prompt
+from intent_construction.intent_extraction.core.llm_utils import (
+    LLMAccountingError,
+    LLMIncompleteResponse,
+    generate_json,
+    generate_text,
+    load_prompt,
+    populate_prompt,
+)
 
 
 class BrowseCompPlusExtractor(BaseExtractor):
@@ -43,6 +50,15 @@ Where <your_answer> is the specific name, fact, or piece of information requeste
         # Reasoning models (gpt-5*) need reasoning_effort instead of temperature
         self._is_reasoning = "gpt-5" in model
         self._is_verif_reasoning = "gpt-5" in verif_model
+
+        # Solvability verification prompts can occasionally trigger degenerate,
+        # effectively unbounded provider generations (observed as every attempt
+        # timing out at the 1800s client read timeout for a single sample).
+        # Bound each verification call so retries fail fast; the base-class
+        # extract loop then either passes normally or flags/accepts the
+        # coverage-passed extraction when only infra timeouts occurred.
+        self.verification_call_timeout = 300.0
+        self._verification_infra_error = False
     
     def get_dataset_name(self) -> str:
         return "browsecomp_plus"
@@ -170,6 +186,7 @@ Where <your_answer> is the specific name, fact, or piece of information requeste
             concat_response = generate_text(
                 [{"role": "system", "content": self.system_prompt},
                  {"role": "user", "content": full_prompt}],
+                timeout=self.verification_call_timeout,
                 **text_kwargs
             )
             
@@ -190,6 +207,7 @@ Where <your_answer> is the specific name, fact, or piece of information requeste
                 original_response = generate_text(
                     [{"role": "system", "content": self.system_prompt},
                      {"role": "user", "content": orig_prompt}],
+                    timeout=self.verification_call_timeout,
                     **text_kwargs
                 )
                 self.original_response_cache[sample_id] = original_response
@@ -206,7 +224,13 @@ Where <your_answer> is the specific name, fact, or piece of information requeste
                 print(f"    Original: {original_answer}, Concat: {concat_answer}, GT: {ground_truth}")
                 return False
                 
+        except (LLMAccountingError, LLMIncompleteResponse):
+            raise
         except Exception as e:
+            message = f"{type(e).__name__}: {e}".lower()
+            if "timeout" in message or "timed out" in message:
+                # Transport/timeout failure, not a verification verdict.
+                self._verification_infra_error = True
             print(f"  [Step 4] Error in model verification for {sample_id}: {e}")
             return False
     
@@ -355,6 +379,8 @@ Where <your_answer> is the specific name, fact, or piece of information requeste
                     print(f"    Missing: {result['missing_info']}")
                 return False
                 
+        except (LLMAccountingError, LLMIncompleteResponse):
+            raise
         except Exception as e:
             print(f"  [LLM-Judge] Error for {sample_id}: {e}")
             return False

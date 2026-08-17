@@ -61,6 +61,7 @@ import minisweagent
 from minisweagent.agents.default import DefaultAgent
 from minisweagent.environments import get_environment
 from minisweagent.exceptions import (
+    FormatError,
     InterruptAgentFlow,
     LimitsExceeded,
     Submitted,
@@ -80,6 +81,13 @@ from intent_construction.intent_extraction.core.llm_utils import (  # noqa: E402
     generate_text as _llm_generate_text,
     generate_with_tools as _llm_generate_with_tools,
     generate_with_tools_responses as _llm_generate_with_tools_responses,
+)
+from evaluation.swe_bench.state import (  # noqa: E402
+    TOOL_CALL_LIMIT_PER_TURN,
+    HardeningError,
+    ToolCallCounter,
+    assert_no_output_limit_fields,
+    assert_kimi_tool_policy,
 )
 
 logger = logging.getLogger(__name__)
@@ -249,6 +257,11 @@ class LLMToolModel(LitellmModel):
 
     def _query(self, messages: list[dict[str, Any]], **kwargs):
         merged = {**(self.config.model_kwargs or {}), **kwargs}
+        tool_choice = merged.get("tool_choice")
+        if "kimi" in self.config.model_name.lower() and tool_choice is not None:
+            raise HardeningError(
+                "Kimi thinking mode forbids sending an explicit tool_choice"
+            )
         # Pass parent-prepared messages straight through. The parent's
         # ``_prepare_messages_for_api`` (litellm_model.py:75-78) has
         # already stripped mini-internal ``extra`` keys; what remains is
@@ -262,7 +275,7 @@ class LLMToolModel(LitellmModel):
             messages=messages,
             model=self.config.model_name,
             tools=[BASH_TOOL],
-            tool_choice=merged.get("tool_choice"),  # None → omitted by helper
+            tool_choice=tool_choice,  # None means the helper omits the field.
             parallel_tool_calls=merged.get("parallel_tool_calls", True),
             temperature=merged.get("temperature"),
             max_tokens=merged.get("max_tokens"),
@@ -447,11 +460,86 @@ class MiniAgentResult:
     # mode (Path A); ``per_turn_steps`` is empty in that case.
     step_limit_per_turn: int | None = None
     per_turn_steps: list[int] = field(default_factory=list)
+    tool_call_limit_per_turn: int | None = None
+    per_turn_tool_calls: list[int] = field(default_factory=list)
 
 
 # =============================================================================
 # Main entry point
 # =============================================================================
+
+
+class ToolCallLimitExceeded(LimitsExceeded):
+    """Raised before an environment call would exceed the per-turn cap."""
+
+
+class EnvironmentExecutionError(RuntimeError):
+    """Raised when SWE-ReX cannot execute another command reliably."""
+
+
+def _environment_failure(output: Any) -> str | None:
+    """Return a concise SWE-ReX transport/runtime failure, if present."""
+    if not isinstance(output, dict) or output.get("returncode") != -1:
+        return None
+    extra = output.get("extra")
+    extra = extra if isinstance(extra, dict) else {}
+    exception_type = str(extra.get("exception_type") or "EnvironmentError")
+    detail = str(
+        extra.get("exception")
+        or output.get("exception_info")
+        or output.get("output")
+        or "remote execution failed"
+    ).strip()
+    return f"{exception_type}: {detail}"
+
+
+class _ToolBudgetEnvironment:
+    """Count actual calls and stop on unrecoverable SWE-ReX failures."""
+
+    def __init__(self, environment: Any, counter: ToolCallCounter) -> None:
+        self.environment = environment
+        self.counter = counter
+
+    def execute(self, action: dict, *args: Any, **kwargs: Any) -> Any:
+        try:
+            self.counter.consume()
+        except HardeningError as exc:
+            raise ToolCallLimitExceeded(
+                {
+                    "role": "exit",
+                    "content": "ToolCallLimitExceeded",
+                    "extra": {
+                        "exit_status": "ToolCallLimitExceeded",
+                        "submission": "",
+                        "tool_call_limit_per_turn": self.counter.limit,
+                    },
+                }
+            ) from exc
+        output = self.environment.execute(action, *args, **kwargs)
+        failure = _environment_failure(output)
+        if failure is not None:
+            raise EnvironmentExecutionError(failure)
+        return output
+
+    def get_template_vars(self, **kwargs: Any) -> dict[str, Any]:
+        values = self.environment.get_template_vars(**kwargs)
+        return {
+            **values,
+            "tool_calls_this_turn": self.counter.current,
+            "tool_call_limit_per_turn": self.counter.limit,
+        }
+
+    def serialize(self) -> dict[str, Any]:
+        payload = self.environment.serialize()
+        payload.setdefault("info", {}).setdefault("config", {})["tool_budget"] = {
+            "limit_per_turn": self.counter.limit,
+            "completed_turns": list(self.counter.completed_turns),
+            "current_turn": self.counter.current,
+        }
+        return payload
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.environment, name)
 
 
 def _ensure_pending_tool_call_resolved(agent, observation_text: str) -> None:
@@ -560,6 +648,7 @@ def run_evolvingintent_with_mini_agent(
     cost_limit: float = 3.0,
     step_limit: int = 0,  # 0 = unlimited (mini-swe-agent default)
     step_limit_per_turn: int | None = None,
+    tool_call_limit_per_turn: int | None = None,
     output_path: Path | str | None = None,
     overrides: dict | None = None,
     use_tool_calling: bool = False,
@@ -589,6 +678,10 @@ def run_evolvingintent_with_mini_agent(
         (mirrors mini's existing ``step_limit=0`` semantics). When this
         kwarg is set, the legacy ``step_limit`` argument is ignored
         (warning printed).
+    tool_call_limit_per_turn
+        Optional cap on actual environment ``execute`` calls in each user turn.
+        The hardened reproduction accepts exactly 200. Native parallel tool
+        calls are disabled whenever this cap is active.
     output_path
         Optional path for mini-agent's trajectory dump.
     overrides
@@ -645,8 +738,23 @@ def run_evolvingintent_with_mini_agent(
     if overrides:
         _deep_merge(config, overrides)
 
+    tool_counter: ToolCallCounter | None = None
+    if tool_call_limit_per_turn is not None:
+        tool_counter = ToolCallCounter(int(tool_call_limit_per_turn))
+        config.setdefault("model", {}).setdefault("model_kwargs", {})[
+            "parallel_tool_calls"
+        ] = False
+        if "kimi" in model_name.lower():
+            assert_kimi_tool_policy(config["model"])
+    assert_no_output_limit_fields(config, location="mini-swe-agent config")
+
     # ----- build env / model / agent -----
-    env = get_environment(config["environment"])
+    base_env = get_environment(config["environment"])
+    env = (
+        _ToolBudgetEnvironment(base_env, tool_counter)
+        if tool_counter is not None
+        else base_env
+    )
     if use_tool_calling:
         # Route to Responses-API model only when the deployment requires
         # it (currently gpt-5.5; see llm_utils._requires_responses_api_for_tools).
@@ -691,6 +799,7 @@ def run_evolvingintent_with_mini_agent(
     # success path of agent.step().
     per_turn_steps: list[int] = []
     turn_start_n_calls = 0
+    per_turn_tool_calls: list[int] = []
 
     def _finalize_current_turn() -> None:
         """Record current turn's step count; reset n_calls if per-turn mode.
@@ -699,18 +808,53 @@ def run_evolvingintent_with_mini_agent(
         re-anchored after each call).
         """
         nonlocal turn_start_n_calls
-        if not per_turn_mode:
+        if not per_turn_mode and tool_counter is None:
             return
-        steps_this_turn = max(0, agent.n_calls - turn_start_n_calls)
-        per_turn_steps.append(steps_this_turn)
-        agent.n_calls = 0
-        turn_start_n_calls = 0
+        if per_turn_mode:
+            steps_this_turn = max(0, agent.n_calls - turn_start_n_calls)
+            per_turn_steps.append(steps_this_turn)
+            agent.n_calls = 0
+            turn_start_n_calls = 0
+        if tool_counter is not None:
+            per_turn_tool_calls.append(tool_counter.finish_turn())
 
     try:
         while True:
             try:
                 agent.step()
                 n_steps += 1
+                agent.n_consecutive_format_errors = 0
+            except EnvironmentExecutionError as e:
+                exit_status = "EnvironmentExecutionError"
+                error = f"EnvironmentExecutionError: {e}"
+                _finalize_current_turn()
+                break
+            except FormatError as e:
+                # Match DefaultAgent.run: malformed responses are retried only
+                # up to mini-swe-agent's configured consecutive-error limit.
+                agent.cost += e.messages[0].get("extra", {}).get("cost", 0.0)
+                agent.n_consecutive_format_errors += 1
+                limit = agent.config.max_consecutive_format_errors
+                if 0 < limit <= agent.n_consecutive_format_errors:
+                    agent.add_messages(
+                        *e.messages,
+                        {
+                            "role": "exit",
+                            "content": "RepeatedFormatError",
+                            "extra": {
+                                "exit_status": "RepeatedFormatError",
+                                "submission": "",
+                            },
+                        },
+                    )
+                    exit_status = "RepeatedFormatError"
+                    error = (
+                        "RepeatedFormatError: model returned no valid tool call "
+                        f"{agent.n_consecutive_format_errors} consecutive times"
+                    )
+                    _finalize_current_turn()
+                    break
+                agent.add_messages(*e.messages)
             except Submitted as e:
                 if delivered < len(user_turns):
                     # Native-mode protocol fix: ensure the assistant's
@@ -779,39 +923,43 @@ def run_evolvingintent_with_mini_agent(
                     # or legacy single-cap mode. Append exit message,
                     # autosubmit, break.
                     agent.add_messages(*e.messages)
-                    exit_status = (
-                        "CostLimitExceeded" if cost_capped else "LimitsExceeded"
-                    )
-                    submission = _autosubmit_via_git_diff(env)
+                    if cost_capped:
+                        exit_status = "CostLimitExceeded"
+                    elif isinstance(e, ToolCallLimitExceeded):
+                        exit_status = "ToolCallLimitExceeded"
+                    else:
+                        exit_status = "LimitsExceeded"
+                    submission = _autosubmit_via_git_diff(base_env)
                     _finalize_current_turn()
                     break
             except InterruptAgentFlow as e:
                 agent.add_messages(*e.messages)
+            finally:
+                agent.save(agent.config.output_path)
     except Exception as e:  # pragma: no cover (defensive)
         import traceback
         error = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
         exit_status = "Error"
         try:
-            submission = _autosubmit_via_git_diff(env)
+            submission = _autosubmit_via_git_diff(base_env)
         except Exception:
             submission = ""
         _finalize_current_turn()
 
-    if not submission and exit_status not in ("Submitted",):
+    if not submission and exit_status not in (
+        "Submitted",
+        "RepeatedFormatError",
+        "EnvironmentExecutionError",
+    ):
         try:
-            submission = _autosubmit_via_git_diff(env)
+            submission = _autosubmit_via_git_diff(base_env)
         except Exception:
             pass
 
     cost = float(getattr(agent, "cost", 0.0) or 0.0)
 
     # ----- close container -----
-    try:
-        close = getattr(env, "close", None)
-        if callable(close):
-            close()
-    except Exception:
-        pass
+    _close_environment(base_env)
 
     # In per-turn mode, the global n_steps may undercount (it skips
     # exception paths). Use the per-turn list as ground truth, falling
@@ -833,6 +981,10 @@ def run_evolvingintent_with_mini_agent(
         scaffold_mode="native" if use_tool_calling else "textbased",
         step_limit_per_turn=step_limit_per_turn if per_turn_mode else None,
         per_turn_steps=per_turn_steps,
+        tool_call_limit_per_turn=(
+            TOOL_CALL_LIMIT_PER_TURN if tool_counter is not None else None
+        ),
+        per_turn_tool_calls=per_turn_tool_calls,
     )
 
 
@@ -868,3 +1020,14 @@ def _autosubmit_via_git_diff(env: Any) -> str:
         return out.strip()
     return ""
 
+
+def _close_environment(env: Any) -> None:
+    """Close Docker environments and stop SWE-ReX environments."""
+    for method_name in ("close", "stop"):
+        method = getattr(env, method_name, None)
+        if callable(method):
+            try:
+                method()
+            except Exception:
+                pass
+            return

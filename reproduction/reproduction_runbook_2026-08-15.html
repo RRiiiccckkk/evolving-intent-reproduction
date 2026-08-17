@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>论文复现运行手册与故障复盘</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17202a;
+      --muted: #5f6b76;
+      --line: #d7dde3;
+      --soft: #f4f6f8;
+      --green: #176b4d;
+      --green-bg: #e8f4ee;
+      --amber: #8a5a00;
+      --amber-bg: #fff4d6;
+      --red: #9f2d2d;
+      --red-bg: #fdeaea;
+      --blue: #245e91;
+      --blue-bg: #eaf2f9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #fff;
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      letter-spacing: 0;
+    }
+    header {
+      border-bottom: 1px solid var(--line);
+      background: var(--soft);
+    }
+    header .inner, main, footer {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+    header .inner { padding: 26px 0 22px; }
+    h1 { margin: 0 0 6px; font-size: 28px; line-height: 1.25; }
+    h2 { margin: 0 0 12px; font-size: 20px; line-height: 1.35; }
+    h3 { margin: 0 0 8px; font-size: 16px; }
+    p { margin: 0 0 10px; }
+    .subtitle { color: var(--muted); }
+    main { padding: 24px 0 40px; }
+    section { padding: 22px 0; border-bottom: 1px solid var(--line); }
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .metric { padding: 14px 16px; border-right: 1px solid var(--line); }
+    .metric:last-child { border-right: 0; }
+    .metric span { display: block; color: var(--muted); font-size: 13px; }
+    .metric strong { display: block; margin-top: 3px; font-size: 17px; }
+    .note {
+      margin: 12px 0 0;
+      padding: 10px 12px;
+      border-left: 4px solid var(--blue);
+      background: var(--blue-bg);
+    }
+    .warning { border-left-color: var(--amber); background: var(--amber-bg); }
+    .danger { border-left-color: var(--red); background: var(--red-bg); }
+    .ok { border-left-color: var(--green); background: var(--green-bg); }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; }
+    table { width: 100%; border-collapse: collapse; min-width: 760px; }
+    th, td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th { background: var(--soft); font-size: 13px; color: #35414c; }
+    tr:last-child td { border-bottom: 0; }
+    code {
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: #eef1f3;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.92em;
+    }
+    .state { white-space: nowrap; font-weight: 650; }
+    .pending { color: var(--amber); }
+    .locked, .done { color: var(--green); }
+    .blocked { color: var(--red); }
+    ol, ul { margin: 8px 0 0; padding-left: 22px; }
+    li { margin: 5px 0; }
+    footer { padding: 18px 0 30px; color: var(--muted); font-size: 13px; }
+    @media (max-width: 760px) {
+      h1 { font-size: 24px; }
+      .status-grid { grid-template-columns: 1fr 1fr; }
+      .metric:nth-child(2) { border-right: 0; }
+      .metric:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="inner">
+      <h1>论文复现运行手册与故障复盘</h1>
+      <p class="subtitle">LLMs Get Lost in Evolving User Intent · Plan A · 2026-08-15 · Asia/Shanghai</p>
+    </div>
+  </header>
+  <main>
+    <section aria-labelledby="lock-title">
+      <h2 id="lock-title">不可变实验条件</h2>
+      <div class="status-grid">
+        <div class="metric"><span>唯一模型</span><strong>kimi-k2.6</strong></div>
+        <div class="metric"><span>输出 token 上限</span><strong>不发送</strong></div>
+        <div class="metric"><span>费用策略</span><strong>只记账，不拦截</strong></div>
+        <div class="metric"><span>恢复粒度</span><strong>每个 task ID</strong></div>
+      </div>
+      <p class="note ok">构建、评测、judge 和 naturalizer 都锁定为 <code>kimi-k2.6</code>。这遵循用户的“不要改任何模型”要求；论文原构建模型 GPT-5.1 仅作为方法差异记录，不会在本次运行中调用。</p>
+    </section>
+
+    <section aria-labelledby="scope-title">
+      <h2 id="scope-title">范围与覆盖</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Benchmark</th><th>样本</th><th>Single</th><th>Evolve</th><th>论文原生 verifier</th><th>执行位置</th><th>状态</th></tr></thead>
+          <tbody>
+            <tr><td>BIRD-SQL</td><td>100</td><td>T=1, g=0, p=0</td><td>T=7, g=2, p=2</td><td>SQL execution</td><td>本机，数据库按需提取</td><td class="state pending">准备中</td></tr>
+            <tr><td>BrowseComp+</td><td>100</td><td>T=1, g=0, p=0</td><td>T=7, g=2, p=2</td><td>Gold answer judge</td><td>Modal GPU，Qwen3-Embedding-8B</td><td class="state pending">准备中</td></tr>
+            <tr><td>SWE-bench Verified</td><td>50</td><td>T=1, g=0, p=0</td><td>T=7, g=2, p=2</td><td>官方 SWE-bench tests</td><td>Modal sandbox / swerex_modal</td><td class="state pending">准备中</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">每个 Evolve 对话固定包含 2 次 argument reveal、2 次 argument revision、2 次 function switch。BrowseComp+ 每轮最多 50 次搜索；SWE 使用 mini-SWE-agent v2，每轮最多 200 次工具调用。</p>
+    </section>
+
+    <section aria-labelledby="incident-title">
+      <h2 id="incident-title">上次运行故障与修正</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>故障</th><th>实际风险</th><th>本次强制修正</th><th>验收证据</th></tr></thead>
+          <tbody>
+            <tr><td>输出上限截断</td><td>正文为空或 JSON 不完整，已完成调用却丢失结果</td><td>请求中禁止 <code>max_tokens</code>、<code>max_completion_tokens</code>、<code>max_output_tokens</code></td><td>静态扫描 + mock payload 测试</td></tr>
+            <tr><td>空 JSON 未立刻失败</td><td>坏样本进入后续阶段并污染覆盖率</td><td>空正文、incomplete、缺关键字段立即失败；不写入 processed IDs</td><td>失败注入测试</td></tr>
+            <tr><td>批次末才保存</td><td>中断后丢失整个批次</td><td>每个成功 task ID 完成后原子替换 checkpoint</td><td>中断恢复测试</td></tr>
+            <tr><td>按数组索引恢复</td><td>乱序并发时跳过尚未完成的样本</td><td>只按真实 <code>processed_task_ids</code> 恢复</td><td>乱序 completion 测试</td></tr>
+            <tr><td>BIRD 重复进程</td><td>两个进程同时写同一个大文件 partial 与 checkpoint</td><td>每个 run dir 使用非阻塞进程锁；第二个进程立即退出</td><td>双进程锁回归测试</td></tr>
+            <tr><td>BIRD literal 误报</td><td><code>Ms.</code> 被误认成 <code>claims</code> 的子串；<code>%Y</code> 被误当成筛选值</td><td>literal 按完整 token 边界匹配，并从 AST 中排除日期格式控制符</td><td><code>claims/Ms.</code> 与 <code>strftime('%Y')</code> 回归测试</td></tr>
+            <tr><td>Modal 代理连接失败</td><td>系统代理已启用，但客户端缺少异步 SOCKS 支持</td><td>固定 <code>modal[api-proxy-support]</code>，启动前验证控制面可达</td><td><code>modal app list</code> 成功</td></tr>
+            <tr><td>Modal 前台会话取消</td><td>本地控制进程退出时，长任务收到 cancellation，已完成请求未形成 task checkpoint</td><td>所有长任务使用 detached app，并在 Volume 中逐 task commit</td><td>断开本地会话后 app 仍为 detached/running</td></tr>
+            <tr><td>SWE transport failure 被继续喂给 agent</td><td>基础设施失联被误当成工具观察，模型继续付费调用</td><td><code>returncode=-1</code> 或执行异常立即终止当前 task；命令和 deployment timeout 分开设置</td><td>v8 canary 官方 verifier 完成</td></tr>
+            <tr><td>reservation 当成实际费用</td><td>预算显示失真，错误停止运行</td><td>confirmed usage、excluded calls、open reservation 分列</td><td>账本汇总断言</td></tr>
+            <tr><td>意外调用其他模型</td><td>实验不再可比较</td><td>运行前、请求前、结果后均断言唯一模型为 <code>kimi-k2.6</code></td><td>manifest 与结果唯一值审计</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section aria-labelledby="resources-title">
+      <h2 id="resources-title">资源与路径选择</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>资源</th><th>实测</th><th>决策</th></tr></thead>
+          <tbody>
+            <tr><td>CPU / 架构</td><td>Apple M3，8 核，arm64</td><td>BIRD 控制在 6 workers 内；不在本机模拟 x86_64 SWE 容器</td></tr>
+            <tr><td>内存</td><td>16 GB，总可用约 4.18 GB</td><td>BrowseComp+ 只流式选取 100 条；检索模型移到 Modal GPU</td></tr>
+            <tr><td>磁盘</td><td>剩余约 12.34 GB</td><td>BIRD train/dev ZIP 使用 HTTP Range，只提取 35 个目标数据库；不下载完整 8.92 GB train ZIP</td></tr>
+            <tr><td>Modal</td><td>profile <code>rriiiccckkk</code> 已认证</td><td>使用 Secret <code>evolving-intent-kimi-k2-6</code>；密钥不进入文件、参数或日志</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section aria-labelledby="time-title">
+      <h2 id="time-title">时间与费用规划</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>阶段</th><th>预计时间</th><th>费用范围</th><th>边界说明</th></tr></thead>
+          <tbody>
+            <tr><td>工作流加固与数据准备</td><td>1-3 小时</td><td>无模型费用</td><td>测试、按需下载、Modal 镜像构建</td></tr>
+            <tr><td>BIRD 构建与 paired 评测</td><td>3-8 小时</td><td>约 US$10-80</td><td>受 SQL 重试和数据库下载影响</td></tr>
+            <tr><td>BrowseComp+ 构建与 paired 评测</td><td>4-15 小时</td><td>约 US$30-300 + Modal</td><td>模型循环次数受搜索收敛速度影响</td></tr>
+            <tr><td>SWE 构建与 paired 评测</td><td>8-50+ 小时</td><td>约 US$200-5,000+ + Modal</td><td>100 次官方验证，模型步骤理论上可达 80,000</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note warning">这些数字只用于观察，不是费用闸门。当前 CC Switch 价格表为输入 US$0.95/M tokens、输出 US$4.00/M tokens、cache read US$0.16/M tokens；运行开始前 Moonshot 可用余额为 4,882.022（API 返回单位）。不会在 US$30 前 fail-closed，也不设置其他 hard cap。</p>
+      <p class="note">目标截止为 2026-08-15 23:59:59 +08:00。根据最新“执行直到实验结束”的指令，若云端验证跨过该时间，任务继续运行并持续 checkpoint，不以日历时间强制终止。</p>
+    </section>
+
+    <section aria-labelledby="procedure-title">
+      <h2 id="procedure-title">执行与验收顺序</h2>
+      <ol>
+        <li>静态扫描所有付费调用，确认没有输出 token 上限，模型解析结果只有 <code>kimi-k2.6</code>。</li>
+        <li>完成每个 benchmark 的 1 个 task ID 无歧义 smoke test；成功后按 published ID 集合扩到全量。</li>
+        <li>每条成功结果原子落盘；重启时重新计算 manifest 集合减去 processed task IDs。</li>
+        <li>paired 两组完成后运行原生 verifier，并断言 BIRD 100/100、BrowseComp+ 100/100、SWE 50/50。</li>
+        <li>生成聚合结果、逐样本状态、usage 账本、未结算 reservation 和模型审计。</li>
+        <li>BrowseComp+ 明文 query 与私密 API key 不上传；只同步代码、加密/脱敏证据、聚合报告和可复查 manifest。</li>
+        <li>全部测试通过后提交并推送到私有仓库 <code>RRiiiccckkk/evolving-intent-reproduction</code>。</li>
+      </ol>
+    </section>
+  </main>
+  <footer>
+    配置真值源：<code>reproduction/config/paper_remaining_kimi_k2_6.json</code>。本文档在最终结果产生后更新实际耗时、费用、覆盖率和 commit。
+  </footer>
+</body>
+</html>

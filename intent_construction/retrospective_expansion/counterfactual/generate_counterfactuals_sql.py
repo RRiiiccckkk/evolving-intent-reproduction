@@ -34,7 +34,26 @@ from intent_construction.intent_extraction.dataset_impl.bird_sql.sql_parser impo
     SQLCondition,
     SQLHavingPredicate,
 )
-from intent_construction.intent_extraction.dataset_impl.bird_sql.db_utils import execute_sql, get_alternative_values, validate_result, compare_results
+from intent_construction.intent_extraction.dataset_impl.bird_sql.db_utils import (
+    compare_results,
+    execute_sql,
+    get_alternative_values,
+    get_table_columns,
+    validate_result,
+)
+from intent_construction.intent_extraction.dataset_impl.bird_sql.reproduction import (
+    DEFAULT_TASK_IDS_PATH,
+    REQUIRED_MODEL,
+    BirdReproductionError,
+    TaskCheckpoint,
+    assert_required_model,
+    atomic_write_json,
+    checkpoint_path_for,
+    load_published_task_ids,
+    read_json,
+    resolve_db_path,
+    validate_stage_rows,
+)
 
 
 # =============================================================================
@@ -143,6 +162,44 @@ def _is_numeric(value: str) -> bool:
         return False
 
 
+def _numeric_expression_candidates(value: str, *, limit: int) -> list[str]:
+    """Generate deterministic alternatives for numeric expression thresholds."""
+    numeric = _coerce_float(value)
+    if numeric is None or limit < 1:
+        return []
+    is_integer = float(numeric).is_integer() and "." not in str(value)
+    candidates: list[str] = []
+    seen: set[str] = {str(value)}
+    for delta in (-1, 1, -2, 2, -5, 5, -10, 10, -25, 25):
+        candidate = numeric + delta
+        rendered = str(int(candidate)) if is_integer else str(round(candidate, 4))
+        if rendered in seen:
+            continue
+        seen.add(rendered)
+        candidates.append(rendered)
+        if len(candidates) >= limit:
+            break
+    return candidates
+
+
+def _format_expression_counterfactual(argument: dict, new_value: str) -> str:
+    """Prefer the extracted natural-language argument over a raw SQL expression."""
+    text = str(argument.get("argument", "")).strip()
+    old_value = str(argument.get("sql_value", "")).strip()
+    if text and old_value:
+        pattern = re.compile(
+            rf"(?<![A-Za-z0-9_]){re.escape(old_value)}(?![A-Za-z0-9_])"
+        )
+        replaced, count = pattern.subn(str(new_value), text, count=1)
+        if count:
+            return replaced
+    return _format_nl_condition(
+        str(argument.get("sql_column", "value")),
+        str(argument.get("sql_operator", "=")),
+        str(new_value),
+    )
+
+
 def _sql_quote(value) -> str:
     """Quote a value for SQL: strings get quotes, numbers don't."""
     s = str(value)
@@ -221,6 +278,33 @@ def _swap_value_in_sql(
         pass
 
     return None
+
+
+def _resolve_argument_table(
+    argument: dict,
+    gold_sql: str,
+    db_path: str,
+) -> str:
+    """Resolve an unqualified WHERE column against the query's source tables."""
+    explicit = str(argument.get("sql_table", "")).strip()
+    if explicit:
+        return explicit
+    column = str(argument.get("sql_column", "")).strip()
+    if not column:
+        return ""
+    try:
+        parsed = parse_sql(gold_sql)
+    except Exception:
+        return ""
+    matches = [
+        table
+        for table in parsed.tables
+        if any(
+            info.name.casefold() == column.casefold()
+            for info in get_table_columns(db_path, table)
+        )
+    ]
+    return matches[0] if len(matches) == 1 else ""
 
 
 # =============================================================================
@@ -358,21 +442,34 @@ class SQLCounterfactualGenerator:
         Returns a list of counterfactual dicts.
         """
         sql_column = argument.get("sql_column", "")
-        sql_table = argument.get("sql_table", "")
+        sql_table = _resolve_argument_table(argument, gold_sql, db_path)
         sql_value = argument.get("sql_value", "")
         sql_operator = argument.get("sql_operator", "=")
 
-        if not sql_column or not sql_table:
+        if not sql_column:
             return []
 
         # Skip complex operators that don't support simple value swaps
         if sql_operator.upper() in ("OR", "NOT", "UNKNOWN", "IS"):
             return []
 
-        # Get alternative values from the database
-        alternatives = get_alternative_values(
-            db_path, sql_table, sql_column, sql_value, limit=self.alt_value_limit
-        )
+        expression_fallback = False
+        if sql_table:
+            alternatives = get_alternative_values(
+                db_path, sql_table, sql_column, sql_value, limit=self.alt_value_limit
+            )
+        elif _is_numeric(sql_value) and sql_operator.upper().strip() in {
+            "=", "!=", ">", "<", ">=", "<=",
+        }:
+            # Extractors may describe a date/year predicate as a SQL expression
+            # instead of a physical column. Nearby thresholds can still be
+            # substituted and execution-validated without guessing a table.
+            expression_fallback = True
+            alternatives = _numeric_expression_candidates(
+                str(sql_value), limit=self.alt_value_limit
+            )
+        else:
+            alternatives = []
 
         if not alternatives:
             return []
@@ -409,7 +506,11 @@ class SQLCounterfactualGenerator:
                 continue
 
             # Build NL description for the counterfactual argument
-            nl_condition = _format_nl_condition(sql_column, sql_operator, alt_str)
+            nl_condition = (
+                _format_expression_counterfactual(argument, alt_str)
+                if expression_fallback
+                else _format_nl_condition(sql_column, sql_operator, alt_str)
+            )
 
             counterfactuals.append({
                 "counterfactual_argument": nl_condition,
@@ -516,7 +617,8 @@ class SQLCounterfactualGenerator:
         """
         task_id = sample.get("task_id", "unknown")
         gold_sql = sample.get("gold_sql", "")
-        db_path = sample.get("db_path", "")
+        stored_db_path = sample.get("db_path", "")
+        db_path = str(resolve_db_path(stored_db_path)) if stored_db_path else ""
         arguments = sample.get("arguments", [])
 
         if not gold_sql or not db_path:
@@ -601,6 +703,42 @@ class SQLCounterfactualGenerator:
 # CLI
 # =============================================================================
 
+
+def _validate_completed_sample(result: object, *, minimum: int) -> dict:
+    if not isinstance(result, dict):
+        raise BirdReproductionError("counterfactual generator returned no result")
+    task_id = result.get("task_id", "unknown")
+    generated: list[dict] = []
+    arguments = result.get("arguments")
+    if not isinstance(arguments, list):
+        raise BirdReproductionError(f"{task_id} has no argument list")
+    for argument in arguments:
+        if isinstance(argument, dict):
+            values = argument.get("counterfactual_arguments", [])
+            if isinstance(values, list):
+                generated.extend(item for item in values if isinstance(item, dict))
+    for key in ("having_counterfactuals", "limit_counterfactuals"):
+        values = result.get(key, [])
+        if isinstance(values, list):
+            generated.extend(item for item in values if isinstance(item, dict))
+    if len(generated) < minimum:
+        raise BirdReproductionError(
+            f"{task_id} produced only {len(generated)} complete counterfactuals; "
+            f"at least {minimum} are required"
+        )
+    for item in generated:
+        if not str(item.get("counterfactual_sql", "")).strip():
+            raise BirdReproductionError(
+                f"{task_id} contains a counterfactual without SQL"
+            )
+    info = result.get("counterfactual_info")
+    if not isinstance(info, dict) or info.get("successful_counterfactuals") != len(generated):
+        raise BirdReproductionError(
+            f"{task_id} counterfactual metadata is incomplete or inconsistent"
+        )
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Programmatic SQL argument counterfactual for BIRD-SQL"
@@ -623,7 +761,7 @@ def main():
     )
     parser.add_argument(
         "--num_samples", type=int, default=None,
-        help="Number of samples to process (default: all)",
+        help="Must be omitted (the published run is fixed at 100 samples)",
     )
     parser.add_argument(
         "--seed", type=int, default=42,
@@ -631,7 +769,7 @@ def main():
     )
     parser.add_argument(
         "--checkpoint_interval", type=int, default=50,
-        help="Save checkpoint every N samples (default: 50)",
+        help="Deprecated; checkpoints are saved after every task",
     )
     parser.add_argument(
         "--resume", action="store_true",
@@ -641,46 +779,35 @@ def main():
         "--sql_timeout", type=int, default=30,
         help="SQL execution timeout in seconds (default: 30)",
     )
+    parser.add_argument("--model", default=REQUIRED_MODEL)
+    parser.add_argument("--task_ids_file", default=str(DEFAULT_TASK_IDS_PATH))
+    parser.add_argument("--checkpoint", default=None)
 
     args = parser.parse_args()
 
+    assert_required_model(args.model, context="BIRD counterfactual stage model")
     random.seed(args.seed)
-
-    # Ensure output directory exists
-    output_dir = os.path.dirname(args.output) or "."
-    os.makedirs(output_dir, exist_ok=True)
-    checkpoint_path = args.output.replace(".json", "_checkpoint.json")
-
-    # Load input data
-    print(f"Loading input data from: {args.input}")
-    with open(args.input, "r") as f:
-        data = json.load(f)
-    print(f"Loaded {len(data)} samples")
-
-    if args.num_samples is not None:
-        data = data[: args.num_samples]
-        print(f"Processing first {len(data)} samples")
-
-    print(f"\nConfiguration:")
-    print(f"  Counterfactuals per argument: {args.num_counterfactuals}")
-    print(f"  Workers: {args.num_workers}")
-    print(f"  SQL timeout: {args.sql_timeout}s")
-
-    # Resume from checkpoint
-    results: list[dict] = []
-    failed = 0
-    start_idx = 0
-    processed_ids: set[str] = set()
-
-    if args.resume and os.path.exists(checkpoint_path):
-        print(f"\nResuming from checkpoint: {checkpoint_path}")
-        with open(checkpoint_path, "r") as f:
-            checkpoint_data = json.load(f)
-        results = checkpoint_data.get("results", [])
-        failed = checkpoint_data.get("failed", 0)
-        start_idx = checkpoint_data.get("next_idx", 0)
-        processed_ids = set(checkpoint_data.get("processed_ids", []))
-        print(f"  Loaded {len(results)} completed results, starting from index {start_idx}")
+    required_ids = load_published_task_ids(args.task_ids_file)
+    if args.num_samples not in {None, len(required_ids)}:
+        raise BirdReproductionError(
+            "published BIRD counterfactual generation cannot truncate the fixed subset"
+        )
+    data = validate_stage_rows(
+        read_json(args.input),
+        stage="bird_counterfactual_input",
+        required_ids=required_ids,
+        require_model=True,
+    )
+    by_id = {sample["task_id"]: sample for sample in data}
+    output_path = Path(args.output)
+    cp_path = Path(args.checkpoint) if args.checkpoint else checkpoint_path_for(output_path)
+    checkpoint = TaskCheckpoint(
+        cp_path,
+        stage="bird_counterfactual",
+        required_ids=required_ids,
+        model=args.model,
+        resume=args.resume,
+    )
 
     # Initialize generator
     generator = SQLCounterfactualGenerator(
@@ -688,141 +815,56 @@ def main():
         sql_timeout=args.sql_timeout,
     )
 
-    def save_checkpoint(next_idx: int):
-        cp = {
-            "results": results,
-            "failed": failed,
-            "next_idx": next_idx,
-            "processed_ids": list(processed_ids),
-            "total_samples": len(data),
-            "num_counterfactuals": args.num_counterfactuals,
-            "dataset_type": "sql",
-        }
-        with open(checkpoint_path, "w") as f:
-            json.dump(cp, f)
+    pending = [by_id[task_id] for task_id in checkpoint.pending_ids]
 
-    def process_sample(idx_sample: tuple[int, dict]):
-        idx, sample = idx_sample
-        sample_id = sample.get("task_id", f"sample-{idx}")
-        if sample_id in processed_ids:
-            return None, sample_id, "skipped"
-        result = generator.generate_counterfactuals(sample)
-        if result is not None:
-            return result, sample_id, "success"
-        return None, sample_id, "failed"
+    def process_sample(sample: dict) -> dict:
+        return _validate_completed_sample(
+            generator.generate_counterfactuals(sample),
+            minimum=args.num_counterfactuals,
+        )
 
-    samples_to_process = [
-        (start_idx + i, s) for i, s in enumerate(data[start_idx:])
-    ]
-    actual_idx = start_idx
-
-    print(f"\nGenerating SQL argument counterfactuals...")
-
-    try:
-        if args.num_workers > 1:
-            print(f"  Using {args.num_workers} parallel workers...")
-
-            chunk_size = args.checkpoint_interval
-            for chunk_start in range(0, len(samples_to_process), chunk_size):
-                chunk_end = min(chunk_start + chunk_size, len(samples_to_process))
-                chunk = samples_to_process[chunk_start:chunk_end]
-
-                with ThreadPoolExecutor(max_workers=args.num_workers) as executor:
-                    futures = {
-                        executor.submit(process_sample, item): item for item in chunk
-                    }
-                    for future in tqdm(
-                        as_completed(futures),
-                        desc=f"Chunk {chunk_start // chunk_size + 1}",
-                        total=len(chunk),
-                    ):
-                        result, sample_id, status = future.result()
-                        if status == "success":
-                            results.append(result)
-                            processed_ids.add(sample_id)
-                        elif status == "failed":
-                            failed += 1
-
-                actual_idx = start_idx + chunk_end - 1
-                save_checkpoint(actual_idx + 1)
-                print(
-                    f"\n  💾 Checkpoint saved at index {actual_idx + 1} "
-                    f"({len(results)} results)"
-                )
+    print(
+        f"Generating SQL counterfactuals: {len(checkpoint.processed_ids)} complete, "
+        f"{len(pending)} pending"
+    )
+    if args.num_workers > 1 and pending:
+        executor = ThreadPoolExecutor(max_workers=args.num_workers)
+        futures = {executor.submit(process_sample, sample): sample for sample in pending}
+        try:
+            for future in tqdm(as_completed(futures), total=len(futures), desc="counterfactual"):
+                sample = futures[future]
+                task_id = sample["task_id"]
+                try:
+                    checkpoint.record_success(future.result())
+                except BaseException as exc:
+                    checkpoint.record_failure(task_id, exc)
+                    raise
+        except BaseException:
+            for future in futures:
+                future.cancel()
+            executor.shutdown(wait=True, cancel_futures=True)
+            raise
         else:
-            for idx, sample in enumerate(
-                tqdm(
-                    data[start_idx:],
-                    desc="Argument counterfactual",
-                    initial=start_idx,
-                    total=len(data),
-                )
-            ):
-                actual_idx = start_idx + idx
-                sample_id = sample.get("task_id", f"sample-{actual_idx}")
+            executor.shutdown(wait=True)
+    else:
+        for sample in tqdm(pending, desc="counterfactual"):
+            task_id = sample["task_id"]
+            try:
+                checkpoint.record_success(process_sample(sample))
+            except BaseException as exc:
+                checkpoint.record_failure(task_id, exc)
+                raise
 
-                if sample_id in processed_ids:
-                    continue
-
-                result = generator.generate_counterfactuals(sample)
-                if result is not None:
-                    results.append(result)
-                    processed_ids.add(sample_id)
-                else:
-                    failed += 1
-
-                if (actual_idx + 1) % args.checkpoint_interval == 0:
-                    save_checkpoint(actual_idx + 1)
-                    print(
-                        f"\n  💾 Checkpoint saved at index {actual_idx + 1} "
-                        f"({len(results)} results)"
-                    )
-
-    except KeyboardInterrupt:
-        print(f"\n\n⚠️  Interrupted! Saving checkpoint...")
-        save_checkpoint(actual_idx + 1)
-        print(f"  💾 Checkpoint saved to: {checkpoint_path}")
-        print(f"  To resume, run with --resume flag")
-        return
-
-    except Exception as e:
-        print(f"\n\n❌ Error occurred: {e}")
-        save_checkpoint(actual_idx + 1)
-        print(f"  💾 Emergency checkpoint saved to: {checkpoint_path}")
-        raise
-
-    # Save final results
-    with open(args.output, "w") as f:
-        json.dump(results, f, indent=2)
-
-    print(f"\n{'=' * 60}")
-    print(f"✓ Successfully processed: {len(results)}/{len(data)} samples")
-    print(f"  Failed: {failed}")
-    print(f"  Output: {args.output}")
-
-    # Per-argument stats
-    total_perts = sum(
-        s.get("counterfactual_info", {}).get("successful_counterfactuals", 0)
-        for s in results
+    ordered = validate_stage_rows(
+        checkpoint.results,
+        stage="bird_counterfactual",
+        required_ids=required_ids,
+        require_model=True,
     )
-    total_conds = sum(
-        s.get("counterfactual_info", {}).get("total_arguments", 0)
-        for s in results
-    )
-    print(f"  Total counterfactuals: {total_perts} across {total_conds} arguments")
-    print(f"{'=' * 60}")
-
-    # Save example for inspection
-    if results:
-        example_path = args.output.replace(".json", "_example.json")
-        with open(example_path, "w") as f:
-            json.dump(results[0], f, indent=2)
-        print(f"✓ Example saved to: {example_path}")
-
-    # Remove checkpoint file on successful completion
-    if os.path.exists(checkpoint_path):
-        os.remove(checkpoint_path)
-        print(f"✓ Checkpoint file removed (completed successfully)")
+    assert_required_model(args.model, context="completed BIRD counterfactual stage")
+    checkpoint.mark_complete()
+    atomic_write_json(output_path, ordered)
+    print(f"generated counterfactuals for {len(ordered)}/{len(required_ids)} samples")
 
 
 if __name__ == "__main__":

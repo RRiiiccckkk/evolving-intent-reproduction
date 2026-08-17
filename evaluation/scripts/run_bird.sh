@@ -1,93 +1,178 @@
 #!/bin/bash
-# BIRD-SQL evaluation — two scenarios per model.
-#
-#   single : t=1, p=0, g=0   Fully-specified (single-turn baseline)
-#   evolve : t=7, p=2, g=2   Evolving intent scenario
-#
-# Usage:
-#   ./run_bird.sh <model> [model2 ...]
-#
-# Environment overrides:
-#   NUM_WORKERS        parallel workers           (default 8)
-#   REASONING_EFFORT   for reasoning models only  (default "medium"; set "" to skip)
-#   NATURALIZER_MODEL  online user-turn naturalizer  (BIRD-SQL has no online naturalizer; turns are always rule-based)
-#   DATA_PATH          generated dataset pool     (default final_dataset/bird_sql_final.json)
-#   TASK_IDS_FILE      eval-subset selection      (default intent_construction/eval_indices/bird_sql_task_ids.json)
-#   DATASET_NAME       experiments/ output label  (default bird_sql_n100; must start with "bird_sql" to enable the LLM judge)
-#
-# Outputs land in evaluation/experiments/{fully_specified,combined_independent}/${DATASET_NAME}/.
-# The runner skips a (model, scenario) whose output already exists, so re-runs are safe.
+# Evaluate the paper's fixed BIRD-SQL single and evolve settings.
 
-set -u  # error on unset vars; intentionally NOT set -e so one failing job doesn't abort the rest
+set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$REPO_ROOT"
+cd "${REPO_ROOT}"
+export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
+
+MODEL="${1:-kimi-k2.6}"
+if [[ "$#" -gt 1 ]]; then
+    echo "ERROR: the strict reproduction accepts one model only." >&2
+    exit 2
+fi
+if [[ "${MODEL}" != "kimi-k2.6" ]]; then
+    echo "ERROR: BIRD evaluation must use exactly kimi-k2.6." >&2
+    exit 2
+fi
+if [[ -n "${REASONING_EFFORT:-}" ]]; then
+    echo "ERROR: use the locked LLM_REASONING_EFFORT policy, not REASONING_EFFORT." >&2
+    exit 2
+fi
+if [[ -n "${LLM_REASONING_EFFORT:-}" && "${LLM_REASONING_EFFORT}" != "medium" ]]; then
+    echo "ERROR: BIRD evaluation requires LLM_REASONING_EFFORT=medium." >&2
+    exit 2
+fi
+if [[ -n "${LLM_COST_HARD_CAP_USD:-}" ]]; then
+    echo "ERROR: usage is recorded, but LLM_COST_HARD_CAP_USD must be unset." >&2
+    exit 2
+fi
+if [[ -z "${OPENAI_API_KEY:-}" ]] &&
+   { [[ -z "${AZURE_OPENAI_API_KEY:-}" ]] || [[ -z "${AZURE_OPENAI_ENDPOINT:-}" ]]; } &&
+   { [[ -z "${LLM_API_KEY:-}" ]] || [[ -z "${LLM_BASE_URL:-}" ]]; }; then
+    echo "ERROR: configure OpenAI, Azure, or LLM_API_KEY + LLM_BASE_URL credentials." >&2
+    exit 2
+fi
 
 DATA_PATH="${DATA_PATH:-final_dataset/bird_sql_final.json}"
 DATASET_NAME="${DATASET_NAME:-bird_sql_n100}"
 TASK_IDS_FILE="${TASK_IDS_FILE:-intent_construction/eval_indices/bird_sql_task_ids.json}"
-NATURALIZER_MODEL="${NATURALIZER_MODEL:-}"  # SQL has no online naturalizer; rule-based turns only
-NUM_WORKERS="${NUM_WORKERS:-8}"
-REASONING_EFFORT="${REASONING_EFFORT:-medium}"
+EVAL_MANIFEST="${EVAL_MANIFEST:-intent_construction/eval_indices/bird_sql_eval_ids.json}"
+NUM_WORKERS="${NUM_WORKERS:-4}"
+LOG_DIR="${LOG_DIR:-evaluation/logs/bird}"
+RUN_DIR="${BIRD_RUN_DIR:-${REPO_ROOT}/reproduction/runs/bird-sql-kimi-k2.6}"
+BIRD_DATA_DIR="${BIRD_DATA_DIR:-${RUN_DIR}/bird_data}"
+BIRD_DOWNLOADER="intent_construction.intent_extraction.dataset_impl.bird_sql.download_required"
+BIRD_RUNNER="evaluation.runners.run_bird_experiment"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+ONLY_DATABASE="${BIRD_ONLY_DATABASE:-}"
 
-MODELS=("$@")
-[ ${#MODELS[@]} -eq 0 ] && MODELS=("gpt-5.1")
-
-LOG_DIR="evaluation/logs/bird"
-mkdir -p "$LOG_DIR"
-
-SCENARIOS=(
-  "single 1 0 0"
-  "evolve 7 2 2"
-)
-
-run_one() {
-    local model=$1 sname=$2 nt=$3 p=$4 g=$5
-    local model_safe="${model//\//_}"
-    local log="$LOG_DIR/bird__${model_safe}__${sname}.log"
-    local extra_args=()
-    [ -n "$REASONING_EFFORT" ] && extra_args+=(--reasoning_effort "$REASONING_EFFORT")
-    [ -n "$NATURALIZER_MODEL" ] && extra_args+=(--naturalizer_model "$NATURALIZER_MODEL")
-    echo "  [$(date +%H:%M:%S)] $model on $sname (t=$nt p=$p g=$g, nat=${NATURALIZER_MODEL:-rule-based})  ->  $log"
-    python -u evaluation/runners/run_experiment.py \
-        --data_path "$DATA_PATH" \
-        --dataset_name "$DATASET_NAME" \
-        --models "$model" \
-        --task_ids_file "$TASK_IDS_FILE" \
-        --num_workers "$NUM_WORKERS" \
-        --num_turns "$nt" \
-        --num_revisions "$p" \
-        --num_switches "$g" \
-        "${extra_args[@]}" \
-        > "$log" 2>&1
-    local rc=$?
-    if [ $rc -eq 0 ]; then
-        echo "  [$(date +%H:%M:%S)] OK  $model on $sname"
-    else
-        echo "  [$(date +%H:%M:%S)] FAIL $model on $sname (rc=$rc); see $log"
-    fi
-    return $rc
-}
-
-echo "============================================================"
-echo "[$(date +'%F %T')] BIRD-SQL eval (workers=$NUM_WORKERS, effort=${REASONING_EFFORT:-none}, nat=${NATURALIZER_MODEL:-rule-based})"
-echo "  data=$DATA_PATH  task_ids=$TASK_IDS_FILE  dataset=$DATASET_NAME"
-echo "  models: ${MODELS[*]}"
-echo "============================================================"
-
-if [ -z "${OPENAI_API_KEY:-}" ] && { [ -z "${AZURE_OPENAI_API_KEY:-}" ] || [ -z "${AZURE_OPENAI_ENDPOINT:-}" ]; }; then
-    echo "ERROR: No LLM credentials; set OPENAI_API_KEY or AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT."
-    exit 1
+export LLM_DISABLE_OUTPUT_LIMITS=1
+export LLM_LOCKED_MODEL="${MODEL}"
+export LLM_REASONING_EFFORT=medium
+export LLM_REQUIRE_USAGE_ACCOUNTING=1
+unset LLM_DEFAULT_MAX_OUTPUT_TOKENS
+unset LLM_BUDGET_DEFAULT_MAX_OUTPUT_TOKENS
+unset LLM_COST_HARD_CAP_USD
+export LLM_USAGE_LEDGER_PATH="${LLM_USAGE_LEDGER_PATH:-${RUN_DIR}/evaluation_usage.jsonl}"
+if [[ -z "${LLM_PRICE_MAP:-}" ]]; then
+    export LLM_PRICE_MAP='{"kimi-k2.6":{"input":0.95,"cached_input":0.16,"output":4.0,"reasoning":4.0}}'
 fi
 
-START_TS=$(date +%s)
-for model in "${MODELS[@]}"; do
-    for spec in "${SCENARIOS[@]}"; do
-        read -r sname nt p g <<< "$spec"
-        run_one "$model" "$sname" "$nt" "$p" "$g"
-    done
-done
+mkdir -p "${LOG_DIR}" "${BIRD_DATA_DIR}" "$(dirname "${LLM_USAGE_LEDGER_PATH}")"
 
-elapsed=$(( $(date +%s) - START_TS ))
-printf "[%s] BIRD-SQL eval complete (wall %dh%dm)\n" \
-    "$(date +%H:%M:%S)" $((elapsed/3600)) $(( (elapsed%3600)/60 ))
+run_setting() {
+    local name="$1"
+    local turns="$2"
+    local revisions="$3"
+    local switches="$4"
+    local db_id="$5"
+    local log="${LOG_DIR}/bird__kimi-k2.6__${name}.log"
+    "${PYTHON_BIN}" -u -m "${BIRD_RUNNER}" \
+        --data_path "${DATA_PATH}" \
+        --dataset_name "${DATASET_NAME}" \
+        --model "${MODEL}" \
+        --task_ids_file "${TASK_IDS_FILE}" \
+        --num_workers "${NUM_WORKERS}" \
+        --num_turns "${turns}" \
+        --num_revisions "${revisions}" \
+        --num_switches "${switches}" \
+        --ordering interleaved \
+        --db_id "${db_id}" \
+        --resume \
+        2>&1 | tee -a "${log}"
+}
+
+list_pending() {
+    local turns="$1"
+    local revisions="$2"
+    local switches="$3"
+    "${PYTHON_BIN}" -m "${BIRD_RUNNER}" \
+        --data_path "${DATA_PATH}" \
+        --dataset_name "${DATASET_NAME}" \
+        --model "${MODEL}" \
+        --task_ids_file "${TASK_IDS_FILE}" \
+        --num_workers "${NUM_WORKERS}" \
+        --num_turns "${turns}" \
+        --num_revisions "${revisions}" \
+        --num_switches "${switches}" \
+        --ordering interleaved \
+        --list_pending_databases \
+        --resume
+}
+
+is_listed() {
+    local target="$1"
+    local values="$2"
+    local value
+    while IFS= read -r value; do
+        if [[ "${value}" == "${target}" ]]; then
+            return 0
+        fi
+    done <<< "${values}"
+    return 1
+}
+
+SINGLE_PENDING="$(list_pending 1 0 0)"
+EVOLVE_PENDING="$(list_pending 7 2 2)"
+DATABASE_ORDER="$(
+    "${PYTHON_BIN}" -m "${BIRD_DOWNLOADER}" \
+        --manifest "${EVAL_MANIFEST}" \
+        --data-dir "${BIRD_DATA_DIR}" \
+        --ordered-databases
+)"
+if [[ -n "${ONLY_DATABASE}" ]]; then
+    if ! is_listed "${ONLY_DATABASE}" "${DATABASE_ORDER}"; then
+        echo "ERROR: ${ONLY_DATABASE} is not a published BIRD database." >&2
+        exit 2
+    fi
+    DATABASE_ORDER="${ONLY_DATABASE}"
+fi
+
+while IFS= read -r db_id; do
+    [[ -z "${db_id}" ]] && continue
+    needs_single=false
+    needs_evolve=false
+    is_listed "${db_id}" "${SINGLE_PENDING}" && needs_single=true
+    is_listed "${db_id}" "${EVOLVE_PENDING}" && needs_evolve=true
+
+    if [[ "${needs_single}" == false && "${needs_evolve}" == false ]]; then
+        "${PYTHON_BIN}" -m "${BIRD_DOWNLOADER}" \
+            --manifest "${EVAL_MANIFEST}" \
+            --data-dir "${BIRD_DATA_DIR}" \
+            --evict-database "${db_id}" >/dev/null
+        continue
+    fi
+
+    "${PYTHON_BIN}" -m "${BIRD_DOWNLOADER}" \
+        --manifest "${EVAL_MANIFEST}" \
+        --data-dir "${BIRD_DATA_DIR}" \
+        --database "${db_id}" \
+        --max-file-gib 8.0
+
+    if [[ "${needs_single}" == true ]]; then
+        run_setting single 1 0 0 "${db_id}"
+    fi
+    if [[ "${needs_evolve}" == true ]]; then
+        run_setting evolve 7 2 2 "${db_id}"
+    fi
+
+    "${PYTHON_BIN}" -m "${BIRD_DOWNLOADER}" \
+        --manifest "${EVAL_MANIFEST}" \
+        --data-dir "${BIRD_DATA_DIR}" \
+        --evict-database "${db_id}"
+done <<< "${DATABASE_ORDER}"
+
+if [[ -n "${ONLY_DATABASE}" ]]; then
+    echo "BIRD-SQL one-database evaluation smoke checkpointed: ${ONLY_DATABASE}"
+    echo "Usage ledger: ${LLM_USAGE_LEDGER_PATH}"
+    exit 0
+fi
+
+if [[ -n "$(list_pending 1 0 0)" || -n "$(list_pending 7 2 2)" ]]; then
+    echo "ERROR: BIRD evaluation ended without exact 100/100 coverage." >&2
+    exit 2
+fi
+
+echo "BIRD-SQL evaluation complete. Usage ledger: ${LLM_USAGE_LEDGER_PATH}"

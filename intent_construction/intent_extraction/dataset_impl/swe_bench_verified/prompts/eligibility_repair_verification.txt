@@ -1,0 +1,44 @@
+You are verifying one proposed condition added to an intent extraction from a
+SWE-bench GitHub issue. Judge only what is stated in the supplied problem
+statement. Do not use repository knowledge, a gold patch, or unstated facts.
+
+Output JSON with this exact shape:
+{
+  "supported_by_quote": true OR false,
+  "category_correct": true OR false,
+  "self_contained": true OR false,
+  "localized_revision": true OR false,
+  "not_goal_restatement": true OR false,
+  "reasoning": "brief explanation"
+}
+
+Checks:
+1. supported_by_quote: The exact quote directly supports the whole proposed
+   argument, not merely one shared identifier.
+2. category_correct: The argument genuinely is a location, explicit approach,
+   scope, or constraint under the category definitions, rather than a symptom
+   or reproduction trigger relabeled to pass the filter.
+3. self_contained: The argument can be understood without a back-reference.
+4. localized_revision: mutable_span is a specific value or identifier inside
+   the argument that can be replaced while leaving the rest of the condition
+   structurally intact.
+5. not_goal_restatement: The argument contributes a concrete condition beyond
+   simply repeating the extracted goal.
+
+Problem statement:
+[[PROBLEM_STATEMENT]]
+
+Extracted goal:
+[[GOAL]]
+
+Proposed argument:
+[[ARGUMENT]]
+
+Proposed category:
+[[CATEGORY]]
+
+Exact grounding quote:
+[[GROUNDING_QUOTE]]
+
+Mutable span:
+[[MUTABLE_SPAN]]

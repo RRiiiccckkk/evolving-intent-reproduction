@@ -1,0 +1,1902 @@
+{
+ "bird_sql_train_3957": {
+  "task_id": "bird_sql_train_3957",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "109",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Business JOIN Reviews ON Business.business_id = Reviews.business_id WHERE Business.city = 'Tempe' AND Business.stars = 3.5 AND Business.review_count = 'Uber' AND Reviews.review_length = 'Long'",
+    "gold_sql": "SELECT COUNT(T2.review_length) FROM Business AS T1 INNER JOIN Reviews AS T2 ON T1.business_id = T2.business_id WHERE T1.city = 'Tempe' AND T1.stars = '3.5' AND T1.review_count = 'Uber' AND T2.review_length = 'Long'"
+   }
+  ]
+ },
+ "bird_sql_train_158": {
+  "task_id": "bird_sql_train_158",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "104",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT r.user_id) FROM ratings r JOIN movies m ON r.movie_id = m.movie_id WHERE m.movie_title = 'The Secret Life of Words' AND r.rating_score = 3 AND r.user_trialist = 0 AND r.rating_timestamp_utc BETWEEN '2010-01-01' AND '2020-12-31'",
+    "gold_sql": "SELECT COUNT(T1.user_id) FROM ratings AS T1 INNER JOIN movies AS T2 ON T1.movie_id = T2.movie_id WHERE T2.movie_title = 'The Secret Life of Words' AND T1.rating_score = 3 AND T1.user_trialist = 0 AND T1.rating_timestamp_utc BETWEEN '2010%' AND '2020%'"
+   }
+  ]
+ },
+ "bird_sql_train_3756": {
+  "task_id": "bird_sql_train_3756",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "1795.3333333333333",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT AVG(grad_150) FROM institution_details JOIN institution_grads ON institution_details.unitid = institution_grads.unitid WHERE institution_details.chronname = 'United Education Institute-Huntington Park Campus' AND institution_grads.year BETWEEN 2011 AND 2013 AND institution_grads.gender = 'M' AND institution_grads.race = 'H'",
+    "gold_sql": "SELECT AVG(T2.grad_150) FROM institution_details AS T1 INNER JOIN institution_grads AS T2 ON T2.unitid = T1.unitid WHERE T1.chronname = 'United Education Institute-Huntington Park Campus' AND T2.year BETWEEN 2011 AND 2013 AND T2.gender = 'M' AND T2.race = 'H'"
+   }
+  ]
+ },
+ "bird_sql_train_9015": {
+  "task_id": "bird_sql_train_9015",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "11/10/2014, 14064",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT weather.date AS day, COUNT(*) AS total_bikes_borrowed FROM trip JOIN weather ON SUBSTR(trip.start_date, 1, INSTR(trip.start_date, ' ') - 1) = weather.date WHERE trip.subscription_type = 'Subscriber' AND trip.start_date LIKE '11/%/2014%' AND weather.zip_code = '94301' AND weather.events = 'Fog' GROUP BY weather.date",
+    "gold_sql": "SELECT T2.date, COUNT(T1.start_station_name) FROM trip AS T1 INNER JOIN weather AS T2 ON T2.zip_code = T1.zip_code WHERE T2.date LIKE '11/%/2014%' AND T2.zip_code = 94301 AND T2.events = 'Fog' AND T1.subscription_type = 'Subscriber'"
+   }
+  ]
+ },
+ "bird_sql_dev_939": {
+  "task_id": "bird_sql_dev_939",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "4",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT d.driverId) FROM races r JOIN results res ON r.raceId = res.raceId JOIN drivers d ON res.driverId = d.driverId WHERE r.name = 'Australian Grand Prix' AND r.year = 2008 AND d.nationality = 'British'",
+    "gold_sql": "SELECT COUNT(*) FROM drivers AS T1 INNER JOIN results AS T2 ON T1.driverId = T2.driverId INNER JOIN races AS T3 ON T3.raceId = T2.raceId WHERE T3.name = 'Australian Grand Prix' AND T1.nationality = 'British' AND T3.year = 2008"
+   }
+  ]
+ },
+ "bird_sql_train_1374": {
+  "task_id": "bird_sql_train_1374",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "16",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM careplans JOIN patients ON careplans.PATIENT = patients.patient WHERE patients.prefix = 'Mrs.' AND patients.first = 'Norman' AND patients.last = 'Berge'",
+    "gold_sql": "SELECT COUNT(T2.PATIENT) FROM patients AS T1 INNER JOIN careplans AS T2 ON T1.patient = T2.PATIENT WHERE T1.prefix = 'Mrs.' AND T1.first = 'Norman' AND T1.last = 'Berge'"
+   }
+  ]
+ },
+ "bird_sql_train_1379": {
+  "task_id": "bird_sql_train_1379",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "18",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM claims JOIN patients ON claims.PATIENT = patients.patient WHERE patients.prefix = 'Ms.' AND patients.first = 'Abbie' AND patients.last = 'Cole' AND claims.BILLABLEPERIOD BETWEEN '2010-12-31' AND '2012-01-01'",
+    "gold_sql": "SELECT COUNT(T2.BILLABLEPERIOD) FROM patients AS T1 INNER JOIN claims AS T2 ON T1.patient = T2.PATIENT WHERE T1.prefix = 'Ms.' AND T1.first = 'Abbie' AND T1.last = 'Cole' AND T2.BILLABLEPERIOD BETWEEN '2010-12-31' AND '2012-01-01'"
+   }
+  ]
+ },
+ "bird_sql_train_2125": {
+  "task_id": "bird_sql_train_2125",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "AFG, 1\nBHS, 1\nBLR, 1\nBEL, 1\nBGR, 1\nCHL, 1\nCZE, 1\nDNK, 1\nSLV, 1\nDEU, 1\nISL, 1\nLBN, 1\nMNE, 1\nNLD, 1\nWSM, 1\nSLB, 1\nZAF, 1\nESP, 1\nCHE, 1\nALB, 2\nAUS, 2\nAZE, 2\nCPV, 2\nCAN, 2\nEGY, 2\nEST, 2\nISR, 2\nLVA, 2\nMEX, 2\nNOR, 2\nOMN, 2\nPER, 2\nROM, 2\nSGP, 2\nSVK, 2\nSWE, 2\nTUN, 2\nTUR, 2\nGBR, 2\nUSA, 2\nDZA, 3\nARM, 3\nBLZ, 3\nBFA, 3\nCRI, 3\nECU, 3\nGHA, 3\nHUN, 3\nJOR, 3\nKOR, 3\nKGZ, 3\nLTU, 3\nMKD, 3\nMDG, 3\nMUS, 3\nPOL, 3\nQAT, 3\nSAU, 3\nSVN, 3\nURY, 3\nZWE, 3\nATG, 4\nBWA, 4\nCOL, 4\nGEO, 4\nGTM, 4\nKAZ, 4\nLUX, 4\nMDA, 4\nNIC, 4\nPAK, 4\nPRY, 4\nSTP, 4\nLKA, 4\nUGA, 4\nBOL, 5\nIDN, 5\nIRL, 5\nMWI, 5\nMYS, 5\nNPL, 5\nTGO, 5\nVNM, 5\nBEN, 6\nCOG, 6\nFJI, 6\nMDV, 6\nMRT, 6\nNAM, 6\nNER, 6\nNGA, 6\nPAN, 6\nPHL, 6\nRWA, 6\nTZA, 6\nZMB, 6\nKHM, 7\nCHN, 7\nIND, 7\nMNG, 7\nMOZ, 7\nTMP, 7\nCIV, 8\nETH, 10",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT I.CountryName, I.Value FROM Country AS C JOIN Indicators AS I ON C.CountryCode = I.CountryCode WHERE C.LatestTradeData = 2013 AND I.IndicatorName = 'GDP growth (annual %)' AND I.Year = 2014 AND I.Value > 0 ORDER BY I.Value ASC",
+    "gold_sql": "SELECT DISTINCT T1.CountryCode, T2.Value FROM Country AS T1 INNER JOIN Indicators AS T2 ON T1.CountryCode = T2.CountryCode WHERE T1.LatestTradeData = 2013 AND T2.IndicatorName LIKE 'GDP growth (annual %)' AND T2.year = 2014 AND T2.Value > 0 ORDER BY T2.Value ASC"
+   }
+  ]
+ },
+ "bird_sql_train_2179": {
+  "task_id": "bird_sql_train_2179",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "432357659",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT c.CountryCode) FROM Country c JOIN Indicators i ON c.CountryCode = i.CountryCode WHERE c.IncomeGroup LIKE '%middle income' AND i.Year = 1960 AND i.IndicatorName = 'Urban population'",
+    "gold_sql": "SELECT SUM(T2.Value) FROM Country AS T1 INNER JOIN Indicators AS T2 ON T1.CountryCode = T2.CountryCode WHERE T1.IncomeGroup LIKE '%middle income' AND T2.Year = 1960 AND T2.IndicatorName = 'Urban population'"
+   }
+  ]
+ },
+ "bird_sql_train_2190": {
+  "task_id": "bird_sql_train_2190",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "667070000",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT MAX(i.Value) FROM Country c JOIN Indicators i ON c.CountryCode = i.CountryCode WHERE c.IncomeGroup = 'Upper middle income' AND i.IndicatorName = 'Population, total' AND i.Year = 1960",
+    "gold_sql": "SELECT MAX(T2.Value) FROM Country AS T1 INNER JOIN Indicators AS T2 ON T1.CountryCode = T2.CountryCode WHERE T1.IncomeGroup = 'Upper middle income' AND T2.Year = 1960 AND T2.IndicatorName = 'Population, total'"
+   }
+  ]
+ },
+ "bird_sql_train_3748": {
+  "task_id": "bird_sql_train_3748",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "64.33333333333333",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT AVG(CAST(g.grad_cohort AS REAL)) FROM institution_grads g JOIN institution_details d ON g.unitid = d.unitid WHERE d.chronname = 'Yale University' AND g.race = 'B' AND g.gender = 'B' AND g.cohort = '4y bach' AND g.year BETWEEN 2002 AND 2005",
+    "gold_sql": "SELECT AVG(T2.grad_cohort) FROM institution_details AS T1 INNER JOIN institution_grads AS T2 ON T2.unitid = T1.unitid WHERE T1.chronname = 'Yale University' AND T2.year BETWEEN 2002 AND 2005 AND T2.race = 'B' AND T2.cohort = '4y bach'"
+   }
+  ]
+ },
+ "bird_sql_train_3809": {
+  "task_id": "bird_sql_train_3809",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "189",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT T1.business_id) FROM Business AS T1 JOIN Business_Hours AS T2 ON T1.business_id = T2.business_id WHERE T1.active = 'true' AND T1.city LIKE '%Glendale%' AND T2.opening_time LIKE '%8AM%' AND T2.closing_time LIKE '%6PM%'",
+    "gold_sql": "SELECT COUNT(T1.category_name) FROM Categories AS T1 INNER JOIN Business_Categories AS T2 ON T1.category_id = T2.category_id INNER JOIN Business AS T3 ON T2.business_id = T3.business_id INNER JOIN Business_Hours AS T4 ON T3.business_id = T4.business_id WHERE T3.city LIKE 'Glendale' AND T4.opening_time LIKE '8AM' AND T4.closing_time LIKE '6PM'"
+   }
+  ]
+ },
+ "bird_sql_train_4116": {
+  "task_id": "bird_sql_train_4116",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "96",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM \"Business\" JOIN \"Business_Hours\" ON \"Business\".business_id = \"Business_Hours\".business_id JOIN Days ON \"Business_Hours\".day_id = Days.day_id WHERE \"Business\".city = 'Scottsdale' AND Days.day_of_week = 'Sunday' AND \"Business_Hours\".opening_time = '12PM'",
+    "gold_sql": "SELECT COUNT(DISTINCT T2.business_id) FROM Business AS T1 INNER JOIN Business_hours AS T2 ON T1.business_id = T2.business_id INNER JOIN Days AS T3 ON T2.day_id = T3.day_id WHERE T1.city = 'Scottsdale' AND T3.day_of_week = 'Sunday' AND T2.opening_time = '12PM'"
+   }
+  ]
+ },
+ "bird_sql_train_5101": {
+  "task_id": "bird_sql_train_5101",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "9",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT SUM(zd.total_delivery_receptacles) FROM zip_data zd JOIN state s ON zd.state = s.abbreviation WHERE s.abbreviation = 'CA' AND s.name = 'California' AND zd.type LIKE '%Community Post Office%'",
+    "gold_sql": "SELECT COUNT(*) FROM state AS T1 INNER JOIN zip_data AS T2 ON T1.abbreviation = T2.state WHERE T1.abbreviation = 'CA' AND T2.type LIKE '%Community Post Office%' AND T1.name = 'California' AND T2.state = 'CA'"
+   }
+  ]
+ },
+ "bird_sql_train_5323": {
+  "task_id": "bird_sql_train_5323",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "14",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM customers JOIN rootbeerreview ON customers.CustomerID = rootbeerreview.CustomerID WHERE customers.Gender = 'F' AND customers.SubscribedToEmailList = 'TRUE' AND customers.City = 'Sacramento' AND rootbeerreview.StarRating = 4 AND rootbeerreview.ReviewDate BETWEEN '2013-01-03' AND '2013-10-26'",
+    "gold_sql": "SELECT COUNT(T1.CustomerID) FROM customers AS T1 INNER JOIN rootbeerreview AS T2 ON T1.CustomerID = T2.CustomerID WHERE T2.StarRating = 4 AND T1.City = 'Sacramento' AND T1.Gender = 'F' AND T1.SubscribedToEmailList = 'TRUE' AND T2.ReviewDate BETWEEN '2013-01-03' AND '2013-10-26'"
+   }
+  ]
+ },
+ "bird_sql_train_5842": {
+  "task_id": "bird_sql_train_5842",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "110",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Airlines WHERE FL_DATE = '2018/8/12' AND DEST = 'MIA' AND ARR_DELAY < 0",
+    "gold_sql": "SELECT COUNT(*) FROM Airports AS T1 INNER JOIN Airlines AS T2 ON T1.Code = T2.DEST WHERE T2.FL_DATE = '2018/8/12' AND T2.DEST = 'MIA' AND T2.ARR_DELAY < 0"
+   }
+  ]
+ },
+ "bird_sql_train_6120": {
+  "task_id": "bird_sql_train_6120",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "1332",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM inspection i JOIN employee e ON i.employee_id = e.employee_id WHERE e.first_name = 'Joshua' AND e.last_name = 'Rosa' AND e.title = 'Sanitarian' AND i.results = 'Pass'",
+    "gold_sql": "SELECT COUNT(T2.inspection_id) FROM employee AS T1 INNER JOIN inspection AS T2 ON T1.employee_id = T2.employee_id WHERE T2.results = 'Pass' AND T1.first_name = 'Joshua' AND T1.last_name = 'Rosa'"
+   }
+  ]
+ },
+ "bird_sql_train_6713": {
+  "task_id": "bird_sql_train_6713",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "95",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM customer JOIN nation ON customer.c_nationkey = nation.n_nationkey WHERE customer.c_acctbal < 0 AND customer.c_mktsegment = 'HOUSEHOLD' AND nation.n_name = 'RUSSIA'",
+    "gold_sql": "SELECT COUNT(T1.c_custkey) FROM customer AS T1 INNER JOIN nation AS T2 ON T1.c_nationkey = T2.n_nationkey WHERE T1.c_acctbal < 0 AND T1.c_mktsegment = 'HOUSEHOLD' AND T2.n_name = 'RUSSIA'"
+   }
+  ]
+ },
+ "bird_sql_train_9063": {
+  "task_id": "bird_sql_train_9063",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "1888896",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM trip t JOIN weather w ON t.start_date LIKE w.date || ' %' WHERE w.date LIKE '9/%/2013' AND w.zip_code = '94107' AND w.max_temperature_f > 70",
+    "gold_sql": "SELECT COUNT(T1.id) FROM trip AS T1 INNER JOIN weather AS T2 ON T2.zip_code = T1.zip_code WHERE T2.date LIKE '9/%/2013' AND T2.zip_code = 94107 AND T2.max_temperature_f > 70"
+   }
+  ]
+ },
+ "bird_sql_dev_740": {
+  "task_id": "bird_sql_dev_740",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "12",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT s.id) FROM superhero s JOIN gender g ON s.gender_id = g.id JOIN hero_attribute ha ON s.id = ha.hero_id JOIN attribute a ON ha.attribute_id = a.id WHERE g.gender = 'Female' AND a.attribute_name = 'Strength' AND ha.attribute_value = 100",
+    "gold_sql": "SELECT COUNT(T1.id) FROM superhero AS T1 INNER JOIN hero_attribute AS T2 ON T1.id = T2.hero_id INNER JOIN attribute AS T3 ON T2.attribute_id = T3.id INNER JOIN gender AS T4 ON T1.gender_id = T4.id WHERE T3.attribute_name = 'Strength' AND T2.attribute_value = 100 AND T4.gender = 'Female'"
+   }
+  ]
+ },
+ "bird_sql_train_1213": {
+  "task_id": "bird_sql_train_1213",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "1848",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM gender_age JOIN phone_brand_device_model2 ON gender_age.device_id = phone_brand_device_model2.device_id WHERE gender_age.age > 50 AND phone_brand_device_model2.phone_brand != 'HTC' AND phone_brand_device_model2.device_model != 'One M8 Eye'",
+    "gold_sql": "SELECT COUNT(T1.device_id) FROM gender_age AS T1 INNER JOIN phone_brand_device_model2 AS T2 ON T1.device_id = T2.device_id WHERE T1.age > 50 AND T2.device_model != 'One M8 Eye' AND T2.phone_brand != 'HTC'"
+   }
+  ]
+ },
+ "bird_sql_train_1933": {
+  "task_id": "bird_sql_train_1933",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "57",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Batsman_Scored WHERE Match_Id > 335989 AND Match_Id < 337000 AND Innings_No = 1 AND Over_Id = 1 AND Ball_Id = 1 AND Runs_Scored > 3",
+    "gold_sql": "SELECT SUM(CASE WHEN Runs_Scored > 3 THEN 1 ELSE 0 END) FROM Batsman_Scored WHERE 335989 < Match_Id < 337000 AND Innings_No = 1 AND Over_Id = 1 AND Ball_Id = 1"
+   }
+  ]
+ },
+ "bird_sql_train_3695": {
+  "task_id": "bird_sql_train_3695",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "0.6740331491712708",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT CAST(SUM(CASE WHEN g.gender = 'M' THEN CAST(g.grad_cohort AS REAL) ELSE 0 END) AS REAL) / SUM(CASE WHEN g.gender = 'F' THEN CAST(g.grad_cohort AS REAL) ELSE 0 END) AS ratio FROM institution_details d JOIN institution_grads g ON d.unitid = g.unitid WHERE d.chronname = 'Harvard University' AND g.year = 2013 AND g.race = 'A' AND g.gender IN ('M', 'F')",
+    "gold_sql": "SELECT CAST(SUM(CASE WHEN T2.Gender = 'M' THEN T2.grad_cohort ELSE 0 END) AS REAL) / SUM(CASE WHEN T2.Gender = 'F' THEN T2.grad_cohort ELSE 0 END) FROM institution_details AS T1 INNER JOIN institution_grads AS T2 ON T1.unitid = T2.unitid WHERE T1.chronname = 'Harvard University' AND T2.year = 2013 AND T2.race = 'A'"
+   }
+  ]
+ },
+ "bird_sql_train_3698": {
+  "task_id": "bird_sql_train_3698",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "0",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT SUM(T2.grad_150) FROM institution_details AS T1 JOIN institution_grads AS T2 ON T1.unitid = T2.unitid WHERE T1.chronname = 'Amridge University' AND T2.gender = 'M' AND T2.race = 'H'",
+    "gold_sql": "SELECT SUM(T2.grad_cohort) FROM institution_details AS T1 INNER JOIN institution_grads AS T2 ON T1.unitid = T2.unitid WHERE T1.chronname = 'Amridge University' AND T2.gender = 'M' AND T2.race = 'H'"
+   }
+  ]
+ },
+ "bird_sql_train_3705": {
+  "task_id": "bird_sql_train_3705",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "66524",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT SUM(CAST(NULLIF(ig.grad_150, 'NULL') AS INTEGER)) FROM institution_grads ig JOIN institution_details id ON ig.unitid = id.unitid WHERE ig.cohort = '2y all' AND ig.year = 2011 AND ig.gender = 'B' AND id.state = 'Alabama'",
+    "gold_sql": "SELECT SUM(T2.grad_cohort) FROM institution_details AS T1 INNER JOIN institution_grads AS T2 ON T2.unitid = T1.unitid WHERE  T2.cohort = '2y all' AND T2.year = 2011 AND T1.state = 'Alabama'"
+   }
+  ]
+ },
+ "bird_sql_train_3724": {
+  "task_id": "bird_sql_train_3724",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "58",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT ig.grad_100 FROM institution_details id JOIN institution_grads ig ON id.unitid = ig.unitid WHERE id.chronname = 'Pennsylvania State University-Altoona' AND ig.gender = 'F' AND ig.race = 'H'",
+    "gold_sql": "SELECT SUM(T2.grad_100) FROM institution_details AS T1 INNER JOIN institution_grads AS T2 ON T2.unitid = T1.unitid WHERE T1.chronname = 'Pennsylvania State University-Altoona' AND T2.gender = 'F' AND T2.race = 'H'"
+   }
+  ]
+ },
+ "bird_sql_train_3889": {
+  "task_id": "bird_sql_train_3889",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "830",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Business JOIN Business_Attributes ON Business.business_id = Business_Attributes.business_id JOIN Attributes ON Business_Attributes.attribute_id = Attributes.attribute_id WHERE Business.active = 'true' AND Business.review_count = 'Low' AND Attributes.attribute_name = 'Caters'",
+    "gold_sql": "SELECT COUNT(T1.business_id) FROM Business AS T1 INNER JOIN Business_Attributes AS T2 ON T1.business_id = T2.business_id INNER JOIN Attributes AS T3 ON T2.attribute_id = T3.attribute_id WHERE T3.attribute_name LIKE 'Caters' AND T1.review_count LIKE 'Low' AND T1.active LIKE 'TRUE'"
+   }
+  ]
+ },
+ "bird_sql_train_6901": {
+  "task_id": "bird_sql_train_6901",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "55",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": false,
+    "error": "SQL error: no such function: YEAR",
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM orders WHERE YEAR(o_orderdate) = 1997 AND o_clerk = 'Clerk#000000001' AND o_orderpriority = '1-URGENT'",
+    "gold_sql": "SELECT COUNT(o_orderkey) FROM orders WHERE STRFTIME('%Y', o_orderdate) = '1997' AND o_clerk = 'Clerk#000000001' AND o_orderpriority = '1-URGENT'"
+   }
+  ]
+ },
+ "bird_sql_train_844": {
+  "task_id": "bird_sql_train_844",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "511",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM twitter JOIN location ON twitter.LocationID = location.LocationID JOIN user ON twitter.UserID = user.UserID WHERE location.Country = 'Australia' AND user.Gender = 'Male' AND twitter.Sentiment > 0",
+    "gold_sql": "SELECT COUNT(T1.TweetID) FROM twitter AS T1 INNER JOIN location AS T2 ON T2.LocationID = T1.LocationID INNER JOIN user AS T3 ON T3.UserID = T1.UserID WHERE T2.Country = 'Australia' AND T3.Gender = 'Male' AND T1.Sentiment > 0"
+   }
+  ]
+ },
+ "bird_sql_train_8655": {
+  "task_id": "bird_sql_train_8655",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "36",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Crime JOIN District ON Crime.district_no = District.district_no JOIN FBI_Code ON Crime.fbi_code_no = FBI_Code.fbi_code_no WHERE FBI_Code.title = 'Criminal Sexual Assault' AND District.commander = 'Adnardo Gutierrez' AND Crime.location_description = 'RESIDENCE'",
+    "gold_sql": "SELECT COUNT(T2.report_no) FROM District AS T1 INNER JOIN Crime AS T2 ON T2.district_no = T1.district_no INNER JOIN FBI_Code AS T3 ON T3.fbi_code_no = T2.fbi_code_no WHERE T3.title = 'Criminal Sexual Assault' AND T1.commander = 'Adnardo Gutierrez' AND T2.location_description = 'RESIDENCE'"
+   }
+  ]
+ },
+ "bird_sql_train_9068": {
+  "task_id": "bird_sql_train_9068",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "87636",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM trip JOIN weather ON trip.start_date LIKE weather.date || '%' WHERE trip.start_station_name = '2nd at Townsend' AND weather.date LIKE '%2013' AND weather.events = 'fog' AND weather.zip_code = '94107'",
+    "gold_sql": "SELECT COUNT(T1.start_station_name) FROM trip AS T1 INNER JOIN weather AS T2 ON T2.zip_code = T1.zip_code WHERE T2.date LIKE '%2013%' AND T2.events = 'Fog' AND T1.start_station_name = '2nd at Townsend' AND T2.zip_code = 94107"
+   }
+  ]
+ },
+ "bird_sql_dev_100": {
+  "task_id": "bird_sql_dev_100",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "8",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT c.client_id) FROM client c JOIN disp d ON c.client_id = d.client_id JOIN district di ON c.district_id = di.district_id WHERE c.gender = 'F' AND c.birth_date < '1950-01-01' AND di.A2 = 'Sokolov'",
+    "gold_sql": "SELECT COUNT(T2.client_id) FROM district AS T1 INNER JOIN client AS T2 ON T1.district_id = T2.district_id WHERE T2.gender = 'F' AND STRFTIME('%Y', T2.birth_date) < '1950' AND T1.A2 = 'Sokolov'"
+   }
+  ]
+ },
+ "bird_sql_dev_21": {
+  "task_id": "bird_sql_dev_21",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "249",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM frpm WHERE `County Name` = 'Los Angeles' AND `Free Meal Count (K-12)` > 500 AND `FRPM Count (K-12)` < 700",
+    "gold_sql": "SELECT COUNT(CDSCode) FROM frpm WHERE `County Name` = 'Los Angeles' AND `Free Meal Count (K-12)` > 500 AND `FRPM Count (K-12)`< 700"
+   }
+  ]
+ },
+ "bird_sql_train_1094": {
+  "task_id": "bird_sql_train_1094",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "838",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT g.device_id) FROM gender_age g JOIN phone_brand_device_model2 p ON g.device_id = p.device_id WHERE g.gender = 'F' AND g.age < 30 AND p.phone_brand = 'vivo'",
+    "gold_sql": "SELECT COUNT(T1.device_id) FROM gender_age AS T1 INNER JOIN phone_brand_device_model2 AS T2 ON T1.device_id = T2.device_id WHERE T1.gender = 'F' AND T2.phone_brand = 'vivo' AND T1.age < 30"
+   }
+  ]
+ },
+ "bird_sql_train_2278": {
+  "task_id": "bird_sql_train_2278",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "4484",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM users JOIN u2base ON users.userid = u2base.userid WHERE u2base.rating = '5' AND users.age < 18 AND users.u_gender = 'M'",
+    "gold_sql": "SELECT COUNT(T1.movieid) FROM u2base AS T1 INNER JOIN users AS T2 ON T1.userid = T2.userid WHERE T1.rating = 5 AND T2.age < 18 AND T2.u_gender = 'M'"
+   }
+  ]
+ },
+ "bird_sql_train_2742": {
+  "task_id": "bird_sql_train_2742",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "Metz",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT AwayTeam FROM matchs WHERE HomeTeam = 'Caen' AND season = 2010 GROUP BY AwayTeam ORDER BY AVG(CASE WHEN FTR = 'A' THEN 1.0 ELSE 0 END) DESC LIMIT 1",
+    "gold_sql": "SELECT AwayTeam FROM matchs WHERE HomeTeam = 'Caen' AND season = 2010 AND FTR = 'A' GROUP BY AwayTeam ORDER BY COUNT(AwayTeam) DESC LIMIT 1"
+   }
+  ]
+ },
+ "bird_sql_train_368": {
+  "task_id": "bird_sql_train_368",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "6",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM client JOIN district ON client.district_id = district.district_id WHERE district.division = 'Middle Atlantic' AND client.sex = 'Female' AND client.age < 18",
+    "gold_sql": "SELECT COUNT(T1.sex) FROM client AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id WHERE T2.division = 'Middle Atlantic' AND T1.sex = 'Female' AND T1.age < 18"
+   }
+  ]
+ },
+ "bird_sql_train_3838": {
+  "task_id": "bird_sql_train_3838",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "11142",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT b.business_id) FROM Business b JOIN Checkins c ON b.business_id = c.business_id JOIN Days d ON c.day_id = d.day_id WHERE b.state = 'AZ' AND c.label_time_4 = 'None' AND d.day_of_week = 'Thursday'",
+    "gold_sql": "SELECT COUNT(T1.business_id) FROM Business AS T1 INNER JOIN Checkins AS T2 ON T1.business_id = T2.business_id INNER JOIN Days AS T3 ON T2.day_id = T3.day_id WHERE T2.label_time_4 LIKE 'None' AND T1.state LIKE 'AZ' AND T3.day_of_week LIKE 'Thursday'"
+   }
+  ]
+ },
+ "bird_sql_train_3893": {
+  "task_id": "bird_sql_train_3893",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "Anthem\nAvondale\nChandler\nFountain Hills\nGilbert\nGlendale\nMesa\nPeoria\nPhoenix\nScottsdale\nSurprise\nTempe",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT DISTINCT T1.city, T1.state FROM Business AS T1 JOIN Business_Hours AS T2 ON T1.business_id = T2.business_id JOIN Days AS T3 ON T2.day_id = T3.day_id WHERE T2.opening_time = '8AM' AND T2.closing_time = '9PM' AND T3.day_of_week = 'Friday'",
+    "gold_sql": "SELECT T1.city FROM Business AS T1 INNER JOIN Business_Hours AS T2 ON T1.business_id = T2.business_id INNER JOIN Days AS T3 ON T2.day_id = T3.day_id WHERE T2.closing_time LIKE '9PM' AND T2.opening_time LIKE '8AM' AND T3.day_of_week LIKE 'Friday' GROUP BY T1.city"
+   }
+  ]
+ },
+ "bird_sql_train_3926": {
+  "task_id": "bird_sql_train_3926",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "1371",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Business JOIN Business_Attributes ON Business.business_id = Business_Attributes.business_id JOIN Attributes ON Business_Attributes.attribute_id = Attributes.attribute_id WHERE Business.active = 'true' AND Business.review_count = 'Medium' AND Attributes.attribute_name = 'Wi-Fi'",
+    "gold_sql": "SELECT COUNT(T1.business_id) FROM Business AS T1 INNER JOIN Business_Attributes AS T2 ON T1.business_id = T2.business_id INNER JOIN Attributes AS T3 ON T2.attribute_id = T3.attribute_id WHERE T3.attribute_name LIKE 'Wi-Fi' AND T1.active LIKE 'TRUE' AND T1.review_count LIKE 'Medium'"
+   }
+  ]
+ },
+ "bird_sql_train_4130": {
+  "task_id": "bird_sql_train_4130",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "118",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM \"Business\" JOIN \"Business_Categories\" ON \"Business\".business_id = \"Business_Categories\".business_id JOIN Categories ON \"Business_Categories\".category_id = Categories.category_id JOIN \"Business_Attributes\" ON \"Business\".business_id = \"Business_Attributes\".business_id JOIN Attributes ON \"Business_Attributes\".attribute_id = Attributes.attribute_id WHERE \"Business\".active = 'true' AND \"Business\".review_count = 'High' AND Categories.category_name = 'Food' AND Attributes.attribute_name = 'BYOB'",
+    "gold_sql": "SELECT COUNT(DISTINCT T1.business_id) FROM Business AS T1 INNER JOIN Business_Attributes AS T2 ON T1.business_id = T2.business_id INNER JOIN Attributes AS T3 ON T2.attribute_id = T3.attribute_id WHERE T3.attribute_name = 'BYOB' AND T1.review_count = 'High' AND T1.active = 'true'"
+   }
+  ]
+ },
+ "bird_sql_train_5339": {
+  "task_id": "bird_sql_train_5339",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "23",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM customers JOIN \"transaction\" ON customers.CustomerID = \"transaction\".CustomerID JOIN rootbeer ON \"transaction\".RootBeerID = rootbeer.RootBeerID WHERE customers.First = 'Jim' AND customers.Last = 'Breech' AND rootbeer.ContainerType = 'Bottle'",
+    "gold_sql": "SELECT COUNT(T3.ContainerType) FROM customers AS T1 INNER JOIN `transaction` AS T2 ON T2.CustomerID = T1.CustomerID INNER JOIN rootbeer AS T3 ON T3.RootBeerID = T2.RootBeerID WHERE T3.ContainerType = 'Bottle' AND T1.First = 'Jim' AND T1.Last = 'Breech'"
+   }
+  ]
+ },
+ "bird_sql_train_5656": {
+  "task_id": "bird_sql_train_5656",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "3",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM shipment JOIN driver ON shipment.driver_id = driver.driver_id JOIN city ON shipment.city_id = city.city_id WHERE driver.first_name = 'Zachery' AND driver.last_name = 'Hicks' AND city.city_name = 'New York' AND CAST(ship_date AS DATE) = 2016",
+    "gold_sql": "SELECT COUNT(*) FROM city AS T1 INNER JOIN shipment AS T2 ON T1.city_id = T2.city_id INNER JOIN driver AS T3 ON T3.driver_id = T2.driver_id WHERE T3.first_name = 'Zachery' AND T3.last_name = 'Hicks' AND T1.city_name = 'New York' AND STRFTIME('%Y', T2.ship_date) = '2016'"
+   }
+  ]
+ },
+ "bird_sql_train_5877": {
+  "task_id": "bird_sql_train_5877",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "21",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Airlines WHERE ORIGIN = 'DFW' AND DEST = 'SNA' AND DEP_DELAY = 0",
+    "gold_sql": "SELECT COUNT(*) FROM Airlines WHERE DEST = 'SNA' AND ORIGIN = 'DFW' AND DEP_DELAY = 0"
+   }
+  ]
+ },
+ "bird_sql_train_6951": {
+  "task_id": "bird_sql_train_6951",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "Joakim Andersson, Frolunda HC J20",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT p.PlayerName, s.TEAM FROM PlayerInfo p INNER JOIN SeasonStatus s ON p.ELITEID = s.ELITEID WHERE s.SEASON = '2006-2007' AND s.GAMETYPE = 'Playoffs' AND s.LEAGUE = 'SuperElit' ORDER BY s.P DESC LIMIT 1",
+    "gold_sql": "SELECT T2.PlayerName, T1.TEAM FROM SeasonStatus AS T1 INNER JOIN PlayerInfo AS T2 ON T1.ELITEID = T2.ELITEID WHERE T1.SEASON = '2006-2007' AND T1.GAMETYPE = 'Playoffs' AND T1.LEAGUE = 'SuperElit' ORDER BY T1.P DESC LIMIT 1"
+   }
+  ]
+ },
+ "bird_sql_train_8086": {
+  "task_id": "bird_sql_train_8086",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "100",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(CASE WHEN c.country_name = 'United States of America' THEN 1 END) * 100.0 / COUNT(*) AS percentage FROM university_ranking_year ury JOIN ranking_criteria rc ON ury.ranking_criteria_id = rc.id JOIN university u ON ury.university_id = u.id JOIN country c ON u.country_id = c.id WHERE rc.criteria_name = 'Teaching' AND ury.year = 2011 AND ury.score > 90",
+    "gold_sql": "SELECT CAST(SUM(CASE WHEN T4.country_name = 'United States of America' THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(*) AS per FROM ranking_criteria AS T1 INNER JOIN university_ranking_year AS T2 ON T1.id = T2.ranking_criteria_id INNER JOIN university AS T3 ON T3.id = T2.university_id INNER JOIN country AS T4 ON T4.id = T3.country_id WHERE T1.criteria_name = 'Teaching' AND T2.year = 2011 AND T2.score > 90"
+   }
+  ]
+ },
+ "bird_sql_dev_1195": {
+  "task_id": "bird_sql_dev_1195",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "3.9123076923076923",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT AVG(l.ALB) FROM Patient p JOIN Laboratory l ON p.ID = l.ID WHERE l.PLT > 400 AND p.Diagnosis = 'SLE' AND p.SEX = 'F'",
+    "gold_sql": "SELECT AVG(T2.ALB) FROM Patient AS T1 INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID WHERE T2.PLT > 400 AND T1.Diagnosis = 'SLE' AND T1.SEX = 'F'"
+   }
+  ]
+ },
+ "bird_sql_dev_1516": {
+  "task_id": "bird_sql_dev_1516",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "68",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM \"transactions_1k\" t JOIN customers c ON t.CustomerID = c.CustomerID WHERE t.Date = '2012-08-26' AND t.Time < '13:00:00' AND c.Currency = 'CZK'",
+    "gold_sql": "SELECT COUNT(T1.TransactionID) FROM transactions_1k AS T1 INNER JOIN customers AS T2 ON T1.CustomerID = T2.CustomerID WHERE T1.Date = '2012-08-26' AND T1.Time < '13:00:00' AND T2.Currency = 'CZK'"
+   }
+  ]
+ },
+ "bird_sql_dev_182": {
+  "task_id": "bird_sql_dev_182",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "1556",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT c.client_id) FROM client c JOIN disp d ON c.client_id = d.client_id JOIN `order` o ON d.account_id = o.account_id WHERE c.gender = 'M' AND c.birth_date BETWEEN '1974-01-01' AND '1976-12-31' AND o.amount > 4000 AND o.k_symbol = 'SIPO'",
+    "gold_sql": "SELECT COUNT(T1.account_id) FROM trans AS T1 INNER JOIN account AS T2 ON T1.account_id = T2.account_id INNER JOIN disp AS T4 ON T2.account_id = T4.account_id INNER JOIN client AS T3 ON T4.client_id = T3.client_id WHERE STRFTIME('%Y', T3.birth_date) BETWEEN '1974' AND '1976' AND T3.gender = 'M' AND T1.amount > 4000 AND T1.k_symbol = 'SIPO'"
+   }
+  ]
+ },
+ "bird_sql_train_1397": {
+  "task_id": "bird_sql_train_1397",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "6",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT p.patient) FROM patients p JOIN immunizations i ON p.patient = i.PATIENT WHERE p.race = 'black' AND i.DESCRIPTION = 'DTaP' AND i.DATE LIKE '2013%'",
+    "gold_sql": "SELECT COUNT(DISTINCT T1.patient) FROM patients AS T1 INNER JOIN immunizations AS T2 ON T1.patient = T2.PATIENT WHERE T1.race = 'black' AND T2.DESCRIPTION = 'DTaP' AND strftime('%Y', T2.DATE) = '2013'"
+   }
+  ]
+ },
+ "bird_sql_train_1450": {
+  "task_id": "bird_sql_train_1450",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "165",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM ( SELECT PATIENT FROM careplans WHERE DESCRIPTION = 'Diabetes self management plan' INTERSECT SELECT PATIENT FROM observations WHERE DESCRIPTION = 'Body Weight' AND VALUE > 100 AND UNITS = 'kg' ) AS t",
+    "gold_sql": "SELECT COUNT(DISTINCT T2.patient) FROM careplans AS T1 INNER JOIN patients AS T2 ON T1.PATIENT = T2.patient INNER JOIN observations AS T3 ON T2.patient = T3.PATIENT WHERE T3.DESCRIPTION = 'Body Weight' AND T1.DESCRIPTION = 'Diabetes self management plan' AND T3.VALUE > 100 AND T3.UNITS = 'kg'"
+   }
+  ]
+ },
+ "bird_sql_train_1669": {
+  "task_id": "bird_sql_train_1669",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "41898.64",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT SUM(od.quantityOrdered * od.priceEach) AS totalPrice FROM customers c JOIN orders o ON c.customerNumber = o.customerNumber JOIN orderdetails od ON o.orderNumber = od.orderNumber JOIN products p ON od.productCode = p.productCode WHERE c.customerName = 'Land of Toys Inc.' AND p.productLine = 'Classic Cars' AND o.status = 'Shipped'",
+    "gold_sql": "SELECT SUM(t3.priceEach * t3.quantityOrdered) FROM customers AS t1 INNER JOIN orders AS t2 ON t1.customerNumber = t2.customerNumber INNER JOIN orderdetails AS t3 ON t2.orderNumber = t3.orderNumber INNER JOIN products AS t4 ON t3.productCode = t4.productCode WHERE t4.productLine = 'Classic Cars' AND t1.customerName = 'Land of Toys Inc.' AND t2.status = 'Shipped'"
+   }
+  ]
+ },
+ "bird_sql_train_2273": {
+  "task_id": "bird_sql_train_2273",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "2406458",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT DISTINCT movies.movieid FROM movies JOIN movies2directors ON movies.movieid = movies2directors.movieid WHERE movies.country = 'UK' AND movies2directors.genre = 'Adventure' AND movies.isEnglish = 'F' LIMIT 5",
+    "gold_sql": "SELECT T1.movieid FROM movies2directors AS T1 INNER JOIN movies AS T2 ON T1.movieid = T2.movieid WHERE T2.country = 'UK' AND T1.genre = 'Adventure' AND T2.isEnglish = 'F' LIMIT 5"
+   }
+  ]
+ },
+ "bird_sql_train_2277": {
+  "task_id": "bird_sql_train_2277",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "3",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT movies.movieid) FROM movies JOIN movies2directors ON movies.movieid = movies2directors.movieid WHERE movies.country = 'USA' AND movies.isEnglish = 'F' AND movies2directors.genre = 'Action'",
+    "gold_sql": "SELECT COUNT(T1.movieid) FROM movies AS T1 INNER JOIN movies2directors AS T2 ON T1.movieid = T2.movieid WHERE T1.country = 'USA' AND T1.isEnglish = 'F' AND T2.genre = 'Action'"
+   }
+  ]
+ },
+ "bird_sql_train_3723": {
+  "task_id": "bird_sql_train_3723",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "ITT Technical Institute (Louisville, Ky.), 413857",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT unitid FROM institution_details WHERE state IN ( SELECT DISTINCT state FROM state_sector_grads WHERE state_abbr = 'KY' ) AND level = '4-year' AND control = 'Private for-profit' ORDER BY grad_150_value DESC LIMIT 1",
+    "gold_sql": "SELECT T1.chronname, T1.unitid FROM institution_details AS T1 INNER JOIN state_sector_grads AS T2 ON T2.state = T1.state WHERE T2.state_abbr = 'KY' AND T1.level = '4-year' AND T1.control = 'Private for-profit' GROUP BY T1.chronname ORDER BY SUM(T1.grad_150_value) DESC LIMIT 1"
+   }
+  ]
+ },
+ "bird_sql_train_3727": {
+  "task_id": "bird_sql_train_3727",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "81214",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT SUM(CAST(ig.grad_cohort AS INTEGER)) FROM institution_grads ig JOIN institution_details id ON ig.unitid = id.unitid WHERE id.state = 'Alabama' AND id.level = '2-year' AND id.control = 'Public' AND ig.year = 2011 AND ig.race = 'X' AND ig.gender = 'B'",
+    "gold_sql": "SELECT SUM(T2.grad_cohort) FROM state_sector_details AS T1 INNER JOIN state_sector_grads AS T2 ON T2.stateid = T1.stateid WHERE T1.state = 'Alabama' AND T2.year = 2011 AND T1.level = '2-year' AND T1.control = 'Public' AND T2.race = 'X'"
+   }
+  ]
+ },
+ "bird_sql_train_3866": {
+  "task_id": "bird_sql_train_3866",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "40",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Business JOIN Business_Hours ON Business.business_id = Business_Hours.business_id JOIN Days ON Business_Hours.day_id = Days.day_id WHERE Business.state = 'AZ' AND Business_Hours.closing_time = '12PM' AND Days.day_of_week = 'Sunday'",
+    "gold_sql": "SELECT COUNT(T1.business_id) FROM Business_Hours AS T1 INNER JOIN Days AS T2 ON T1.day_id = T2.day_id INNER JOIN Business AS T3 ON T1.business_id = T3.business_id WHERE T2.day_of_week LIKE 'Sunday' AND T1.closing_time LIKE '12PM' AND T3.state LIKE 'AZ'"
+   }
+  ]
+ },
+ "bird_sql_train_3932": {
+  "task_id": "bird_sql_train_3932",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "10AM\n11AM\n12AM\n12PM\n1PM\n4PM\n6AM\n6PM\n7AM\n8AM\n9AM",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT T2.opening_time FROM Business AS T1 JOIN Business_Hours AS T2 ON T1.business_id = T2.business_id WHERE T1.active = 'true' AND T1.city = 'Surprise' AND T1.review_count = 'Low'",
+    "gold_sql": "SELECT T2.opening_time FROM Business AS T1 INNER JOIN Business_Hours AS T2 ON T1.business_id = T2.business_id INNER JOIN Days AS T3 ON T2.day_id = T3.day_id WHERE T1.city LIKE 'Surprise' AND T1.active LIKE 'TRUE' AND T1.review_count LIKE 'Low' GROUP BY T2.opening_time"
+   }
+  ]
+ },
+ "bird_sql_train_3987": {
+  "task_id": "bird_sql_train_3987",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "218",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Business WHERE city = 'Phoenix' AND state = 'AZ' AND stars = 2",
+    "gold_sql": "SELECT COUNT(business_id) FROM Business WHERE city = 'Phoenix' AND state = 'AZ' AND stars = 2"
+   }
+  ]
+ },
+ "bird_sql_train_399": {
+  "task_id": "bird_sql_train_399",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "6",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM reviews JOIN district ON reviews.district_id = district.district_id WHERE reviews.Product = 'Eagle National Mortgage' AND district.city = 'Nashville' AND district.state_abbrev = 'TN' AND reviews.Stars = 5",
+    "gold_sql": "SELECT COUNT(T2.Stars) FROM district AS T1 INNER JOIN reviews AS T2 ON T1.district_id = T2.district_id WHERE T1.city = 'Nashville' AND T1.state_abbrev = 'TN' AND T2.Product = 'Eagle National Mortgage' AND T2.Stars = 5"
+   }
+  ]
+ },
+ "bird_sql_train_5399": {
+  "task_id": "bird_sql_train_5399",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "294194",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Sales JOIN Employees ON Sales.SalesPersonID = Employees.EmployeeID WHERE Employees.FirstName = 'Michel' AND Employees.MiddleInitial = 'e' AND Employees.LastName = 'DeFrance'",
+    "gold_sql": "SELECT COUNT(T1.SalesID) FROM Sales AS T1 INNER JOIN Employees AS T2 ON T1.SalesPersonID = T2.EmployeeID WHERE T2.FirstName = 'Michel' AND T2.MiddleInitial = 'e' AND T2.LastName = 'DeFrance'"
+   }
+  ]
+ },
+ "bird_sql_train_5841": {
+  "task_id": "bird_sql_train_5841",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "411",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Airlines JOIN \"Air Carriers\" ON Airlines.OP_CARRIER_AIRLINE_ID = \"Air Carriers\".Code WHERE Airlines.FL_DATE = '2018/8/2' AND \"Air Carriers\".Description = 'Alaska Airlines Inc.: AS' AND Airlines.DEP_DELAY > 0",
+    "gold_sql": "SELECT COUNT(*) FROM Airlines AS T1 INNER JOIN `Air Carriers` AS T2 ON T1.OP_CARRIER_AIRLINE_ID = T2.Code WHERE T1.FL_DATE = '2018/8/2' AND T2.Description = 'Alaska Airlines Inc.: AS' AND T1.DEP_DELAY > 0"
+   }
+  ]
+ },
+ "bird_sql_train_6212": {
+  "task_id": "bird_sql_train_6212",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "218",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT e.license_no) FROM establishment e JOIN inspection i ON e.license_no = i.license_no WHERE e.facility_type = 'Tavern' AND i.inspection_date LIKE '2010-07%' AND i.results = 'Fail'",
+    "gold_sql": "SELECT COUNT(DISTINCT T1.license_no) FROM establishment AS T1 INNER JOIN inspection AS T2 ON T1.license_no = T2.license_no WHERE strftime('%Y-%m', T2.inspection_date) = '2010-07' AND T2.results = 'Fail' AND T1.facility_type = 'Restaurant'"
+   }
+  ]
+ },
+ "bird_sql_train_6233": {
+  "task_id": "bird_sql_train_6233",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "181",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM inspection i JOIN establishment e ON i.license_no = e.license_no WHERE i.inspection_date LIKE '2010-04%' AND i.results = 'Fail' AND e.facility_type = 'Restaurant'",
+    "gold_sql": "SELECT COUNT(DISTINCT T1.license_no) FROM establishment AS T1 INNER JOIN inspection AS T2 ON T1.license_no = T2.license_no WHERE strftime('%Y-%m', T2.inspection_date) = '2010-04' AND T1.facility_type = 'Restaurant' AND T2.results = 'Fail'"
+   }
+  ]
+ },
+ "bird_sql_train_6707": {
+  "task_id": "bird_sql_train_6707",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "64848",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM lineitem WHERE l_returnflag = 'R' AND l_shipmode = 'AIR' AND l_shipdate BETWEEN '1994-01-01' AND '1994-12-31'",
+    "gold_sql": "SELECT COUNT(l_linenumber) FROM lineitem WHERE l_returnflag = 'R' AND l_shipmode = 'AIR' AND STRFTIME('%Y', l_shipdate) = '1994'"
+   }
+  ]
+ },
+ "bird_sql_train_9065": {
+  "task_id": "bird_sql_train_9065",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "256",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM trip JOIN station ON trip.start_station_id = station.id WHERE trip.subscription_type = 'Subscriber' AND trip.start_date LIKE '8%' AND trip.start_date LIKE '%2013%' AND station.dock_count > 20",
+    "gold_sql": "SELECT COUNT(T2.id) FROM station AS T1 INNER JOIN trip AS T2 ON T1.id = T2.start_station_id WHERE T2.subscription_type = 'Subscriber' AND T2.start_date LIKE '8/%/2013%' AND T1.dock_count > 20"
+   }
+  ]
+ },
+ "bird_sql_dev_1162": {
+  "task_id": "bird_sql_dev_1162",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "161",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": false,
+    "error": "SQL error: no such function: YEAR",
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Patient WHERE SEX = 'F' AND YEAR(Description) = 1997 AND Admission = '-'",
+    "gold_sql": "SELECT COUNT(*) FROM Patient WHERE STRFTIME('%Y', Description) = '1997' AND SEX = 'F' AND Admission = '-'"
+   }
+  ]
+ },
+ "bird_sql_dev_47": {
+  "task_id": "bird_sql_dev_47",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "1.4166666666666667",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) / 12.0 FROM schools WHERE DOC = '52' AND County = 'Alameda' AND strftime('%Y', OpenDate) = '1980'",
+    "gold_sql": "SELECT CAST(COUNT(School) AS REAL) / 12 FROM schools WHERE DOC = 52 AND County = 'Alameda' AND strftime('%Y', OpenDate) = '1980'"
+   }
+  ]
+ },
+ "bird_sql_train_1589": {
+  "task_id": "bird_sql_train_1589",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "1996 Moto Guzzi 1100i",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT p.productName FROM products p JOIN orderdetails od ON p.productCode = od.productCode JOIN orders o ON od.orderNumber = o.orderNumber JOIN customers c ON o.customerNumber = c.customerNumber WHERE p.productLine = 'Motorcycles' AND p.productScale = '1:10' AND c.country = 'USA' GROUP BY p.productCode, p.productName ORDER BY SUM(od.quantityOrdered) DESC LIMIT 1",
+    "gold_sql": "SELECT T1.productName FROM products AS T1 INNER JOIN orderdetails AS T2 ON T1.productCode = T2.productCode INNER JOIN orders AS T3 ON T2.orderNumber = T3.orderNumber INNER JOIN customers AS T4 ON T3.customerNumber = T4.customerNumber WHERE T1.productLine = 'Motorcycles' AND T1.productScale = '1:10' AND T4.country = 'USA' GROUP BY T1.productName ORDER BY SUM(T2.quantityOrdered) DESC LIMIT 1"
+   }
+  ]
+ },
+ "bird_sql_train_2096": {
+  "task_id": "bird_sql_train_2096",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "28",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT c.CountryCode) FROM Country c JOIN CountryNotes cn ON c.CountryCode = cn.Countrycode WHERE c.LendingCategory = 'IDA' AND c.IncomeGroup = 'Low income' AND cn.Seriescode = 'SM.POP.TOTL'",
+    "gold_sql": "SELECT COUNT(T1.Countrycode) FROM Country AS T1 INNER JOIN CountryNotes AS T2 ON T1.CountryCode = T2.Countrycode WHERE T1.LendingCategory = 'IDA' AND T2.Seriescode = 'SM.POP.TOTL' AND IncomeGroup = 'Low income'"
+   }
+  ]
+ },
+ "bird_sql_train_2286": {
+  "task_id": "bird_sql_train_2286",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "416",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT m.movieid) FROM movies m JOIN movies2actors ma ON m.movieid = ma.movieid JOIN actors a ON ma.actorid = a.actorid WHERE m.isEnglish = 'T' AND a.a_gender = 'M' AND a.a_quality = 5",
+    "gold_sql": "SELECT COUNT(DISTINCT T1.actorid) FROM actors AS T1 INNER JOIN movies2actors AS T2 ON T1.actorid = T2.actorid INNER JOIN movies AS T3 ON T2.movieid = T3.movieid WHERE T3.isEnglish = 'T' AND T1.a_gender = 'M' AND T1.a_quality = 5"
+   }
+  ]
+ },
+ "bird_sql_train_2739": {
+  "task_id": "bird_sql_train_2739",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "9",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT MAX(c) AS most_consecutive FROM ( SELECT COUNT(*) AS c FROM ( SELECT FTR, SUM(CASE WHEN FTR = 'D' THEN 0 ELSE 1 END) OVER ( ORDER BY Date ROWS UNBOUNDED PRECEDING ) AS grp FROM matchs WHERE season = 2008 AND AwayTeam = 'Ebbsfleet' ) t WHERE FTR = 'D' GROUP BY grp ) t2",
+    "gold_sql": "SELECT COUNT(*) FROM matchs WHERE season = 2008 AND AwayTeam = 'Ebbsfleet' AND FTR = 'D'"
+   }
+  ]
+ },
+ "bird_sql_train_3720": {
+  "task_id": "bird_sql_train_3720",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "5",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM institution_details WHERE level = '4-year' AND control = 'Public' AND awards_per_value > awards_per_state_value AND state IN ( SELECT DISTINCT state FROM state_sector_grads WHERE state_abbr = 'UT' )",
+    "gold_sql": "SELECT COUNT(DISTINCT T1.chronname) FROM institution_details AS T1 INNER JOIN state_sector_grads AS T2 ON T2.state = T1.state WHERE T2.state_abbr = 'UT' AND T1.level = '4-year' AND T1.control = 'Public' AND T1.awards_per_value > T1.awards_per_state_value"
+   }
+  ]
+ },
+ "bird_sql_train_3880": {
+  "task_id": "bird_sql_train_3880",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "10626",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Business WHERE state = 'AZ' AND active = 'true' AND review_count = 'Low'",
+    "gold_sql": "SELECT COUNT(business_id) FROM Business WHERE state LIKE 'AZ' AND active LIKE 'True' AND review_count LIKE 'low'"
+   }
+  ]
+ },
+ "bird_sql_train_4359": {
+  "task_id": "bird_sql_train_4359",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "27",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT a.episode_id) FROM Award a JOIN Vote v ON a.episode_id = v.episode_id WHERE a.organization = 'Annie Awards' AND a.result = 'Nominee' AND v.percent > 6",
+    "gold_sql": "SELECT COUNT(*) FROM Award AS T1 INNER JOIN Vote AS T2 ON T2.episode_id = T1.episode_id WHERE T1.organization = 'Annie Awards' AND T1.result = 'Nominee' AND T2.percent > 6;"
+   }
+  ]
+ },
+ "bird_sql_train_5281": {
+  "task_id": "bird_sql_train_5281",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "14",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM rootbeer JOIN rootbeerbrand ON rootbeer.BrandID = rootbeerbrand.BrandID WHERE rootbeer.ContainerType = 'Can' AND rootbeerbrand.BrandName = 'A&W' AND rootbeer.PurchaseDate >= '2016-01-01' AND rootbeer.PurchaseDate <= '2016-12-31'",
+    "gold_sql": "SELECT COUNT(T1.BrandID) FROM rootbeer AS T1 INNER JOIN rootbeerbrand AS T2 ON T1.BrandID = T2.BrandID WHERE T1.ContainerType = 'Can' AND T2.BrandName = 'A&W' AND T1.PurchaseDate LIKE '2016%'"
+   }
+  ]
+ },
+ "bird_sql_train_8523": {
+  "task_id": "bird_sql_train_8523",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "286",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM \"Mailings1_2\" JOIN \"Customers\" ON \"Mailings1_2\".REFID = \"Customers\".ID WHERE \"Mailings1_2\".RESPONSE = 'true' AND \"Customers\".SEX = 'Male' AND \"Customers\".MARITAL_STATUS = 'Divorced'",
+    "gold_sql": "SELECT COUNT(T1.ID) FROM Customers AS T1 INNER JOIN Mailings1_2 AS T2 ON T1.ID = T2.REFID WHERE T1.SEX = 'Male' AND T1.MARITAL_STATUS = 'Divorced' AND T2.RESPONSE = 'true'"
+   }
+  ]
+ },
+ "bird_sql_dev_1291": {
+  "task_id": "bird_sql_dev_1291",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "1696",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT P.ID) FROM Patient P JOIN Laboratory L ON P.ID = L.ID WHERE P.SEX = 'M' AND L.ALB > 3.5 AND L.ALB < 5.5 AND L.TP BETWEEN 6.0 AND 8.5",
+    "gold_sql": "SELECT COUNT(T1.ID) FROM Patient AS T1 INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID WHERE T1.SEX = 'M'  AND T2.ALB > 3.5 AND T2.ALB < 5.5 AND T2.TP BETWEEN 6.0 AND 8.5"
+   }
+  ]
+ },
+ "bird_sql_dev_20": {
+  "task_id": "bird_sql_dev_20",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "3",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM frpm WHERE `County Name` = 'Amador' AND `Low Grade` = '9' AND `High Grade` = '12'",
+    "gold_sql": "SELECT COUNT(T1.`School Name`) FROM frpm AS T1 INNER JOIN schools AS T2 ON T1.CDSCode = T2.CDSCode WHERE T2.County = 'Amador' AND T1.`Low Grade` = 9 AND T1.`High Grade` = 12"
+   }
+  ]
+ },
+ "bird_sql_dev_70": {
+  "task_id": "bird_sql_dev_70",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "2",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM schools WHERE County = 'Alpine' AND SOC = '69' AND (StatusType = 'Closed' OR StatusType = 'Active')",
+    "gold_sql": "SELECT COUNT(School) FROM schools WHERE (StatusType = 'Closed' OR StatusType = 'Active') AND SOC = 69 AND County = 'Alpine'"
+   }
+  ]
+ },
+ "bird_sql_train_1362": {
+  "task_id": "bird_sql_train_1362",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "4",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM observations JOIN patients ON observations.PATIENT = patients.patient WHERE observations.DESCRIPTION = 'Systolic Blood Pressure' AND patients.first = 'Elly' AND patients.last = 'Koss'",
+    "gold_sql": "SELECT COUNT(T2.description) FROM patients AS T1 INNER JOIN observations AS T2 ON T1.patient = T2.PATIENT WHERE T1.first = 'Elly' AND T1.last = 'Koss' AND T2.description = 'Systolic Blood Pressure'"
+   }
+  ]
+ },
+ "bird_sql_train_1779": {
+  "task_id": "bird_sql_train_1779",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "22952",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM generalinfo g JOIN location l ON g.id_restaurant = l.id_restaurant WHERE l.street_name = 'broadway' AND l.city = 'oakland' AND g.review < 3",
+    "gold_sql": "SELECT COUNT(T1.id_restaurant) FROM location AS T1 INNER JOIN generalinfo AS T2 ON T1.city = T2.city WHERE T1.street_name = 'broadway' AND T2.review < 3 AND T1.city = 'oakland'"
+   }
+  ]
+ },
+ "bird_sql_train_2108": {
+  "task_id": "bird_sql_train_2108",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "76.83333333333333",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT AVG(Value) FROM Indicators WHERE CountryName = 'Algeria' AND IndicatorName = 'Adjusted net enrolment rate, primary, both sexes (%)' AND Year BETWEEN 1975 AND 1980",
+    "gold_sql": "SELECT CAST(SUM(Value) AS REAL) / COUNT(CountryCode) FROM Indicators WHERE CountryName = 'Algeria' AND Year > 1974 AND Year < 1981 AND IndicatorName = 'Adjusted net enrolment rate, primary, both sexes (%)'"
+   }
+  ]
+ },
+ "bird_sql_train_3917": {
+  "task_id": "bird_sql_train_3917",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "640",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Business WHERE state = 'AZ' AND review_count = 'High' AND active = 'true'",
+    "gold_sql": "SELECT COUNT(business_id) FROM Business WHERE state LIKE 'AZ' AND review_count LIKE 'High' AND active LIKE 'True'"
+   }
+  ]
+ },
+ "bird_sql_train_4050": {
+  "task_id": "bird_sql_train_4050",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "Shopping\nMobile Phones\nRestaurants",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "WITH opened_businesses AS ( SELECT DISTINCT b.business_id FROM \"Business\" b JOIN \"Business_Hours\" bh ON b.business_id = bh.business_id WHERE b.active = 'true' AND b.city = 'Phoenix' AND bh.opening_time >= '5PM' ) SELECT c.category_name, COUNT(*) AS num_businesses FROM opened_businesses ob JOIN \"Business_Categories\" bc ON ob.business_id = bc.business_id JOIN Categories c ON bc.category_id = c.category_id GROUP BY c.category_name ORDER BY num_businesses DESC LIMIT 3",
+    "gold_sql": "SELECT DISTINCT T4.category_name FROM Business_Hours AS T1 INNER JOIN Business AS T2 ON T1.business_id = T2.business_id INNER JOIN Business_Categories AS T3 ON T2.business_id = T3.business_id INNER JOIN Categories AS T4 ON T3.category_id = T4.category_id WHERE T2.active = 'true' AND T2.city = 'Phoenix' AND T1.opening_time >= '5PM' LIMIT 3"
+   }
+  ]
+ },
+ "bird_sql_train_4067": {
+  "task_id": "bird_sql_train_4067",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "4384",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT B.business_id) FROM Business B JOIN Business_Hours BH ON B.business_id = BH.business_id WHERE B.active = 'true' AND B.state = 'AZ' AND BH.opening_time > '12PM'",
+    "gold_sql": "SELECT COUNT(DISTINCT T2.business_id) FROM Business_Hours AS T1 INNER JOIN Business AS T2 ON T1.business_id = T2.business_id INNER JOIN Business_Categories AS T3 ON T2.business_id = T3.business_id INNER JOIN Categories AS T4 ON T3.category_id = T4.category_id WHERE T2.active = 'true' AND T2.state = 'AZ' AND T1.opening_time > '12PM'"
+   }
+  ]
+ },
+ "bird_sql_train_4171": {
+  "task_id": "bird_sql_train_4171",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "5",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Episode JOIN Vote ON Episode.episode_id = Vote.episode_id WHERE Episode.air_date LIKE '2009%' AND Vote.stars = 10 AND Vote.percent > 15",
+    "gold_sql": "SELECT COUNT(*) FROM Episode AS T1 INNER JOIN Vote AS T2 ON T2.episode_id = T1.episode_id WHERE SUBSTR(T1.air_date, 1, 4) = '2009' AND T2.stars = 10 AND T2.percent > 15;"
+   }
+  ]
+ },
+ "bird_sql_train_5616": {
+  "task_id": "bird_sql_train_5616",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "2",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM shipment s JOIN driver d ON s.driver_id = d.driver_id JOIN city c ON s.city_id = c.city_id WHERE d.first_name = 'Holger' AND d.last_name = 'Nohr' AND c.city_name = 'North Las Vegas'",
+    "gold_sql": "SELECT COUNT(*) FROM driver AS T1 INNER JOIN shipment AS T2 ON T1.driver_id = T2.driver_id INNER JOIN city AS T3 ON T3.city_id = T2.city_id WHERE T1.first_name = 'Holger' AND T1.last_name = 'Nohr' AND T3.city_name = 'North Las Vegas'"
+   }
+  ]
+ },
+ "bird_sql_train_7247": {
+  "task_id": "bird_sql_train_7247",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "9",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Employee WHERE MaritalStatus = 'M' AND Gender = 'M' AND BirthDate <= '1959-12-31'",
+    "gold_sql": "SELECT COUNT(BusinessEntityID) FROM Employee WHERE MaritalStatus = 'M' AND STRFTIME('%Y', BirthDate) < '1960' AND Gender = 'M'"
+   }
+  ]
+ },
+ "bird_sql_dev_1289": {
+  "task_id": "bird_sql_dev_1289",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "780",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Patient WHERE Diagnosis = 'SJS' AND ID IN ( SELECT ID FROM Laboratory WHERE TP > 6.0 AND TP < 8.5 )",
+    "gold_sql": "SELECT COUNT(T1.ID) FROM Patient AS T1 INNER JOIN Laboratory AS T2 ON T1.ID = T2.ID WHERE T1.Diagnosis = 'SJS' AND T2.TP > 6.0 AND T2.TP < 8.5"
+   }
+  ]
+ },
+ "bird_sql_dev_395": {
+  "task_id": "bird_sql_dev_395",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "17",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM cards WHERE artist = 'UDON' AND availability = 'mtgo' AND hand = '-1'",
+    "gold_sql": "SELECT COUNT(id) FROM cards WHERE hAND = '-1' AND artist = 'UDON' AND Availability = 'mtgo' "
+   }
+  ]
+ },
+ "bird_sql_dev_420": {
+  "task_id": "bird_sql_dev_420",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "17",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM cards WHERE isOversized = 1 AND isReprint = 1 AND isPromo = 1",
+    "gold_sql": "SELECT COUNT(id) FROM cards WHERE isOversized = 1 AND isReprint = 1 AND isPromo = 1"
+   }
+  ]
+ },
+ "bird_sql_train_1772": {
+  "task_id": "bird_sql_train_1772",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "1",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM generalinfo WHERE city = 'belmont' AND review > 2 AND food_type = 'deli'",
+    "gold_sql": "SELECT COUNT(id_restaurant) FROM generalinfo WHERE city = 'belmont' AND review > 2 AND food_type = 'deli'"
+   }
+  ]
+ },
+ "bird_sql_train_2229": {
+  "task_id": "bird_sql_train_2229",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "Monaco, 38, High income: nonOECD",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT T1.CountryName, T1.Value, T2.IncomeGroup FROM Indicators AS T1 JOIN Country AS T2 ON T1.CountryCode = T2.CountryCode WHERE T1.IndicatorName = 'Land area (sq. km)' AND T1.Year BETWEEN 1961 AND 1979 AND T1.Value IS NOT NULL ORDER BY T1.Value ASC LIMIT 1",
+    "gold_sql": "SELECT T1.CountryName, SUM(T1.Value) area, T2.IncomeGroup FROM Indicators AS T1 INNER JOIN Country AS T2 ON T1.CountryCode = T2.CountryCode WHERE T1.IndicatorName = 'Land area (sq. km)' AND T1.Year >= 1961 AND T1.Year < 1980 GROUP BY T1.CountryCode ORDER BY SUM(T1.Value) ASC LIMIT 1"
+   }
+  ]
+ },
+ "bird_sql_train_4121": {
+  "task_id": "bird_sql_train_4121",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "2377",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Business WHERE active = 'true' AND state = 'AZ' AND review_count = 'Medium'",
+    "gold_sql": "SELECT COUNT(business_id) FROM Business WHERE review_count = 'Medium' AND state = 'AZ' AND active = 'true'"
+   }
+  ]
+ },
+ "bird_sql_train_4123": {
+  "task_id": "bird_sql_train_4123",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "9142",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Users WHERE user_yelping_since_year BETWEEN 2009 AND 2011 AND user_fans = 'Low'",
+    "gold_sql": "SELECT COUNT(user_id) FROM Users WHERE user_yelping_since_year >= 2009 AND user_yelping_since_year < 2012 AND user_fans = 'Low'"
+   }
+  ]
+ },
+ "bird_sql_train_4584": {
+  "task_id": "bird_sql_train_4584",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "1009",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Answer JOIN Question ON Answer.QuestionID = Question.questionid WHERE Question.questiontext = 'Would you bring up a mental health issue with a potential employer in an interview?' AND Answer.SurveyID = 2014 AND Answer.AnswerText = 'No'",
+    "gold_sql": "SELECT COUNT(T2.UserID) FROM Question AS T1 INNER JOIN Answer AS T2 ON T1.questionid = T2.QuestionID WHERE T1.questiontext = 'Would you bring up a mental health issue with a potential employer in an interview?' AND T2.SurveyID = 2014 AND T2.AnswerText LIKE 'NO'"
+   }
+  ]
+ },
+ "bird_sql_train_4591": {
+  "task_id": "bird_sql_train_4591",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "736",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM Answer JOIN Question ON Answer.QuestionID = Question.questionid WHERE Answer.SurveyID = 2016 AND Question.questiontext = 'Have you had a mental health disorder in the past?' AND Answer.AnswerText = 'Yes'",
+    "gold_sql": "SELECT COUNT(T2.UserID) FROM Question AS T1 INNER JOIN Answer AS T2 ON T1.questionid = T2.QuestionID WHERE T2.SurveyID = 2016 AND T1.questiontext LIKE 'Have you had a mental health disorder in the past?' AND T2.AnswerText = 'Yes'"
+   }
+  ]
+ },
+ "bird_sql_train_5240": {
+  "task_id": "bird_sql_train_5240",
+  "model_name": "kimi-k2.6",
+  "correct": true,
+  "ground_truth": "1",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": true,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(DISTINCT c.CustomerID) FROM customers c JOIN \"transaction\" t ON c.CustomerID = t.CustomerID WHERE c.SubscribedToEmailList = 'TRUE' AND t.CreditCardType = 'Visa' AND SUBSTR(t.TransactionDate, 1, 4) = '2014' AND SUBSTR(t.TransactionDate, 6, 2) = '07'",
+    "gold_sql": "SELECT COUNT(T1.CustomerID) FROM customers AS T1 INNER JOIN `transaction` AS T2 ON T1.CustomerID = T2.CustomerID WHERE T1.SubscribedToEmailList = 'TRUE' AND T2.CreditCardType = 'Visa' AND STRFTIME('%Y-%m', T2.TransactionDate) = '2014-07'"
+   }
+  ]
+ },
+ "bird_sql_train_5296": {
+  "task_id": "bird_sql_train_5296",
+  "model_name": "kimi-k2.6",
+  "correct": false,
+  "ground_truth": "2717",
+  "success": true,
+  "error": null,
+  "per_turn_results": [
+   {
+    "turn": 0,
+    "correct": false,
+    "model_sql_valid": true,
+    "error": null,
+    "gold_error": null,
+    "model_sql": "SELECT COUNT(*) FROM rootbeer rb JOIN geolocation g ON rb.LocationID = g.LocationID WHERE g.Latitude = 38.559615 AND g.Longitude = -121.42243 AND rb.ContainerType = 'Bottle'",
+    "gold_sql": "SELECT COUNT(T4.BrandID) FROM `transaction` AS T1 INNER JOIN geolocation AS T2 ON T1.LocationID = T2.LocationID INNER JOIN location AS T3 ON T1.LocationID = T3.LocationID INNER JOIN rootbeer AS T4 ON T1.RootBeerID = T4.RootBeerID WHERE T2.Latitude = 38.559615 AND T2.Longitude = -121.42243 AND T4.ContainerType = 'Bottle'"
+   }
+  ]
+ }
+}

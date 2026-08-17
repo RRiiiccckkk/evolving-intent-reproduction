@@ -1,0 +1,255 @@
+{
+  "benchmarks": {
+    "bird_sql": {
+      "construction": {
+        "artifacts": [
+          "intent_construction/intent_extraction/output/bird_sql/extracted_checkpoint.json",
+          "intent_construction/retrospective_expansion/counterfactual/output/bird_sql/argument_counterfactual_checkpoint.json",
+          "intent_construction/retrospective_expansion/predecessor/output/bird_sql/predecessor_checkpoint.json",
+          "final_dataset/bird_sql_final.json"
+        ],
+        "verified": true
+      },
+      "coverage": {
+        "evolve_completed": 100,
+        "expected": 100,
+        "paired_completed": 100,
+        "single_completed": 100
+      },
+      "delta": {
+        "absolute": -0.23999999999999994,
+        "relative": -0.3478260869565217
+      },
+      "evolve": {
+        "accuracy": 0.45,
+        "artifact": "evaluation/experiments/combined_independent/bird_sql_n100/kimi-k2.6_t7_g2_p2.json",
+        "completed": 100,
+        "correct": 45,
+        "expected": 100,
+        "present": 100
+      },
+      "runtime": {
+        "elapsed_seconds": 162686.210001,
+        "ended_at": "2026-08-16T17:38:26.118365Z",
+        "source": "artifact_and_usage_timestamps",
+        "started_at": "2026-08-14T20:26:59.908364Z"
+      },
+      "single": {
+        "accuracy": 0.69,
+        "artifact": "evaluation/experiments/fully_specified/bird_sql_n100/kimi-k2.6.json",
+        "completed": 100,
+        "correct": 69,
+        "expected": 100,
+        "present": 100
+      },
+      "status": "complete",
+      "usage": {
+        "billable_tokens": 11307771,
+        "cached_tokens": 2515366,
+        "calls": 1699,
+        "confirmed_cost_usd": 30.72301776,
+        "first_event_at": "2026-08-14T20:26:59.908364Z",
+        "input_tokens": 4105222,
+        "last_event_at": "2026-08-16T17:38:26.118365Z",
+        "ledgers": [
+          "reproduction/runs/bird-sql-kimi-k2.6/evaluation_usage.jsonl",
+          "reproduction/runs/bird-sql-kimi-k2.6/usage.jsonl"
+        ],
+        "observed_elapsed_seconds": 162686.210001,
+        "output_tokens": 7202549,
+        "reasoning_tokens": 7080115,
+        "requested_models": [
+          "kimi-k2.6"
+        ],
+        "resolved_models": [
+          "kimi-k2.6"
+        ],
+        "unpriced_calls": 0
+      }
+    },
+    "browsecomp_plus": {
+      "checkpoint_policy_coverage": {
+        "evolve": 0,
+        "single": 0
+      },
+      "construction": {
+        "artifact": "reproduction/runs/browsecomp-plan-a-n100/local_audit.json",
+        "verified": false
+      },
+      "coverage": {
+        "evolve_completed": 0,
+        "expected": 100,
+        "paired_completed": 0,
+        "single_completed": 0
+      },
+      "delta": {
+        "absolute": null,
+        "relative": null
+      },
+      "evolve": {
+        "accuracy": null,
+        "artifact": "evaluation/experiments/combined_independent/browsecomp_plus_n100/kimi-k2.6_t7_g2_p2_naturalized_reasoning-medium_force-final.json",
+        "completed": 0,
+        "correct": 0,
+        "expected": 100,
+        "present": 0
+      },
+      "runtime": {
+        "elapsed_seconds": null,
+        "ended_at": null,
+        "source": "artifact_and_usage_timestamps",
+        "started_at": null
+      },
+      "single": {
+        "accuracy": null,
+        "artifact": "evaluation/experiments/fully_specified/browsecomp_plus_n100/kimi-k2.6_naturalized_reasoning-medium_force-final.json",
+        "completed": 0,
+        "correct": 0,
+        "expected": 100,
+        "present": 0
+      },
+      "status": "incomplete",
+      "usage": {
+        "billable_tokens": 0,
+        "cached_tokens": 0,
+        "calls": 0,
+        "confirmed_cost_usd": 0.0,
+        "first_event_at": null,
+        "input_tokens": 0,
+        "last_event_at": null,
+        "ledgers": [],
+        "observed_elapsed_seconds": null,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "requested_models": [],
+        "resolved_models": [],
+        "unpriced_calls": 0
+      }
+    },
+    "swe_bench_verified": {
+      "construction": {
+        "artifact": "reproduction/runs/swe-bench-verified-kimi-k2.6/manifest.json",
+        "verified": true
+      },
+      "coverage": {
+        "evolve_completed": 50,
+        "expected": 50,
+        "paired_completed": 50,
+        "single_completed": 50
+      },
+      "delta": {
+        "absolute": -0.020000000000000018,
+        "relative": -0.025641025641025664
+      },
+      "evaluation_manifest": {
+        "artifact": "evaluation/swe_runs/kimi-k2.6/manifest.json",
+        "verified": true
+      },
+      "evolve": {
+        "accuracy": 0.76,
+        "artifact": "evaluation/swe_runs/kimi-k2.6/results/evolve.json",
+        "completed": 50,
+        "correct": 38,
+        "expected": 50,
+        "present": 50
+      },
+      "runtime": {
+        "elapsed_seconds": 158716.624175,
+        "ended_at": "2026-08-16T16:53:52Z",
+        "source": "artifact_and_usage_timestamps",
+        "started_at": "2026-08-14T20:48:35.375825Z"
+      },
+      "single": {
+        "accuracy": 0.78,
+        "artifact": "evaluation/swe_runs/kimi-k2.6/results/single.json",
+        "completed": 50,
+        "correct": 39,
+        "expected": 50,
+        "present": 50
+      },
+      "status": "complete",
+      "usage": {
+        "billable_tokens": 1307196204,
+        "cached_tokens": 1269080596,
+        "calls": 19360,
+        "confirmed_cost_usd": 262.422361159999,
+        "first_event_at": "2026-08-14T20:48:35.375825Z",
+        "input_tokens": 1299602880,
+        "last_event_at": "2026-08-16T16:52:56.655294Z",
+        "ledgers": [
+          "evaluation/swe_runs/kimi-k2.6/usage.jsonl",
+          "reproduction/runs/swe-bench-verified-kimi-k2.6/usage.jsonl"
+        ],
+        "observed_elapsed_seconds": 158661.279469,
+        "output_tokens": 7593324,
+        "reasoning_tokens": 5950016,
+        "requested_models": [
+          "kimi-k2.6"
+        ],
+        "resolved_models": [
+          "kimi-k2.6"
+        ],
+        "unpriced_calls": 0
+      }
+    }
+  },
+  "coverage": {
+    "bird_sql": {
+      "completed": 100,
+      "expected": 100
+    },
+    "browsecomp_plus": {
+      "completed": 0,
+      "expected": 100
+    },
+    "swe_bench_verified": {
+      "completed": 50,
+      "expected": 50
+    }
+  },
+  "generated_at": "2026-08-17T05:28:03.182623Z",
+  "issues": [
+    "BrowseComp+ single: artifact is missing",
+    "BrowseComp+ evolve: artifact is missing",
+    "BrowseComp+ single: bound checkpoint directory is missing",
+    "BrowseComp+ evolve: bound checkpoint directory is missing",
+    "BrowseComp+ construction audit: artifact is missing",
+    "BrowseComp+ construction usage: no confirmed usage ledger was found",
+    "BrowseComp+ evaluation usage: no confirmed usage ledger was found",
+    "BrowseComp+ usage: no usage ledger was found",
+    "BrowseComp+ usage: no confirmed usage events were found",
+    "BrowseComp+ usage: usage model audit is not uniquely kimi-k2.6",
+    "BrowseComp+: paired coverage failed (0/100)"
+  ],
+  "policy": {
+    "hard_cap_usd": null,
+    "model": "kimi-k2.6",
+    "output_token_limit": null,
+    "reasoning_effort": "medium",
+    "verified": true
+  },
+  "redaction": {
+    "browsecomp_gold_docs_exported": false,
+    "browsecomp_plaintext_query_exported": false,
+    "credential_material_exported": false
+  },
+  "schema_version": 1,
+  "status": "incomplete",
+  "totals": {
+    "runtime": {
+      "elapsed_seconds": 162686.210001,
+      "ended_at": "2026-08-16T17:38:26.118365Z",
+      "started_at": "2026-08-14T20:26:59.908364Z"
+    },
+    "usage": {
+      "billable_tokens": 1318503975,
+      "cached_tokens": 1271595962,
+      "calls": 21059,
+      "confirmed_cost_usd": 293.145378919999,
+      "input_tokens": 1303708102,
+      "output_tokens": 14795873,
+      "reasoning_tokens": 13030131,
+      "unpriced_calls": 0
+    }
+  }
+}

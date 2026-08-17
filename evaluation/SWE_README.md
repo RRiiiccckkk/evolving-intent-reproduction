@@ -11,6 +11,118 @@ harness (`FAIL_TO_PASS` + `PASS_TO_PASS`). Scenarios are auto-inferred from
 turn / revision / switch counts — see the scenario table in
 [README.md](README.md#scenario-auto-inference).
 
+## Hardened Kimi reproduction
+
+The fixed reproduction entry is `evaluation/scripts/run_swe.sh`. It accepts
+only `kimi-k2.6` and runs exactly the 50 published IDs in two scenarios:
+`single` (`t=1`) and `evolve` (`t=7, g=2, p=2`). Both scenarios cap actual
+environment executions at 200 per user turn, with no separate model-step cap.
+Native tool calling runs with parallel calls disabled, using the mini-swe-agent
+`swerex_modal` environment and SWE-bench 4.1.0's official Modal harness. No
+local Docker daemon is used.
+
+The verifier source defaults to
+`tmp/source-data/swe_bench_verified_princeton.parquet`. Before any model call,
+the entrypoint applies an `instance_id` predicate for the 50 published IDs and
+writes a deterministic 50-row JSON dataset into the run directory. The
+official harness reads that local JSON, so it does not configure a Hugging Face
+cache or load the full remote split.
+
+Create a Modal Secret containing the compatible-provider settings from
+`.env.local.example`. Pass only the Secret name:
+
+```bash
+MODAL_SECRET_NAME=evolving-intent-kimi \
+  bash evaluation/scripts/run_swe.sh kimi-k2.6
+```
+
+The secret must set `LLM_BACKEND=compatible`, `LLM_API_KEY`, `LLM_BASE_URL`,
+`LLM_MODEL_MAP`, `LLM_PRICE_MAP`, and `LLM_DISABLE_OUTPUT_LIMITS=1`. Add
+`MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` when the outer Modal Sandbox does not
+inherit permission to create the nested agent and verifier sandboxes. The CLI
+has no API-key or base-URL option.
+
+For a local orchestrator that still sends both execution stages to Modal:
+
+```bash
+set -a; source .env.local; set +a
+EXECUTION_BACKEND=local-swerex-modal \
+  bash evaluation/scripts/run_swe.sh kimi-k2.6
+```
+
+Each completed task is written atomically under
+`checkpoints/<scenario>/<task_id>.json`. Resume accepts only checkpoints with a
+non-empty patch, complete official-harness result, matching model/scenario, and
+valid per-turn tool counts. The aggregate must contain exactly all 50 IDs or
+the process exits nonzero. `manifest.json` records the requested/resolved model,
+ID-file hashes, ledger byte offsets, token usage, and coverage. There is no
+local output-token limit or dollar gate; provider-reported usage is recorded.
+Responses without a valid tool call use mini-swe-agent's stock consecutive
+format-error guard and terminate after three failures; they do not advance the
+scripted conversation or consume the 200-call environment budget.
+Agent commands receive a 30-minute SWE-ReX timeout and the remote runtime stays
+available for up to 24 hours. A command timeout or transport/runtime failure is
+terminal for that task and is never sent back to the model as an observation.
+The full mini-agent trajectory is checkpointed after every step under
+`trajectories/<scenario>/<task_id>.json` for local failure audit.
+When an agent patch is complete but the official Modal verifier fails, the
+isolated canary revalidates that patch and resumes the verifier only; it never
+spends model calls regenerating an already-audited patch.
+Before loading SWE-bench 4.1.0, the wrapper updates its two retired Modal calls:
+file writes use the current Sandbox filesystem API, and the obsolete cgroup
+write is skipped because each verifier Sandbox already requests four CPUs.
+Official test scripts and grading remain unchanged.
+
+### Fixed 50-task construction
+
+The construction entrypoint reads only the local, hash-locked 500-row parquet.
+It selects the published 50 targets, then adds one candidate only for each
+otherwise-unpaired code area. The fixed source selects 10 deduplicated
+candidates, including a distinct pair for the sole seaborn target, so Stage 1
+extracts 60 rows while Stages 2-5 and the final dataset contain exactly 50.
+
+Inspect the deterministic selection without credentials or model calls:
+
+```bash
+bash intent_construction/scripts/swe_bench_verified.sh --plan-only
+```
+
+After loading the compatible-provider variables from `.env.local`, run or
+resume the complete construction with:
+
+```bash
+set -a; source .env.local; set +a
+bash intent_construction/scripts/swe_bench_verified.sh --workers 4
+```
+
+Use an explicit, separate directory for a one-target paid construction canary;
+it extracts only that target and its selected real-bug pair and never writes the
+formal 50-task output or checkpoints:
+
+```bash
+bash intent_construction/scripts/swe_bench_verified.sh \
+  --canary-task-id extracted-swe_bench_verified-test-mwaskom__seaborn-3069 \
+  --run-dir reproduction/runs/canary/swe-build-seaborn \
+  --workers 1
+```
+
+After the canary construction succeeds, run that one paired sample through both
+the Modal mini-agent and SWE-bench's official Modal verifier:
+
+```bash
+python -m evaluation.swe_bench.canary \
+  --task-id extracted-swe_bench_verified-test-mwaskom__seaborn-3069 \
+  --data-path reproduction/runs/canary/swe-build-seaborn/canary_final.json \
+  --run-dir reproduction/runs/canary/swe-eval-seaborn
+```
+
+The entrypoint locks `kimi-k2.6`, medium reasoning, and provider-default output
+length. Stages 1, 2, 4, and 5 write one atomic checkpoint per task under
+`reproduction/runs/swe-construction-kimi-k2.6/checkpoints/`. Empty, corrupt,
+stale-input, wrong-model, or incomplete checkpoints fail closed. Only a fully
+validated 50-task Stage 5 result is published to
+`final_dataset/swe_bench_verified_final.json`.
+
 SWE-specific notes:
 - `function-switch` and `combined` use the **implementation-precursor** design
   (see *Function-change design* below); the docker container is pinned to one
@@ -121,10 +233,10 @@ to reproduce the paper set.
 - **Task subset**: the canonical 50-sample evaluation subset is recorded in
   `intent_construction/eval_indices/swe_bench_verified_eval_ids.json` (and the
   runner-consumable `swe_bench_verified_task_ids.json` alongside it).
-- **Step caps**: per-turn step cap, set via `--step_limit_per_turn`. The
-  `run_swe.sh` script uses `single`=100 and `evolve`=200 (the larger cap covers
-  the extra turns). Set `--step_limit_per_turn -1` to fall back to a single
-  total-trajectory cap (`--step_limit`, runner default 250).
+- **Tool caps**: the hardened path independently counts environment calls and
+  allows at most 200 per user turn in both scenarios. The model-step guard is
+  disabled with `--step_limit_per_turn 0`; the actual tool budget is set with
+  `--tool_call_limit_per_turn 200`.
 - **Reasoning effort**: `medium` for GPT-5.x.
 - **Tool calling mode**: native function calling
   (`--use_tool_calling`); routes through Chat Completions for most
@@ -151,18 +263,15 @@ python evaluation/runners/run_swe_mini_agent.py \
 
 ### Full evaluation
 
-`run_swe.sh` runs the `single` and `evolve` scenarios for each model you pass:
+`run_swe.sh` runs the fixed `single` and `evolve` Kimi scenarios:
 
 ```bash
-# One or more models; runs single + evolve per model
-bash evaluation/scripts/run_swe.sh gpt-5.1
+bash evaluation/scripts/run_swe.sh kimi-k2.6
 ```
 
-The script:
-- Iterates scenarios sequentially, models concurrently within a scenario.
-- Uses `NUM_WORKERS=8` (overridable via env).
-- Skips a `(model, scenario)` whose output already exists, so re-runs resume.
-- Writes per-model logs under `evaluation/logs/swe/`.
+The script uses `NUM_WORKERS=8` by default. It resumes from task checkpoints,
+validates the usage ledger after each scenario, and preserves a nonzero exit
+code from any failed child process.
 
 ### Outputs
 

@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "run_id": "paper-remaining-kimi-k2.6-20260815",
+  "paper": {
+    "title": "LLMs Get Lost in Evolving User Intent",
+    "source_pdf": "/Users/rick/Downloads/LLMs_Get_Lost_in_Evolving_User_Intent.pdf",
+    "upstream_repository": "microsoft/evolving-intent",
+    "upstream_commit": "993d6be9597ac03854b46362ccd647eb1bfd267a"
+  },
+  "model_lock": {
+    "construction": "kimi-k2.6",
+    "evaluation": "kimi-k2.6",
+    "judge": "kimi-k2.6",
+    "naturalizer": "kimi-k2.6",
+    "reasoning_effort": "medium",
+    "allow_other_models": false
+  },
+  "api_policy": {
+    "base_url": "https://api.moonshot.cn/v1",
+    "credential_source": "CC Switch provider 597d31e6-33dd-4554-9f6a-de211b7d4c80",
+    "credential_persistence": "environment_or_modal_secret_only",
+    "forbidden_request_fields": [
+      "max_tokens",
+      "max_completion_tokens",
+      "max_output_tokens"
+    ],
+    "empty_response_policy": "fail_fast",
+    "incomplete_response_policy": "fail_fast"
+  },
+  "accounting": {
+    "currency": "USD",
+    "input_usd_per_million_tokens": 0.95,
+    "output_usd_per_million_tokens": 4.0,
+    "cache_read_usd_per_million_tokens": 0.16,
+    "hard_cap_usd": null,
+    "reservation_is_confirmed_spend": false
+  },
+  "scenarios": {
+    "single": {
+      "turns": 1,
+      "function_switches": 0,
+      "argument_revisions": 0,
+      "argument_reveals": 0
+    },
+    "evolve": {
+      "turns": 7,
+      "function_switches": 2,
+      "argument_revisions": 2,
+      "argument_reveals": 2
+    }
+  },
+  "benchmarks": {
+    "bird_sql": {
+      "sample_count": 100,
+      "verifier": "sql_execution"
+    },
+    "browsecomp_plus": {
+      "sample_count": 100,
+      "retriever": "Qwen3-Embedding-8B",
+      "search_calls_per_turn": 50,
+      "naturalizer": "llm"
+    },
+    "swe_bench_verified": {
+      "sample_count": 50,
+      "agent": "mini-SWE-agent-v2",
+      "tool_calls_per_turn": 200,
+      "verifier": "official_swe_bench"
+    }
+  },
+  "checkpoint_policy": {
+    "identity": "task_id",
+    "write": "atomic_after_each_success",
+    "resume": "processed_task_ids",
+    "coverage": "exact_published_ids"
+  },
+  "deadline": {
+    "target": "2026-08-15T23:59:59+08:00",
+    "stop_at_target": false,
+    "continuation_reason": "latest user instruction requires execution until all experiments finish"
+  }
+}

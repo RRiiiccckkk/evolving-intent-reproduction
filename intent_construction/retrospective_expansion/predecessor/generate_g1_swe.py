@@ -84,6 +84,45 @@ def make_g1_entry(g1_text: str, archetype: str) -> dict[str, Any]:
     }
 
 
+def generate_g1_for_sample(
+    sample: dict[str, Any],
+    *,
+    template: str,
+    model: str,
+    archetype: str,
+    reasoning_effort: str | None = None,
+) -> dict[str, Any]:
+    """Generate one G1 row; strict orchestrators validate the returned row."""
+    out = deepcopy(sample)
+    repo = sample.get("swe_bench_metadata", {}).get("repo", "")
+    prompt = populate_prompt(
+        template,
+        {
+            "REPO": repo,
+            "MODULE_FOCUS": derive_module_focus(sample),
+            "TARGET_GOAL": sample.get("function", ""),
+            "ARCHETYPE": archetype,
+        },
+    )
+    response = generate_json(
+        [{"role": "user", "content": prompt}],
+        model=model,
+        step=f"swe-g1-{archetype}",
+        reasoning_effort=reasoning_effort,
+    )
+    g1_text = (response.get("exploration_function") or "").strip()
+    if not g1_text:
+        raise ValueError("empty exploration_function")
+    existing = out.get("predecessor_functions") or []
+    out["predecessor_functions"] = list(existing) + [make_g1_entry(g1_text, archetype)]
+    out["g1_info"] = {
+        "model": model,
+        "reasoning_effort": reasoning_effort,
+        "archetype": archetype,
+    }
+    return out
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="SWE-bench Verified G1 exploration function generation")
     parser.add_argument("--input", required=True)
@@ -93,6 +132,7 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--num_samples", type=int, default=None)
     parser.add_argument("--checkpoint_interval", type=int, default=20)
+    parser.add_argument("--reasoning_effort", default=None)
     args = parser.parse_args()
 
     template = load_prompt(str(PROMPT_PATH))
@@ -121,34 +161,17 @@ def main() -> None:
 
     def task(idx: int) -> tuple[int, dict[str, Any] | None, str | None]:
         sample = data[idx]
-        out = deepcopy(sample)
         archetype = archetype_assignments[idx]
-        repo = sample.get("swe_bench_metadata", {}).get("repo", "")
-        mod_focus = derive_module_focus(sample)
-        target_function = sample.get("function", "")
-        prompt = populate_prompt(template, {
-            "REPO": repo,
-            "MODULE_FOCUS": mod_focus,
-            "TARGET_GOAL": target_function,
-            "ARCHETYPE": archetype,
-        })
         try:
-            r = generate_json(
-                [{"role": "user", "content": prompt}],
+            out = generate_g1_for_sample(
+                sample,
+                template=template,
                 model=args.model,
-                step=f"swe-g1-{archetype}",
+                archetype=archetype,
+                reasoning_effort=args.reasoning_effort,
             )
         except Exception as exc:
             return idx, None, f"{type(exc).__name__}: {exc}"
-        g1_text = (r.get("exploration_function") or "").strip()
-        if not g1_text:
-            return idx, None, "empty exploration_function"
-        # Append G1 to predecessor_functions (storage convention: nearest-first
-        # to target). pg[0] = G2 (real bug, closer), pg[1] = G1 (orientation,
-        # farthest). turn_scheduler.select_functions() reverses this so the
-        # rendered conversation reads G1 -> G2 -> G3.
-        existing = out.get("predecessor_functions") or []
-        out["predecessor_functions"] = list(existing) + [make_g1_entry(g1_text, archetype)]
         return idx, out, None
 
     with ThreadPoolExecutor(max_workers=args.num_workers) as ex:
