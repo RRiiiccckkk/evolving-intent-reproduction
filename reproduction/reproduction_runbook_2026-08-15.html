@@ -97,7 +97,7 @@
   <header>
     <div class="inner">
       <h1>论文复现运行手册与故障复盘</h1>
-      <p class="subtitle">LLMs Get Lost in Evolving User Intent · Plan A · 2026-08-15 · Asia/Shanghai</p>
+      <p class="subtitle">LLMs Get Lost in Evolving User Intent · 5090-only 正式复现 · 更新于 2026-08-18 · Asia/Shanghai</p>
     </div>
   </header>
   <main>
@@ -107,7 +107,7 @@
         <div class="metric"><span>唯一模型</span><strong>kimi-k2.6</strong></div>
         <div class="metric"><span>输出 token 上限</span><strong>不发送</strong></div>
         <div class="metric"><span>费用策略</span><strong>只记账，不拦截</strong></div>
-        <div class="metric"><span>恢复粒度</span><strong>每个 task ID</strong></div>
+        <div class="metric"><span>唯一运行节点</span><strong>5090-1</strong></div>
       </div>
       <p class="note ok">构建、评测、judge 和 naturalizer 都锁定为 <code>kimi-k2.6</code>。这遵循用户的“不要改任何模型”要求；论文原构建模型 GPT-5.1 仅作为方法差异记录，不会在本次运行中调用。</p>
     </section>
@@ -118,13 +118,13 @@
         <table>
           <thead><tr><th>Benchmark</th><th>样本</th><th>Single</th><th>Evolve</th><th>论文原生 verifier</th><th>执行位置</th><th>状态</th></tr></thead>
           <tbody>
-            <tr><td>BIRD-SQL</td><td>100</td><td>T=1, g=0, p=0</td><td>T=7, g=2, p=2</td><td>SQL execution</td><td>本机，数据库按需提取</td><td class="state pending">准备中</td></tr>
-            <tr><td>BrowseComp+</td><td>100</td><td>T=1, g=0, p=0</td><td>T=7, g=2, p=2</td><td>Gold answer judge</td><td>Modal GPU，Qwen3-Embedding-8B</td><td class="state pending">准备中</td></tr>
-            <tr><td>SWE-bench Verified</td><td>50</td><td>T=1, g=0, p=0</td><td>T=7, g=2, p=2</td><td>官方 SWE-bench tests</td><td>Modal sandbox / swerex_modal</td><td class="state pending">准备中</td></tr>
+            <tr><td>BIRD-SQL</td><td>100</td><td>69/100</td><td>45/100</td><td>SQL execution</td><td>已完成</td><td class="state done">完成，-24pp</td></tr>
+            <tr><td>BrowseComp+</td><td>100</td><td>NOT_RUN</td><td>NOT_RUN</td><td>Gold answer judge</td><td>5090-1</td><td class="state pending">用户要求停止；Stage 3=10/100</td></tr>
+            <tr><td>SWE-bench Verified</td><td>50</td><td>39/50</td><td>38/50</td><td>官方 SWE-bench tests</td><td>已完成</td><td class="state done">完成，-2pp</td></tr>
           </tbody>
         </table>
       </div>
-      <p class="note">每个 Evolve 对话固定包含 2 次 argument reveal、2 次 argument revision、2 次 function switch。BrowseComp+ 每轮最多 50 次搜索；SWE 使用 mini-SWE-agent v2，每轮最多 200 次工具调用。</p>
+      <p class="note">BrowseComp+ 在 2026-08-18 按用户要求提前结束。唯一 owner 与 construction 均已退出；最后 checkpoint 为 Stage 1=100、Stage 2=100、Stage 3=10，聚合匹配且 safe_to_resume=true。paired 评测和 finalizer 均为 NOT_RUN。</p>
     </section>
 
     <section aria-labelledby="incident-title">
@@ -139,9 +139,22 @@
             <tr><td>按数组索引恢复</td><td>乱序并发时跳过尚未完成的样本</td><td>只按真实 <code>processed_task_ids</code> 恢复</td><td>乱序 completion 测试</td></tr>
             <tr><td>BIRD 重复进程</td><td>两个进程同时写同一个大文件 partial 与 checkpoint</td><td>每个 run dir 使用非阻塞进程锁；第二个进程立即退出</td><td>双进程锁回归测试</td></tr>
             <tr><td>BIRD literal 误报</td><td><code>Ms.</code> 被误认成 <code>claims</code> 的子串；<code>%Y</code> 被误当成筛选值</td><td>literal 按完整 token 边界匹配，并从 AST 中排除日期格式控制符</td><td><code>claims/Ms.</code> 与 <code>strftime('%Y')</code> 回归测试</td></tr>
-            <tr><td>Modal 代理连接失败</td><td>系统代理已启用，但客户端缺少异步 SOCKS 支持</td><td>固定 <code>modal[api-proxy-support]</code>，启动前验证控制面可达</td><td><code>modal app list</code> 成功</td></tr>
-            <tr><td>Modal 前台会话取消</td><td>本地控制进程退出时，长任务收到 cancellation，已完成请求未形成 task checkpoint</td><td>所有长任务使用 detached app，并在 Volume 中逐 task commit</td><td>断开本地会话后 app 仍为 detached/running</td></tr>
+            <tr><td>多个 Modal owner 自动拉起</td><td>截止后仍可能重复调用并造成双写</td><td>永久停用 Modal compute、检索端点、keeper 与 watcher；5090 使用单一非阻塞文件锁，不自动 relaunch</td><td>5090 环境未安装 Modal且无 Modal 进程；第二个 owner 立即失败</td></tr>
+            <tr><td>Stage 3 长链被误判停滞</td><td>无重试样本也至少需要 19 次调用；16 workers 首批约有 304 次调用处于 checkpoint 之前</td><td>单 owner 内固定 16 workers、1800 秒 read timeout；同时检查进程、usage 时间戳和活跃连接，不因 checkpoint 暂未增长而重启</td><td>调用路径源码核对 + 运行账本持续增长</td></tr>
+            <tr><td>单个 Stage 3 候选未通过 independence 后取消整批</td><td>核心 executor 把候选 rejection 当作 stage 系统失败</td><td>总计最多 8 次完整样本尝试（首次加最多 7 次重试）；只有完全通过 gate 的结果才能写 checkpoint，系统异常仍立即失败</td><td>候选重生成、重试耗尽和 accounting 立即失败回归测试</td></tr>
+            <tr><td>Pipeline 状态写 16 workers、wrapper 实际仍跑 12</td><td>launcher 与 Stage 3 wrapper 分别维护并发常量</td><td>CLI、pipeline 与 wrapper 共用唯一 <code>STAGE3_WORKERS=16</code>；启动后核对实际 override 日志</td><td>单一常量、命令参数和运行值一致性测试</td></tr>
+            <tr><td>多进程加速产生重复 owner</td><td>多个完整 pipeline 会争抢相同 task、账本和聚合文件</td><td>只允许一个 coordinator；10 个 shard 按固定 manifest 位置取模分工，使用 mode/shard/task 三层锁，全部退出后才 finalize</td><td>并发、清理、checkpoint-only 恢复和 finalize 锁测试通过；实现未部署</td></tr>
+            <tr><td>评测入口模块导入失败</td><td>按文件路径执行 runner 时，Python 模块搜索路径不含仓库根目录</td><td>construction、pipeline 与 evaluation 都固定使用仓库 <code>.venv/bin/python -m &lt;module&gt;</code>；禁止系统裸 <code>python</code> 和按文件路径执行 runner</td><td>5090 虚拟环境中的三个 module <code>--help</code> 与 shell 语法预检</td></tr>
+            <tr><td>Owner 活跃时误开恢复批次</td><td>状态文件滞后或 checkpoint 暂未增长，被误判为进程已死，形成双 owner 和重复计费</td><td>同时检查 owner/worker PID、usage 更新时间、连接与非阻塞锁；活跃时只观察，全部退出后先 inspect-only，再只手动恢复一个 owner</td><td>第二 owner 立即失败 + checkpoint 深度 preflight</td></tr>
+            <tr><td>只数 checkpoint 文件</td><td>数量正确但 task ID、输入 hash、policy 或聚合结果可能漂移</td><td>迁移前后校验固定 manifest、私密输入、input hash、policy、完整结果和聚合顺序；后续恢复接受已验证的非零 Stage 3 数，不重置为 0</td><td>首次 100/100/0 与后续非零 Stage 3 深度 preflight + 206 文件 SHA-256</td></tr>
+            <tr><td>整卷导出带入无关缓存</td><td>不必要地下载数 GB，并扩大私密数据暴露面</td><td>只读导出 manifest、私密源、Stage 1/2 原子 checkpoint 与 usage 账本</td><td>选择性导出 13 MB；不完整 4.5 GB 临时副本已删除</td></tr>
+            <tr><td>Hugging Face 直连被重置</td><td>5090 在模型调用前无法加载固定 corpus</td><td>固定 <code>https://hf-mirror.com</code>，仍逐项验证原 revision；Stage 3 与检索共享 HF cache</td><td>镜像响应的 repo commit 与固定 revision 一致</td></tr>
+            <tr><td>非交互 SSH 使用系统 Python</td><td>Stage 3 完成后，评测才因缺少虚拟环境依赖失败</td><td>评测脚本固定使用仓库 <code>.venv/bin/python</code>，启动前验证其可执行；禁止退回裸 <code>python</code></td><td>解释器固定回归测试</td></tr>
+            <tr><td>本机做模型可用性检查</td><td>违反“后续只在 5090 执行”的设备边界</td><td>本机只读 CC Switch key；模型目录检查也在 5090 内完成</td><td>远端进程环境与请求来源审计</td></tr>
+            <tr><td>launcher 直接执行导入失败</td><td><code>ModuleNotFoundError: reproduction</code> 阻止启动</td><td>支持 <code>python -m</code> 与直接脚本两种入口，并加入 CLI 回归测试</td><td>CLI、节点锁、完成态拉回和安全审计回归测试通过；最终以全量 pytest 为准</td></tr>
             <tr><td>SWE transport failure 被继续喂给 agent</td><td>基础设施失联被误当成工具观察，模型继续付费调用</td><td><code>returncode=-1</code> 或执行异常立即终止当前 task；命令和 deployment timeout 分开设置</td><td>v8 canary 官方 verifier 完成</td></tr>
+            <tr><td>拉回后的 usage 副本被重复计费</td><td>canonical 账本与 <code>usage/</code> 原账本内容相同，但复制后 inode 不同</td><td>finalizer 按完整内容 SHA-256 去重，不按路径或 inode 重复累计</td><td>复制账本回归测试</td></tr>
+            <tr><td>安全审计在暂存前运行</td><td>审计读取的是旧 Git index，随后加入的报告或代码没有被检查</td><td>精确暂存后运行安全审计；任何 index 变化都重跑，并单独扫描待推送 Git 历史</td><td>最终 staged-index 为零违规</td></tr>
             <tr><td>reservation 当成实际费用</td><td>预算显示失真，错误停止运行</td><td>confirmed usage、excluded calls、open reservation 分列</td><td>账本汇总断言</td></tr>
             <tr><td>意外调用其他模型</td><td>实验不再可比较</td><td>运行前、请求前、结果后均断言唯一模型为 <code>kimi-k2.6</code></td><td>manifest 与结果唯一值审计</td></tr>
           </tbody>
@@ -155,47 +168,54 @@
         <table>
           <thead><tr><th>资源</th><th>实测</th><th>决策</th></tr></thead>
           <tbody>
-            <tr><td>CPU / 架构</td><td>Apple M3，8 核，arm64</td><td>BIRD 控制在 6 workers 内；不在本机模拟 x86_64 SWE 容器</td></tr>
-            <tr><td>内存</td><td>16 GB，总可用约 4.18 GB</td><td>BrowseComp+ 只流式选取 100 条；检索模型移到 Modal GPU</td></tr>
-            <tr><td>磁盘</td><td>剩余约 12.34 GB</td><td>BIRD train/dev ZIP 使用 HTTP Range，只提取 35 个目标数据库；不下载完整 8.92 GB train ZIP</td></tr>
-            <tr><td>Modal</td><td>profile <code>rriiiccckkk</code> 已认证</td><td>使用 Secret <code>evolving-intent-kimi-k2-6</code>；密钥不进入文件、参数或日志</td></tr>
+            <tr><td>RTX 5090</td><td>5090-1，8 × 32,607 MiB；启动时全部空闲</td><td>Stage 3、Qwen3-Embedding-8B、FAISS 与 paired 评测均在该节点</td></tr>
+            <tr><td>检索 preflight</td><td>固定 4 个索引分片、100,195 个 4096 维向量、100,195 篇 corpus 文档；公开问题返回 5 条结果</td><td>固定 revision 资产已缓存；localhost smoke 已通过并停止</td></tr>
+            <tr><td>内存</td><td>754 GiB，总可用约 716 GiB</td><td>容纳 100,195 文档 BM25 索引和检索 corpus</td></tr>
+            <tr><td>磁盘</td><td>NVMe 可用约 4.8 TB</td><td>代码、私密 checkpoint 与公开模型 cache 分目录保存</td></tr>
+            <tr><td>5090-2</td><td>当前 SSH 别名无法解析，未证实可访问</td><td>不选用；正式启动器也拒绝该节点</td></tr>
+            <tr><td>凭据</td><td>本机 CC Switch 数据库只读</td><td>key 经 SSH stdin 进入 5090 子进程内存；不写入文件、参数、日志或 Git</td></tr>
+            <tr><td>Modal</td><td>5090 虚拟环境 <code>modal_installed=False</code>，进程审计无 Modal；仓库仍保留旧入口文件</td><td>不再使用任何 Modal 计算、检索或自动恢复；5090 环境不安装 Modal，禁止执行旧文件中的 <code>modal run</code>、<code>modal deploy</code> 或 <code>.remote()</code></td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
     <section aria-labelledby="time-title">
-      <h2 id="time-title">时间与费用规划</h2>
+      <h2 id="time-title">实际进度与费用</h2>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>阶段</th><th>预计时间</th><th>费用范围</th><th>边界说明</th></tr></thead>
+          <thead><tr><th>阶段</th><th>覆盖</th><th>确认费用</th><th>当前结论</th></tr></thead>
           <tbody>
-            <tr><td>工作流加固与数据准备</td><td>1-3 小时</td><td>无模型费用</td><td>测试、按需下载、Modal 镜像构建</td></tr>
-            <tr><td>BIRD 构建与 paired 评测</td><td>3-8 小时</td><td>约 US$10-80</td><td>受 SQL 重试和数据库下载影响</td></tr>
-            <tr><td>BrowseComp+ 构建与 paired 评测</td><td>4-15 小时</td><td>约 US$30-300 + Modal</td><td>模型循环次数受搜索收敛速度影响</td></tr>
-            <tr><td>SWE 构建与 paired 评测</td><td>8-50+ 小时</td><td>约 US$200-5,000+ + Modal</td><td>100 次官方验证，模型步骤理论上可达 80,000</td></tr>
+            <tr><td>BIRD-SQL</td><td>100 single + 100 evolve</td><td>US$30.723018</td><td>69% → 45%，退化 24pp</td></tr>
+            <tr><td>BrowseComp+ construction</td><td>Stage 1=100、Stage 2=100、Stage 3=10/100</td><td>US$159.945977</td><td>用户要求停止；Single/Evolve NOT_RUN</td></tr>
+            <tr><td>SWE-bench Verified</td><td>50 single + 50 evolve</td><td>US$262.422361</td><td>78% → 76%，退化 2pp</td></tr>
+            <tr><td>全部已记录 usage</td><td>BIRD + BrowseComp+ incomplete + SWE</td><td>US$453.091356</td><td>仅 confirmed usage，不含 reservation</td></tr>
           </tbody>
         </table>
       </div>
-      <p class="note warning">这些数字只用于观察，不是费用闸门。当前 CC Switch 价格表为输入 US$0.95/M tokens、输出 US$4.00/M tokens、cache read US$0.16/M tokens；运行开始前 Moonshot 可用余额为 4,882.022（API 返回单位）。不会在 US$30 前 fail-closed，也不设置其他 hard cap。</p>
-      <p class="note">目标截止为 2026-08-15 23:59:59 +08:00。根据最新“执行直到实验结束”的指令，若云端验证跨过该时间，任务继续运行并持续 checkpoint，不以日历时间强制终止。</p>
+      <p class="note warning">费用只按 provider 返回的真实 usage 累加，不设置 hard cap，也不把 reservation 当成费用。BrowseComp+ 私密账本只在远端聚合，未上传原始记录。</p>
+      <p class="note">任务已按用户要求结束，不会自动恢复。停止后 owner 数为 0，最后 checkpoint 已通过 inspect-only 深度核验。</p>
     </section>
 
     <section aria-labelledby="procedure-title">
       <h2 id="procedure-title">执行与验收顺序</h2>
       <ol>
         <li>静态扫描所有付费调用，确认没有输出 token 上限，模型解析结果只有 <code>kimi-k2.6</code>。</li>
-        <li>完成每个 benchmark 的 1 个 task ID 无歧义 smoke test；成功后按 published ID 集合扩到全量。</li>
-        <li>每条成功结果原子落盘；重启时重新计算 manifest 集合减去 processed task IDs。</li>
-        <li>paired 两组完成后运行原生 verifier，并断言 BIRD 100/100、BrowseComp+ 100/100、SWE 50/50。</li>
+        <li>启动前确认 Modal app、keeper、watcher、本地 evaluation gate 和第二个 5090 owner 均不存在。原 owner 或 construction worker 仍活跃时只观察，不强杀、不删除锁文件、不启动第二批。</li>
+        <li>Stage 1/2 只读复用；每条 Stage 3 与评测结果原子落盘。owner 全部退出后先用 <code>--inspect-only</code> 验证 task ID、input hash、policy/source hash、完整 gate 与聚合顺序，再按固定 task ID 集合补缺；已提交的非零 Stage 3 不能重置。</li>
+        <li>Stage 3 的 <code>None</code>、verification rejection 或 independence rejection 都从原 Stage 2 输入整链重生成，总计最多 8 次完整样本尝试（首次加最多 7 次重试）；不复用半条 chain。accounting、模型锁、policy 与系统异常立即失败。</li>
+        <li>所有 Python 入口使用仓库 <code>.venv/bin/python -m &lt;module&gt;</code>。付费调用前验证 construction、pipeline、evaluation 的 <code>--help</code> 和 BrowseComp shell 语法，禁止裸 <code>python</code>。</li>
+        <li>本次验收边界：BIRD 100/100、SWE 50/50 已完成；BrowseComp+ 为 Stage 3=10/100 且 paired NOT_RUN，不声明正式复现完成。</li>
+        <li>因 BrowseComp+ 未达到 complete，本次不执行私密产物拉回；只提交脱敏聚合进度文件。</li>
         <li>生成聚合结果、逐样本状态、usage 账本、未结算 reservation 和模型审计。</li>
-        <li>BrowseComp+ 明文 query 与私密 API key 不上传；只同步代码、加密/脱敏证据、聚合报告和可复查 manifest。</li>
+        <li>精确暂存候选安全产物后运行 <code>.venv/bin/python -m reproduction.audit_safe_export</code>；Git index 中出现 BrowseComp+ 明文 query、gold document 指纹、实际 CC Switch key 或原始 BrowseComp 结果路径时立即失败。任何后续 <code>git add</code>、报告重生成或 amend 都必须重跑，并另做待推送历史 secret scan。</li>
+        <li>BrowseComp+ 明文 query、gold documents、完整响应与私密 API key 不上传；只同步代码、脱敏证据、聚合报告和安全 manifest。</li>
         <li>全部测试通过后提交并推送到私有仓库 <code>RRiiiccckkk/evolving-intent-reproduction</code>。</li>
       </ol>
     </section>
   </main>
   <footer>
-    配置真值源：<code>reproduction/config/paper_remaining_kimi_k2_6.json</code>。本文档在最终结果产生后更新实际耗时、费用、覆盖率和 commit。
+    流程真值源：<code>reproduction/EXPERIMENT_WORKFLOW_5090.md</code>。本次为用户要求的提前结束快照；BrowseComp+ finalizer 为 NOT_RUN。
   </footer>
 </body>
 </html>

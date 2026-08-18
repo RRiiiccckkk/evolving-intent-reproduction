@@ -64,8 +64,8 @@ PLAN_A_PRICE_MAP = {
         "reasoning": 4.0,
     }
 }
-STAGE3_INCOMPLETE_RESPONSE_ATTEMPTS = 8
-STAGE3_MIN_WORKERS = 12
+STAGE3_RECOVERABLE_SAMPLE_ATTEMPTS = 8
+STAGE3_WORKERS = 16
 STAGE3_READ_TIMEOUT_SECONDS = 1800
 DEFAULT_LOCAL_CANARY_DIR = (
     REPOSITORY_ROOT / "reproduction" / "runs" / CANARY_RUN_ROOT
@@ -146,27 +146,56 @@ def _validate_secret_environment(*, root: Path, ledger: Path) -> None:
 def _retry_incomplete_stage3_processor(
     processor: Callable[[dict[str, Any]], dict[str, Any] | None],
 ) -> Callable[[dict[str, Any]], dict[str, Any] | None]:
-    """Retry one Stage 3 sample after a provider-truncated response."""
+    """Retry one Stage 3 sample after a recoverable incomplete attempt.
+
+    A returned ``None`` or same-sample candidate that fails the Stage 3
+    acceptance gate means the full sample must be regenerated. Exceptions are
+    deliberately not treated as candidate rejection: only a provider-truncated
+    response is recoverable here; accounting, model, policy, and other failures
+    still escape immediately.
+    """
     from intent_construction.intent_extraction.core.llm_utils import (
         LLMIncompleteResponse,
     )
+    from reproduction import browsecomp_plan_a as plan_a
+
+    def needs_full_regeneration(
+        item: dict[str, Any], result: dict[str, Any] | None
+    ) -> bool:
+        if plan_a._stage_result_is_complete("stage3", result):
+            return False
+        if isinstance(result, dict):
+            result_task_id = result.get("task_id")
+            if result_task_id is not None and result_task_id != item.get("task_id"):
+                return False
+            if result.get("success") is False or result.get("error"):
+                return False
+        return True
 
     def resilient_processor(item: dict[str, Any]) -> dict[str, Any] | None:
-        for attempt in range(STAGE3_INCOMPLETE_RESPONSE_ATTEMPTS):
+        for attempt in range(STAGE3_RECOVERABLE_SAMPLE_ATTEMPTS):
             try:
-                return processor(item)
+                result = processor(item)
             except LLMIncompleteResponse:
-                if attempt == STAGE3_INCOMPLETE_RESPONSE_ATTEMPTS - 1:
+                if attempt == STAGE3_RECOVERABLE_SAMPLE_ATTEMPTS - 1:
                     raise
-                delay = min(60, 5 * (attempt + 1))
-                print(
-                    "[stage3-recovery] Incomplete Kimi response for "
-                    f"{item.get('task_id', 'unknown')}; retrying sample "
-                    f"({attempt + 2}/{STAGE3_INCOMPLETE_RESPONSE_ATTEMPTS}) "
-                    f"after {delay}s",
-                    flush=True,
-                )
-                time.sleep(delay)
+                reason = "Incomplete Kimi response"
+            else:
+                if not needs_full_regeneration(item, result):
+                    return result
+                if attempt == STAGE3_RECOVERABLE_SAMPLE_ATTEMPTS - 1:
+                    return result
+                reason = "Incomplete or rejected Stage 3 result"
+
+            delay = min(60, 5 * (attempt + 1))
+            print(
+                f"[stage3-recovery] {reason} for "
+                f"{item.get('task_id', 'unknown')}; regenerating full sample "
+                f"({attempt + 2}/{STAGE3_RECOVERABLE_SAMPLE_ATTEMPTS}) "
+                f"after {delay}s",
+                flush=True,
+            )
+            time.sleep(delay)
         raise RuntimeError("unreachable Stage 3 retry state")
 
     return resilient_processor
@@ -178,7 +207,7 @@ def _install_recoverable_stage3_retries() -> None:
     Stage 3 also runs with two throughput overrides, applied only to the
     Stage 3 stage call and outside the checkpoint source bundles:
 
-    - ``STAGE3_MIN_WORKERS``: predecessor chains are latency-bound (each
+    - ``STAGE3_WORKERS``: predecessor chains are latency-bound (each
       sample needs a long sequence of dependent Kimi calls), so the default
       cap of 4 workers starves the stage; raise it instead of changing
       construction semantics.
@@ -204,7 +233,7 @@ def _install_recoverable_stage3_retries() -> None:
     ) -> list[dict[str, Any]]:
         if name == "stage3":
             processor = _retry_incomplete_stage3_processor(processor)
-            workers = max(workers, STAGE3_MIN_WORKERS)
+            workers = max(workers, STAGE3_WORKERS)
             llm_utils._CLIENT_TIMEOUT = llm_utils.httpx.Timeout(
                 connect=30.0,
                 read=float(STAGE3_READ_TIMEOUT_SECONDS),

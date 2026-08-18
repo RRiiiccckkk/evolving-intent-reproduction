@@ -545,7 +545,7 @@ def test_modal_environment_locks_medium_reasoning(monkeypatch, tmp_path):
         )
 
 
-def test_modal_stage3_retries_incomplete_response_only(monkeypatch):
+def test_modal_stage3_retries_incomplete_response(monkeypatch):
     calls = []
     sleeps = []
 
@@ -553,16 +553,28 @@ def test_modal_stage3_retries_incomplete_response_only(monkeypatch):
         calls.append(item["task_id"])
         if len(calls) < 3:
             raise llm_utils.LLMIncompleteResponse("truncated")
-        return {"task_id": item["task_id"]}
+        return {
+            "task_id": item["task_id"],
+            "predecessors": [{}, {}, {}],
+            "predecessor_functions": [
+                {"predecessor_function": f"question-{index}"}
+                for index in range(3)
+            ],
+            "verification_passed": True,
+            "independence_passed": True,
+        }
 
     monkeypatch.setattr(construction_modal.time, "sleep", sleeps.append)
     resilient = construction_modal._retry_incomplete_stage3_processor(processor)
 
-    assert resilient({"task_id": "sample-1"}) == {"task_id": "sample-1"}
+    assert resilient({"task_id": "sample-1"})["task_id"] == "sample-1"
     assert calls == ["sample-1", "sample-1", "sample-1"]
     assert sleeps == [5, 10]
 
-    def accounting_failure(_item):
+    accounting_calls = []
+
+    def accounting_failure(item):
+        accounting_calls.append(item["task_id"])
         raise llm_utils.LLMAccountingError("missing usage")
 
     resilient = construction_modal._retry_incomplete_stage3_processor(
@@ -570,6 +582,90 @@ def test_modal_stage3_retries_incomplete_response_only(monkeypatch):
     )
     with pytest.raises(llm_utils.LLMAccountingError, match="missing usage"):
         resilient({"task_id": "sample-2"})
+    assert accounting_calls == ["sample-2"]
+
+
+def test_modal_stage3_regenerates_returned_rejected_sample(monkeypatch):
+    calls = []
+    sleeps = []
+    rejected = {
+        "task_id": "sample-1",
+        "predecessors": [{}, {}, {}],
+        "predecessor_functions": [
+            {"predecessor_function": f"question-{index}"}
+            for index in range(3)
+        ],
+        "verification_passed": True,
+        "independence_passed": False,
+    }
+    complete = {**rejected, "independence_passed": True}
+    responses = [None, rejected, complete]
+
+    def processor(item):
+        calls.append(item["task_id"])
+        return responses.pop(0)
+
+    monkeypatch.setattr(construction_modal.time, "sleep", sleeps.append)
+    resilient = construction_modal._retry_incomplete_stage3_processor(processor)
+
+    assert resilient({"task_id": "sample-1"}) == complete
+    assert calls == ["sample-1", "sample-1", "sample-1"]
+    assert sleeps == [5, 10]
+
+
+def test_modal_stage3_rejected_sample_retry_is_bounded(monkeypatch):
+    calls = []
+    sleeps = []
+    rejected = {
+        "task_id": "sample-1",
+        "predecessors": [{}, {}, {}],
+        "predecessor_functions": [
+            {"predecessor_function": f"question-{index}"}
+            for index in range(3)
+        ],
+        "verification_passed": False,
+        "independence_passed": True,
+    }
+
+    def processor(item):
+        calls.append(item["task_id"])
+        return rejected
+
+    monkeypatch.setattr(construction_modal, "STAGE3_RECOVERABLE_SAMPLE_ATTEMPTS", 3)
+    monkeypatch.setattr(construction_modal.time, "sleep", sleeps.append)
+    resilient = construction_modal._retry_incomplete_stage3_processor(processor)
+
+    assert resilient({"task_id": "sample-1"}) is rejected
+    assert calls == ["sample-1", "sample-1", "sample-1"]
+    assert sleeps == [5, 10]
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        {"task_id": "different-sample"},
+        {"task_id": "sample-1", "success": False},
+        {"task_id": "sample-1", "error": "policy failure"},
+    ],
+)
+def test_modal_stage3_does_not_retry_returned_systemic_failure(
+    monkeypatch, result
+):
+    calls = []
+
+    def processor(item):
+        calls.append(item["task_id"])
+        return result
+
+    monkeypatch.setattr(
+        construction_modal.time,
+        "sleep",
+        lambda _delay: pytest.fail("systemic failure must not be retried"),
+    )
+    resilient = construction_modal._retry_incomplete_stage3_processor(processor)
+
+    assert resilient({"task_id": "sample-1"}) is result
+    assert calls == ["sample-1"]
 
 def test_compatible_kimi_normalization_omits_tool_choice(monkeypatch):
     monkeypatch.setenv("LLM_BACKEND", "compatible")

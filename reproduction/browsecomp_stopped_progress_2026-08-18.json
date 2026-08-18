@@ -1,0 +1,51 @@
+{
+  "benchmark": "browsecomp_plus",
+  "status": "stopped_incomplete_by_user_request",
+  "stopped_at": "2026-08-18T15:13:49Z",
+  "runtime": "rtx-5090",
+  "host": "fanruibo-5090-1",
+  "model": "kimi-k2.6",
+  "reasoning_effort": "medium",
+  "stage_counts": {
+    "stage1": 100,
+    "stage2": 100,
+    "stage3": 10,
+    "expected": 100
+  },
+  "evaluation": {
+    "single": "NOT_RUN",
+    "evolve": "NOT_RUN"
+  },
+  "checkpoint_audit": {
+    "safe_to_resume": true,
+    "aggregate_matches_checkpoints": true,
+    "policies_and_hashes": "verified",
+    "owner_processes_after_stop": 0
+  },
+  "usage": {
+    "usage_events": 6268,
+    "input_tokens": 15685945,
+    "output_tokens": 38151829,
+    "reasoning_tokens": 37252551,
+    "cached_tokens": 9573401,
+    "confirmed_cost_usd": 159.945977,
+    "requested_models": [
+      "kimi-k2.6"
+    ],
+    "resolved_models": [
+      "kimi-k2.6"
+    ],
+    "first_event_at": "2026-08-16T02:35:51.785389Z",
+    "last_event_at": "2026-08-18T15:11:55.614399Z"
+  },
+  "parallelization": {
+    "implemented_and_tested": "one coordinator with 10 deterministic shards and 2 workers per shard",
+    "deployed": false
+  },
+  "privacy": {
+    "plaintext_queries_exported": false,
+    "gold_documents_exported": false,
+    "private_raw_results_exported": false,
+    "credentials_exported": false
+  }
+}

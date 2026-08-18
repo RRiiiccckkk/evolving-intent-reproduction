@@ -12,6 +12,7 @@ from reproduction.finalize_remaining_experiments import (
     FinalizationError,
     ReportLayout,
     build_report,
+    validate_browsecomp_evaluation_artifacts,
     write_report,
 )
 
@@ -433,6 +434,63 @@ def test_complete_report_is_strict_aggregate_and_redacted(tmp_path: Path) -> Non
     )
     with pytest.raises(FinalizationError, match="outside experiment"):
         write_report(protected_layout, report)
+
+
+def test_copied_usage_ledger_is_counted_once(tmp_path: Path) -> None:
+    layout, _ = _complete_layout(tmp_path)
+    canonical = layout.browse_run_dir / "llm_usage.jsonl"
+    copied = layout.browse_run_dir / "usage/llm_usage.jsonl"
+    copied.parent.mkdir(parents=True, exist_ok=True)
+    copied.write_bytes(canonical.read_bytes())
+
+    report = build_report(
+        layout,
+        generated_at=datetime(2026, 8, 15, 6, tzinfo=timezone.utc),
+    )
+
+    assert report["benchmarks"]["browsecomp_plus"]["usage"]["calls"] == 2
+    assert report["benchmarks"]["browsecomp_plus"]["usage"][
+        "confirmed_cost_usd"
+    ] == pytest.approx(0.45)
+    assert report["totals"]["usage"]["calls"] == 6
+    assert report["totals"]["usage"]["confirmed_cost_usd"] == pytest.approx(1.4)
+
+
+def test_fetched_browsecomp_pair_requires_exact_policy_bound_coverage(
+    tmp_path: Path,
+) -> None:
+    layout, single_path = _complete_layout(tmp_path)
+    task_ids = json.loads(
+        (
+            layout.repo_root
+            / "intent_construction/eval_indices/browsecomp_plus_task_ids.json"
+        ).read_text(encoding="utf-8")
+    )["task_ids"]
+    evolve_path = (
+        layout.experiments_dir
+        / "combined_independent/browsecomp_plus_n100/"
+        "kimi-k2.6_t7_g2_p2_naturalized_reasoning-medium_force-final.json"
+    )
+
+    audit = validate_browsecomp_evaluation_artifacts(
+        repo_root=layout.repo_root,
+        task_ids=task_ids,
+        single_path=single_path,
+        evolve_path=evolve_path,
+    )
+
+    assert audit["status"] == "complete"
+    assert audit["scenarios"]["single"]["completed"] == 100
+    assert audit["scenarios"]["evolve"]["checkpoints"] == 100
+
+    next(Path(f"{evolve_path}.checkpoints").glob("*.json")).unlink()
+    with pytest.raises(FinalizationError, match="checkpoint"):
+        validate_browsecomp_evaluation_artifacts(
+            repo_root=layout.repo_root,
+            task_ids=task_ids,
+            single_path=single_path,
+            evolve_path=evolve_path,
+        )
 
 
 def test_formal_mode_fails_closed_but_preview_writes_status(tmp_path: Path) -> None:

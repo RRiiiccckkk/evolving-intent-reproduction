@@ -9,14 +9,14 @@
 #
 # Environment overrides:
 #   NUM_WORKERS        parallel workers           (default 8)
-#   RETRIEVER_URL      deployed Modal endpoint (required)
+#   RETRIEVER_URL      pinned HTTP endpoint (5090 localhost in formal run)
 #   NUM_SAMPLES        belt-and-suspenders cap    (default 100)
 #   DATA_PATH          generated dataset pool     (default final_dataset/browsecomp_plus_final.json)
 #   TASK_IDS_FILE      eval-subset selection      (default intent_construction/eval_indices/browsecomp_plus_task_ids.json)
 #   DATASET_NAME       experiments/ output label  (default browsecomp_plus_n100)
 #
-# Requires a deployed ``reproduction.browsecomp_modal`` endpoint. The host does
-# not load the embedding model, corpus, or FAISS index.
+# The formal 5090-only run uses
+# ``reproduction.browsecomp_retriever_5090`` on localhost.
 #
 # NOTE: each task is checkpointed atomically. Re-runs resume only missing or
 # incomplete task IDs.
@@ -25,6 +25,12 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
+
+PYTHON_BIN="${PYTHON_BIN:-$REPO_ROOT/.venv/bin/python}"
+if [ ! -x "$PYTHON_BIN" ]; then
+    echo "ERROR: BrowseComp+ Python is not executable: $PYTHON_BIN" >&2
+    exit 2
+fi
 
 DATA_PATH="${DATA_PATH:-final_dataset/browsecomp_plus_final.json}"
 DATASET_NAME="${DATASET_NAME:-browsecomp_plus_n100}"
@@ -53,7 +59,7 @@ if [ "$NUM_SAMPLES" != "100" ]; then
     exit 2
 fi
 if [ -z "$RETRIEVER_URL" ]; then
-    echo "ERROR: RETRIEVER_URL must point to the deployed Modal retriever." >&2
+    echo "ERROR: RETRIEVER_URL must point to the pinned HTTP retriever." >&2
     exit 2
 fi
 if [ -z "${LLM_USAGE_LEDGER_PATH:-}" ]; then
@@ -84,8 +90,8 @@ run_one() {
     local extra_args=()
     [ -n "$REASONING_EFFORT" ] && extra_args+=(--reasoning_effort "$REASONING_EFFORT")
     [ -n "$NATURALIZER_MODEL" ] && extra_args+=(--naturalizer_model "$NATURALIZER_MODEL")
-    echo "  [$(date +%H:%M:%S)] $model on $sname (t=$nt p=$p g=$g, Modal retriever)  ->  $log"
-    python -u evaluation/runners/run_browsecomp_experiment.py \
+    echo "  [$(date +%H:%M:%S)] $model on $sname (t=$nt p=$p g=$g, pinned retriever)  ->  $log"
+    "$PYTHON_BIN" -u -m evaluation.runners.run_browsecomp_experiment \
         --data_path "$DATA_PATH" \
         --dataset_name "$DATASET_NAME" \
         --models "$model" \
@@ -118,7 +124,7 @@ run_one() {
 }
 
 echo "============================================================"
-echo "[$(date +'%F %T')] BrowseComp+ Plan A (workers=$NUM_WORKERS, model=$PLAN_A_MODEL, Modal retriever)"
+echo "[$(date +'%F %T')] BrowseComp+ Plan A (workers=$NUM_WORKERS, model=$PLAN_A_MODEL, pinned retriever)"
 echo "  data=$DATA_PATH  task_ids=$TASK_IDS_FILE  dataset=$DATASET_NAME"
 echo "  models: ${MODELS[*]}"
 echo "============================================================"

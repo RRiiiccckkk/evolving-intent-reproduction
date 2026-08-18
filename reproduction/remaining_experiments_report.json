@@ -73,8 +73,15 @@
         "single": 0
       },
       "construction": {
-        "artifact": "reproduction/runs/browsecomp-plan-a-n100/local_audit.json",
-        "verified": false
+        "aggregate_progress": "reproduction/browsecomp_stopped_progress_2026-08-18.json",
+        "complete": false,
+        "stage_counts": {
+          "stage1": 100,
+          "stage2": 100,
+          "stage3": 10,
+          "expected": 100
+        },
+        "verified": true
       },
       "coverage": {
         "evolve_completed": 0,
@@ -95,10 +102,10 @@
         "present": 0
       },
       "runtime": {
-        "elapsed_seconds": null,
-        "ended_at": null,
+        "elapsed_seconds": 218163.82901,
+        "ended_at": "2026-08-18T15:11:55.614399Z",
         "source": "artifact_and_usage_timestamps",
-        "started_at": null
+        "started_at": "2026-08-16T02:35:51.785389Z"
       },
       "single": {
         "accuracy": null,
@@ -108,21 +115,27 @@
         "expected": 100,
         "present": 0
       },
-      "status": "incomplete",
+      "status": "stopped_incomplete",
       "usage": {
-        "billable_tokens": 0,
-        "cached_tokens": 0,
-        "calls": 0,
-        "confirmed_cost_usd": 0.0,
-        "first_event_at": null,
-        "input_tokens": 0,
-        "last_event_at": null,
-        "ledgers": [],
-        "observed_elapsed_seconds": null,
-        "output_tokens": 0,
-        "reasoning_tokens": 0,
-        "requested_models": [],
-        "resolved_models": [],
+        "billable_tokens": 53837774,
+        "cached_tokens": 9573401,
+        "calls": 6268,
+        "confirmed_cost_usd": 159.945977,
+        "first_event_at": "2026-08-16T02:35:51.785389Z",
+        "input_tokens": 15685945,
+        "last_event_at": "2026-08-18T15:11:55.614399Z",
+        "ledgers": [
+          "remote private ledger; aggregate only"
+        ],
+        "observed_elapsed_seconds": 218163.82901,
+        "output_tokens": 38151829,
+        "reasoning_tokens": 37252551,
+        "requested_models": [
+          "kimi-k2.6"
+        ],
+        "resolved_models": [
+          "kimi-k2.6"
+        ],
         "unpriced_calls": 0
       }
     },
@@ -207,19 +220,11 @@
       "expected": 50
     }
   },
-  "generated_at": "2026-08-17T05:28:03.182623Z",
+  "generated_at": "2026-08-18T15:16:17Z",
   "issues": [
-    "BrowseComp+ single: artifact is missing",
-    "BrowseComp+ evolve: artifact is missing",
-    "BrowseComp+ single: bound checkpoint directory is missing",
-    "BrowseComp+ evolve: bound checkpoint directory is missing",
-    "BrowseComp+ construction audit: artifact is missing",
-    "BrowseComp+ construction usage: no confirmed usage ledger was found",
-    "BrowseComp+ evaluation usage: no confirmed usage ledger was found",
-    "BrowseComp+ usage: no usage ledger was found",
-    "BrowseComp+ usage: no confirmed usage events were found",
-    "BrowseComp+ usage: usage model audit is not uniquely kimi-k2.6",
-    "BrowseComp+: paired coverage failed (0/100)"
+    "BrowseComp+ was stopped by user request with Stage 3 at 10/100",
+    "BrowseComp+ Single and Evolve evaluation were NOT_RUN",
+    "The finalizer was NOT_RUN because complete 100/100/100 construction and paired coverage were not available"
   ],
   "policy": {
     "hard_cap_usd": null,
@@ -237,18 +242,18 @@
   "status": "incomplete",
   "totals": {
     "runtime": {
-      "elapsed_seconds": 162686.210001,
-      "ended_at": "2026-08-16T17:38:26.118365Z",
+      "elapsed_seconds": 326095.706035,
+      "ended_at": "2026-08-18T15:11:55.614399Z",
       "started_at": "2026-08-14T20:26:59.908364Z"
     },
     "usage": {
-      "billable_tokens": 1318503975,
-      "cached_tokens": 1271595962,
-      "calls": 21059,
-      "confirmed_cost_usd": 293.145378919999,
-      "input_tokens": 1303708102,
-      "output_tokens": 14795873,
-      "reasoning_tokens": 13030131,
+      "billable_tokens": 1372341749,
+      "cached_tokens": 1281169363,
+      "calls": 27327,
+      "confirmed_cost_usd": 453.091355919999,
+      "input_tokens": 1319394047,
+      "output_tokens": 52947702,
+      "reasoning_tokens": 50282682,
       "unpriced_calls": 0
     }
   }

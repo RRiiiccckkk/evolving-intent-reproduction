@@ -16,6 +16,9 @@ reproduction/runs/
 reproduction/**/__pycache__/
 evaluation/swe_runs/
 evaluation/swe_workspace/
+evaluation/experiments/fully_specified/browsecomp_plus_n100/
+evaluation/experiments/combined_independent/browsecomp_plus_n100/
+evaluation/logs/browsecomp/
 .claude_resources.json
 tmp/
 

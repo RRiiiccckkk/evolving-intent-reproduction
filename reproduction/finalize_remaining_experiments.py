@@ -10,6 +10,7 @@ copied into a report.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import math
@@ -551,6 +552,63 @@ def _browse_checkpoint_policy(
     return valid
 
 
+def validate_browsecomp_evaluation_artifacts(
+    *,
+    repo_root: Path,
+    task_ids: Sequence[str],
+    single_path: Path,
+    evolve_path: Path,
+) -> dict[str, Any]:
+    """Validate a fetched BrowseComp+ pair without returning private rows."""
+    expected_count = EXPECTED_COUNTS["browsecomp_plus"]
+    if len(task_ids) != expected_count or not all(
+        isinstance(task_id, str) and task_id for task_id in task_ids
+    ):
+        raise FinalizationError("BrowseComp+ task IDs are not the fixed unique 100")
+    if len(set(task_ids)) != expected_count:
+        raise FinalizationError("BrowseComp+ task IDs are not the fixed unique 100")
+
+    issues = _Issues()
+    scenarios: dict[str, dict[str, Any]] = {}
+    for scenario, path, label in (
+        ("single", single_path, "BrowseComp+ single"),
+        ("evolve", evolve_path, "BrowseComp+ evolve"),
+    ):
+        summary, valid_ids, aggregate = _scenario_result(
+            path=path,
+            expected_ids=task_ids,
+            scenario=scenario,
+            validator=_browse_row,
+            issues=issues,
+            label=label,
+            root=repo_root,
+        )
+        checkpoint_count = _browse_checkpoint_policy(
+            result_path=path,
+            aggregate=aggregate,
+            expected_ids=task_ids,
+            scenario=scenario,
+            issues=issues,
+            label=label,
+        )
+        scenarios[scenario] = {
+            "completed": len(valid_ids),
+            "checkpoints": checkpoint_count,
+            "correct": summary["correct"],
+        }
+
+    if issues.values:
+        raise FinalizationError(
+            "BrowseComp+ fetched evaluation validation failed: "
+            + "; ".join(issues.values)
+        )
+    return {
+        "status": "complete",
+        "expected": expected_count,
+        "scenarios": scenarios,
+    }
+
+
 def _validate_browse_construction(run_dir: Path, issues: _Issues, root: Path) -> dict[str, Any]:
     candidates = [run_dir / "local_audit.json", run_dir / "remote_audit.json"]
     path = next((candidate for candidate in candidates if candidate.is_file()), candidates[0])
@@ -782,11 +840,17 @@ def _usage_candidates(run_dirs: Iterable[Path], extras: Iterable[Path]) -> list[
                 candidates.append(path)
     candidates.extend(extras)
     unique: list[Path] = []
-    identities: set[tuple[int, int] | str] = set()
+    identities: set[tuple[int, str] | str] = set()
     for path in sorted(candidates, key=lambda item: str(item)):
         try:
-            stat = path.stat()
-            identity: tuple[int, int] | str = (stat.st_dev, stat.st_ino)
+            digest = hashlib.sha256()
+            with path.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            identity: tuple[int, str] | str = (
+                path.stat().st_size,
+                digest.hexdigest(),
+            )
         except OSError:
             identity = str(path.resolve())
         if identity not in identities:

@@ -580,7 +580,7 @@ class FaissRetriever:
 
 
 class RemoteRetriever:
-    """HTTP adapter for the Modal-hosted Qwen3-Embedding-8B retriever."""
+    """HTTP adapter for the pinned Qwen3-Embedding-8B retriever."""
 
     def __init__(
         self,
@@ -2009,7 +2009,7 @@ def main():
     parser.add_argument("--retriever_device", default="cuda:0")
     parser.add_argument(
         "--retriever_url", default=None,
-        help="Modal retriever HTTP endpoint; skips local model/index loading",
+        help="Pinned retriever HTTP endpoint; skips in-process model/index loading",
     )
     parser.add_argument(
         "--retriever_revision",
@@ -2102,10 +2102,10 @@ def main():
         if not args.require_usage_ledger or not args.usage_only_accounting:
             raise ValueError("Plan A requires usage-only ledger accounting")
         if not args.retriever_url:
-            raise ValueError("Plan A requires the Modal retriever endpoint")
+            raise ValueError("Plan A requires the pinned retriever endpoint")
         if args.retriever_revision != PLAN_A_RETRIEVER_REVISION:
             raise ValueError(
-                "Plan A requires the pinned Modal retriever revision "
+                "Plan A requires the pinned retriever revision "
                 f"{PLAN_A_RETRIEVER_REVISION}"
             )
         if args.search_k != 5:
@@ -2136,7 +2136,7 @@ def main():
 
     # Initialize retriever (shared across all experiments)
     if args.retriever_url:
-        print("Initializing Modal retriever client...")
+        print("Initializing pinned retriever client...")
         retriever = RemoteRetriever(
             args.retriever_url,
             k=args.search_k,
