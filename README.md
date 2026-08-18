@@ -38,6 +38,7 @@
 ```
 reproduction/                     # 复现专用层
 ├── PAPER_COMPARISON.md           # ★ 复现 vs 论文对比（首页表格的详细版）
+├── RUNS_INDEX.md                 # ★ 实验运行索引：时间 / 内容 / 状态 / 证据路径 / 费用
 ├── remaining_experiments_report.{json,html}  # finalizer 生成的汇总报告
 ├── reproduction_runbook_2026-08-15.html      # 运行手册（实验条件与故障复盘）
 ├── plan_2026-08-14.html          # 最初规划文档
@@ -46,11 +47,14 @@ reproduction/                     # 复现专用层
 ├── finalize_remaining_experiments.py         # 终局校验 + 报告生成
 ├── browsecomp_construction_modal.py          # BrowseComp+ Modal 构建（detached）
 └── runs/                         # 各 benchmark 的 manifest / usage 账本 / 审计
+    └── _archive/                 # 已被取代的干跑与一次性检查（本地，未入库）
 
 evaluation/
 ├── experiments/                  # BIRD 逐样本结果（含 compact 精简版）
 └── swe_runs/kimi-k2.6/           # SWE manifest / results / usage.jsonl
 ```
+
+**检索任何实验产物**：先查 [`reproduction/RUNS_INDEX.md`](reproduction/RUNS_INDEX.md)——六条正式运行（GSM8K Plan A → BrowseComp+ 构建）的时间、证据路径、入库状态（✦ = 已入 git）与逐项费用都在表中，另含辅助运行、本地日志与报告文档的位置；运行目录命名规范为 `<campaign>-<model>[-n<规模>][-<yyyymmdd>]`。
 
 BrowseComp+ 明文 query 与 gold 文档仅存于私有 Modal Volume 与本地 gitignored 目录，永不入库。
 
