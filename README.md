@@ -9,6 +9,53 @@
 > fixes, experiment manifests, and results are documented in
 > [`REPRODUCTION.md`](REPRODUCTION.md).
 
+## 复现结果速览（2026-08-19）
+
+> 复现全程锁定 **Kimi K2.6**（构建 / 评测 / judge / naturalizer，reasoning=medium），对照论文 Table 1 的 Kimi K2.6 行（arXiv 2607.20734）。Evolve = T7 轮、每类 intent transition 各两次（argument reveal / revision / function switch）。
+
+| Benchmark | 样本（论文 / 复现） | 论文 K2.6 Single → Evolve | 复现 Single → Evolve | 判定 |
+|---|---|---:|---:|---|
+| BIRD-SQL | 100 / 100 | 75.0 → 68.0（−9.3%） | **69.0 → 45.0（−34.8%）** | ✅ 方向复现，幅度越过论文 9 模型区间（−4.0% ~ −30.3%）的上界 |
+| SWE-bench Verified | 50 / 50 | 86.0 → 72.0（−16.3%） | 78.0 → 76.0（−2.6%） | ✅ 方向复现，落在论文跨模型离散带内（+0.0% ~ −100%） |
+| GSM8K | 200 / 10 | 96.5 → 79.5（−17.6%） | 90.0 → 90.0（±0.0%） | ⚠️ n=10 无判定力（Wilson 95% 区间互相重叠） |
+| BrowseComp+ | 100 / — | 55.0 → 52.0（−5.5%） | 未评测 | ⛔ 构建停止于 stage 3（10/100），checkpoint 可恢复 |
+
+**一句话结论**：论文中心现象（fully-specified → evolving-intent 的 "getting lost" 退化）在 BIRD-SQL 上以超论文幅度强复现、在 SWE 上方向性复现；域间退化模式与论文（Search/SWE 最重、SQL 温和）倒挂；论文全部机制性分析（Table 2 场景分解、Figure 4–7、Table 3 intent tracking）未覆盖。最大混杂变量：论文用 GPT 5.1 构建、本复现按协议全程用 kimi-k2.6 构建。
+
+深入阅读：
+
+- [复现 vs 论文详细对比](reproduction/PAPER_COMPARISON.md) — 逐表逐图对照、相同点 / 不同点、归因注意
+- [机读汇总报告 JSON](reproduction/remaining_experiments_report.json) · [HTML 报告](reproduction/remaining_experiments_report.html) — 覆盖率 / 准确率 / 费用 / 模型审计
+- [运行手册与故障复盘](reproduction/reproduction_runbook_2026-08-15.html) — 不可变实验条件、验收顺序、已知故障与修正
+- [Plan A GSM8K 小样本协议与结果](REPRODUCTION.md) · [SWE 评测细节](evaluation/SWE_README.md)
+
+质量线：165 pytest + 32 subtests 全绿；评测与构建全程 usage 记账（无费用上限），账本随结果入库。
+
+## 本仓库结构（复现增量）
+
+在上游三件套（`intent_construction/` 数据构建、`situated_simulation/` 用户模拟、`evaluation/` 评测）之上，本仓库增加了：
+
+```
+reproduction/                     # 复现专用层
+├── PAPER_COMPARISON.md           # ★ 复现 vs 论文对比（首页表格的详细版）
+├── remaining_experiments_report.{json,html}  # finalizer 生成的汇总报告
+├── reproduction_runbook_2026-08-15.html      # 运行手册（实验条件与故障复盘）
+├── plan_2026-08-14.html          # 最初规划文档
+├── config/                       # 真值源：paper_remaining_kimi_k2_6.json
+├── run_with_cc_switch.py         # 凭据装载器（cc-switch DB → 进程内存）
+├── finalize_remaining_experiments.py         # 终局校验 + 报告生成
+├── browsecomp_construction_modal.py          # BrowseComp+ Modal 构建（detached）
+└── runs/                         # 各 benchmark 的 manifest / usage 账本 / 审计
+
+evaluation/
+├── experiments/                  # BIRD 逐样本结果（含 compact 精简版）
+└── swe_runs/kimi-k2.6/           # SWE manifest / results / usage.jsonl
+```
+
+BrowseComp+ 明文 query 与 gold 文档仅存于私有 Modal Volume 与本地 gitignored 目录，永不入库。
+
+---
+
 A research project from [Microsoft Research, AI Interaction and Learning (AIIL)](https://www.microsoft.com/en-us/research/group/ai-interaction-and-learning/).
 
 Authors: [Jihoon Tack](https://jihoontack.github.io/), [Philippe Laban](https://tingofurro.github.io/), [Jennifer Neville](https://jenneville.github.io/)
@@ -37,6 +84,7 @@ evaluation protocol.
 
 ## Contents
 
+- [复现结果速览](#复现结果速览2026-08-19)
 - [Overview](#overview)
 - [Results](#results)
 - [Installation](#installation)
@@ -50,25 +98,19 @@ evaluation protocol.
 
 ## Results
 
-### Local Plan A reproduction
+### This reproduction
 
-The completed paired GSM8K run uses 10 published evaluation IDs and Kimi K2.6
-for both construction and evaluation. All four settings completed 10/10
-samples successfully.
-
-| Setting | Accuracy | Paired change vs. single turn |
-|---|---:|---:|
-| Single turn | 90% | baseline |
-| 4-turn evolving intent | 80% | -10 pp |
-| 7-turn repeat control | 80% | -10 pp |
-| 7-turn evolving intent | 90% | 0 pp |
-
-This small run **does not reproduce the paper's progressive degradation
-trend**: the 4-turn loss also appears in the repeat control, and the 7-turn
-evolving setting returns to baseline. N=10 Wilson intervals are wide, so the
-result is inconclusive rather than evidence against the paper. See the
-[HTML report](reproduction/runs/plan-a-kimi-k2.6-n10-20260814/summary.html)
-and [reproduction protocol](REPRODUCTION.md).
+The four-benchmark comparison against the paper's Table 1 (Kimi K2.6 row) is
+at the top of this page — see [复现结果速览](#复现结果速览2026-08-19) and the
+[detailed comparison](reproduction/PAPER_COMPARISON.md). Current evidence:
+BIRD-SQL reproduces the evolving-intent degradation at a magnitude exceeding
+every model in the paper (−34.8% relative); SWE-bench Verified reproduces the
+direction (−2.6%) inside the paper's cross-model spread; GSM8K is
+inconclusive at n=10; BrowseComp+ evaluation is not run (construction stopped
+at stage 3, resumable). Protocol fidelity notes: identical T=7 / two
+transitions per type setting, medium reasoning, native verifiers, Kimi K2.6's
+paper-specific 200 tool calls per turn on SWE; construction model differs by
+design (kimi-k2.6 instead of the paper's GPT 5.1).
 
 ### Paper results
 
